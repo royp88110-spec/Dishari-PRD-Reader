@@ -16,6 +16,16 @@ router.get("/setup/status", async (_req, res) => {
       .select("id", { count: "exact", head: true })
       .eq("role", "admin");
     if (error) {
+      const schemaNotReady =
+        error.message.includes("schema cache") ||
+        error.message.includes("does not exist") ||
+        error.message.includes("relation") ||
+        error.code === "42P01" ||
+        error.code === "PGRST200";
+      if (schemaNotReady) {
+        res.status(503).json({ needsSetup: false, schemaNotReady: true, error: "Database schema not set up. Run supabase/schema.sql in your Supabase SQL Editor." });
+        return;
+      }
       res.status(500).json({ error: error.message });
       return;
     }

@@ -15,6 +15,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isLoading: boolean;
   needsSetup: boolean;
+  schemaNotReady: boolean;
   supabaseReady: boolean;
   refreshSetupStatus: () => Promise<void>;
 }
@@ -28,15 +29,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [schemaNotReady, setSchemaNotReady] = useState(false);
   const [supabaseReady] = useState(isSupabaseConfigured);
 
   const refreshSetupStatus = useCallback(async () => {
     if (!supabaseReady) return;
     try {
       const res = await fetch(`${getApiBase()}/api/setup/status`);
-      if (res.ok) {
-        const data = (await res.json()) as { needsSetup: boolean };
-        setNeedsSetup(data.needsSetup);
+      const data = (await res.json()) as { needsSetup?: boolean; schemaNotReady?: boolean };
+      if (data.schemaNotReady) {
+        setSchemaNotReady(true);
+        setNeedsSetup(false);
+      } else {
+        setSchemaNotReady(false);
+        setNeedsSetup(data.needsSetup ?? false);
       }
     } catch {
       setNeedsSetup(false);
@@ -126,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading, needsSetup, supabaseReady, refreshSetupStatus }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, needsSetup, schemaNotReady, supabaseReady, refreshSetupStatus }}>
       {children}
     </AuthContext.Provider>
   );
