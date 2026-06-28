@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,32 +18,46 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { getApiBase } from "@/context/AuthContext";
 
-export default function LoginScreen() {
-  const { login } = useAuth();
+export default function SetupScreen() {
+  const { refreshSetupStatus } = useAuth();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [phone, setPhone] = useState("");
+
+  const [adminName, setAdminName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async () => {
-    if (!phone.trim() || !password) {
-      setError("Please fill in all fields");
-      return;
-    }
+  const handleSetup = async () => {
+    if (!adminName.trim()) { setError("Admin name is required."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (password !== confirmPassword) { setError("Passwords do not match."); return; }
+
     setLoading(true);
     setError("");
-    const ok = await login(phone, password);
-    setLoading(false);
-    if (ok) {
+
+    try {
+      const res = await fetch(`${getApiBase()}/api/setup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: adminName.trim(), password }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Setup failed. Please try again.");
+        return;
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/");
-    } else {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError("Invalid credentials. Please try again.");
+      await refreshSetupStatus();
+      router.replace("/login");
+    } catch {
+      setError("Network error. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,31 +67,38 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
       >
-        <View style={[styles.container, { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }]}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <View style={[styles.logoCircle, { backgroundColor: "#D4500A" }]}>
               <Feather name="coffee" size={36} color="#fff" />
             </View>
             <Text style={[styles.appName, { color: "#D4500A" }]}>Dishari Mess</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Meal & Expense Management
+              First Launch Setup
             </Text>
           </View>
 
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Sign In</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Create Admin Account</Text>
+            <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
+              Only one admin account is allowed. You will use these credentials to log in.
+            </Text>
 
             <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.muted }]}>
-              <Feather name="phone" size={18} color={colors.mutedForeground} />
+              <Feather name="user" size={18} color={colors.mutedForeground} />
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Phone / User ID"
+                placeholder="Admin Name (e.g. Mess Admin)"
                 placeholderTextColor={colors.mutedForeground}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="default"
-                autoCapitalize="none"
-                autoCorrect={false}
+                value={adminName}
+                onChangeText={setAdminName}
+                autoCapitalize="words"
               />
             </View>
 
@@ -84,7 +106,7 @@ export default function LoginScreen() {
               <Feather name="lock" size={18} color={colors.mutedForeground} />
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Password"
+                placeholder="Password (min 6 characters)"
                 placeholderTextColor={colors.mutedForeground}
                 value={password}
                 onChangeText={setPassword}
@@ -97,32 +119,47 @@ export default function LoginScreen() {
               </Pressable>
             </View>
 
+            <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+              <Feather name="check-circle" size={18} color={colors.mutedForeground} />
+              <TextInput
+                style={[styles.input, { color: colors.foreground }]}
+                placeholder="Confirm Password"
+                placeholderTextColor={colors.mutedForeground}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showPass}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
             {error ? (
               <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
             ) : null}
 
             <Pressable
               style={({ pressed }) => [
-                styles.loginBtn,
+                styles.submitBtn,
                 { backgroundColor: "#D4500A", opacity: pressed ? 0.85 : 1 },
               ]}
-              onPress={handleLogin}
+              onPress={handleSetup}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.loginBtnText}>Login</Text>
+                <Text style={styles.submitBtnText}>Create Admin Account</Text>
               )}
             </Pressable>
           </View>
 
-          <View style={styles.hint}>
-            <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-              Admin login: ID: <Text style={{ fontWeight: "700" }}>admin</Text> · Members: use phone number
+          <View style={styles.note}>
+            <Feather name="info" size={14} color={colors.mutedForeground} />
+            <Text style={[styles.noteText, { color: colors.mutedForeground }]}>
+              Login ID will be: <Text style={{ fontWeight: "700" }}>admin</Text>
             </Text>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
@@ -131,8 +168,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
   flex: { flex: 1 },
-  container: { flex: 1, paddingHorizontal: 24, justifyContent: "center" },
-  header: { alignItems: "center", marginBottom: 36 },
+  container: { paddingHorizontal: 24, flexGrow: 1, justifyContent: "center" },
+  header: { alignItems: "center", marginBottom: 32 },
   logoCircle: {
     width: 80, height: 80, borderRadius: 40,
     alignItems: "center", justifyContent: "center",
@@ -140,27 +177,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
   },
-  appName: { fontSize: 30, fontWeight: "700", letterSpacing: -0.5 },
+  appName: { fontSize: 28, fontWeight: "700", letterSpacing: -0.5 },
   subtitle: { fontSize: 14, marginTop: 4 },
   card: {
-    borderRadius: 20, padding: 24, gap: 16,
+    borderRadius: 20, padding: 24, gap: 14,
     borderWidth: 1,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
   },
-  cardTitle: { fontSize: 22, fontWeight: "700", marginBottom: 4 },
+  cardTitle: { fontSize: 20, fontWeight: "700" },
+  cardDesc: { fontSize: 13, lineHeight: 18, marginBottom: 4 },
   inputWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
     borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
   },
   input: { flex: 1, fontSize: 16 },
   errorText: { fontSize: 13, marginTop: -4 },
-  loginBtn: {
+  submitBtn: {
     borderRadius: 14, paddingVertical: 16,
-    alignItems: "center", justifyContent: "center",
-    marginTop: 4,
+    alignItems: "center", justifyContent: "center", marginTop: 4,
   },
-  loginBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  hint: { marginTop: 24, alignItems: "center" },
-  hintText: { fontSize: 12, textAlign: "center" },
+  submitBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  note: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 20, justifyContent: "center" },
+  noteText: { fontSize: 13 },
 });

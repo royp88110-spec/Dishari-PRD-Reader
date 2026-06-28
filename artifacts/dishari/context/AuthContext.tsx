@@ -1,65 +1,132 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
+import { isSupabaseConfigured, toEmail } from "@/lib/supabase";
 
 export interface AuthUser {
   id: string;
   name: string;
   role: "admin" | "member";
-  memberId?: string;
+  memberId: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (phone: string, password: string) => Promise<boolean>;
+  login: (identifier: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  needsSetup: boolean;
+  supabaseReady: boolean;
+  refreshSetupStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const AUTH_KEY = "@dishari_auth";
-const MEMBERS_KEY = "@dishari_members";
+
+export const getApiBase = (): string =>
+  Platform.OS === "web" ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [supabaseReady] = useState(isSupabaseConfigured);
+
+  const refreshSetupStatus = useCallback(async () => {
+    if (!supabaseReady) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/setup/status`);
+      if (res.ok) {
+        const data = (await res.json()) as { needsSetup: boolean };
+        setNeedsSetup(data.needsSetup);
+      }
+    } catch {
+      setNeedsSetup(false);
+    }
+  }, [supabaseReady]);
+
+  const loadMemberForSession = useCallback(async (userId: string | undefined) => {
+    if (!userId || !supabaseReady) {
+      setUser(null);
+      return;
+    }
+    const { getSupabase } = await import("@/lib/supabase");
+    const sb = getSupabase();
+    const { data: member } = await sb
+      .from("members")
+      .select("id, name, role")
+      .eq("user_id", userId)
+      .single();
+
+    if (member) {
+      setUser({
+        id: userId,
+        name: member.name as string,
+        role: member.role as "admin" | "member",
+        memberId: member.id as string,
+      });
+      setNeedsSetup(false);
+    } else {
+      setUser(null);
+      await sb.auth.signOut();
+    }
+  }, [supabaseReady]);
 
   useEffect(() => {
-    AsyncStorage.getItem(AUTH_KEY)
-      .then((s) => s && setUser(JSON.parse(s)))
-      .finally(() => setIsLoading(false));
-  }, []);
+    if (!supabaseReady) {
+      setIsLoading(false);
+      return;
+    }
 
-  const login = async (phone: string, password: string): Promise<boolean> => {
-    if (phone.trim() === "admin" && password === "admin123") {
-      const u: AuthUser = { id: "admin", name: "Admin", role: "admin" };
-      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(u));
-      setUser(u);
-      return true;
-    }
-    const stored = await AsyncStorage.getItem(MEMBERS_KEY);
-    const members = stored ? JSON.parse(stored) : [];
-    const m = members.find(
-      (x: { phone: string; password: string; status: string }) =>
-        x.phone === phone.trim() &&
-        x.password === password &&
-        x.status === "active"
-    );
-    if (m) {
-      const u: AuthUser = { id: m.id, name: m.name, role: "member", memberId: m.id };
-      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(u));
-      setUser(u);
-      return true;
-    }
-    return false;
+    let mounted = true;
+
+    const init = async () => {
+      await refreshSetupStatus();
+      const { getSupabase } = await import("@/lib/supabase");
+      const sb = getSupabase();
+      const { data: { session } } = await sb.auth.getSession();
+      if (mounted) {
+        await loadMemberForSession(session?.user.id);
+        setIsLoading(false);
+      }
+    };
+
+    void init();
+
+    let unsubscribe: (() => void) | null = null;
+    import("@/lib/supabase").then(({ getSupabase }) => {
+      const sb = getSupabase();
+      const { data: { subscription } } = sb.auth.onAuthStateChange(
+        (_event, session) => {
+          void loadMemberForSession(session?.user.id);
+        }
+      );
+      unsubscribe = () => subscription.unsubscribe();
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
+  }, [loadMemberForSession, refreshSetupStatus, supabaseReady]);
+
+  const login = async (identifier: string, password: string): Promise<boolean> => {
+    if (!supabaseReady) return false;
+    const { getSupabase } = await import("@/lib/supabase");
+    const { error } = await getSupabase().auth.signInWithPassword({
+      email: toEmail(identifier),
+      password,
+    });
+    return !error;
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem(AUTH_KEY);
+    if (!supabaseReady) return;
+    const { getSupabase } = await import("@/lib/supabase");
+    await getSupabase().auth.signOut();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, needsSetup, supabaseReady, refreshSetupStatus }}>
       {children}
     </AuthContext.Provider>
   );

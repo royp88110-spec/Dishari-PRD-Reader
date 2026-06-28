@@ -1,0 +1,1 @@
+- [Supabase migration](supabase-migration.md) — full migration from AsyncStorage to Supabase; lazy client init required; Metro needs unstable_enablePackageExports

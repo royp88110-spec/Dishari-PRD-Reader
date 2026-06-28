@@ -1,5 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export interface Member {
   id: string;
@@ -92,66 +93,29 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const uid = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
+const getApiBase = (): string =>
+  Platform.OS === "web" ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
 
-const KEYS = {
-  members: "@dishari_members",
-  meals: "@dishari_meals",
-  expenses: "@dishari_expenses",
-  advances: "@dishari_advances",
-  eggs: "@dishari_eggs",
-  settings: "@dishari_settings",
-  init: "@dishari_initialized",
+const apiCall = async (method: string, path: string, body?: unknown): Promise<unknown> => {
+  const { getSupabase } = await import("@/lib/supabase");
+  const { data: { session } } = await getSupabase().auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch(`${getApiBase()}/api${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<unknown>;
 };
 
-function getSeedData() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const m = `${year}-${month}`;
-
-  const members: Member[] = [
-    { id: "m1", name: "Rahul Ahmed", phone: "01711111111", password: "rahul123", roomNumber: "101", status: "active", joinDate: `${m}-01` },
-    { id: "m2", name: "Amit Kumar", phone: "01722222222", password: "amit123", roomNumber: "102", status: "active", joinDate: `${m}-01` },
-    { id: "m3", name: "Priya Sharma", phone: "01733333333", password: "priya123", roomNumber: "103", status: "active", joinDate: `${m}-01` },
-  ];
-
-  const expenses: Expense[] = [
-    { id: uid(), type: "grocery", shopName: "City Mart", date: `${m}-05`, items: "Rice, Dal, Oil", amount: 1500, notes: "" },
-    { id: uid(), type: "vegetable", shopName: "Bazaar", date: `${m}-10`, items: "Tomato, Potato, Onion", amount: 800, notes: "" },
-    { id: uid(), type: "fish", shopName: "Fish Market", date: `${m}-15`, items: "Rohu fish 2kg", amount: 600, notes: "" },
-    { id: uid(), type: "gas", date: `${m}-01`, amount: 400, notes: "Gas cylinder" },
-  ];
-
-  const meals: Meal[] = [];
-  const memberIds = ["m1", "m2", "m3"];
-  for (let day = 1; day <= today.getDate(); day++) {
-    const dateStr = `${m}-${String(day).padStart(2, "0")}`;
-    memberIds.forEach((mid) => {
-      meals.push({
-        id: uid(),
-        memberId: mid,
-        date: dateStr,
-        morning: day % 7 !== 0,
-        night: day % 14 !== 0,
-      });
-    });
-  }
-
-  const eggs: EggEntry[] = [
-    { id: uid(), memberId: "m1", date: `${m}-10`, count: 3 },
-    { id: uid(), memberId: "m2", date: `${m}-10`, count: 2 },
-    { id: uid(), memberId: "m1", date: `${m}-20`, count: 4 },
-    { id: uid(), memberId: "m3", date: `${m}-20`, count: 2 },
-  ];
-
-  const advances: Advance[] = [
-    { id: uid(), memberId: "m1", amount: 2000, date: `${m}-01`, method: "Cash", notes: "Monthly advance" },
-    { id: uid(), memberId: "m2", amount: 1500, date: `${m}-05`, method: "bKash", notes: "" },
-  ];
-
-  return { members, meals, expenses, advances, eggs };
-}
+const sb = () => import("@/lib/supabase").then(({ getSupabase }) => getSupabase());
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [members, setMembers] = useState<Member[]>([]);
@@ -162,105 +126,262 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>({ eggPrice: 12, cookSalary: 250 });
   const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const initialized = await AsyncStorage.getItem(KEYS.init);
-      if (!initialized) {
-        const seed = getSeedData();
-        await AsyncStorage.multiSet([
-          [KEYS.members, JSON.stringify(seed.members)],
-          [KEYS.meals, JSON.stringify(seed.meals)],
-          [KEYS.expenses, JSON.stringify(seed.expenses)],
-          [KEYS.advances, JSON.stringify(seed.advances)],
-          [KEYS.eggs, JSON.stringify(seed.eggs)],
-          [KEYS.settings, JSON.stringify({ eggPrice: 12, cookSalary: 250 })],
-          [KEYS.init, "1"],
-        ]);
-        setMembers(seed.members);
-        setMeals(seed.meals);
-        setExpenses(seed.expenses);
-        setAdvances(seed.advances);
-        setEggs(seed.eggs);
-      } else {
-        const vals = await AsyncStorage.multiGet([
-          KEYS.members, KEYS.meals, KEYS.expenses, KEYS.advances, KEYS.eggs, KEYS.settings,
-        ]);
-        const parse = (v: string | null, fallback: unknown) => v ? JSON.parse(v) : fallback;
-        setMembers(parse(vals[0][1], []));
-        setMeals(parse(vals[1][1], []));
-        setExpenses(parse(vals[2][1], []));
-        setAdvances(parse(vals[3][1], []));
-        setEggs(parse(vals[4][1], []));
-        setSettings(parse(vals[5][1], { eggPrice: 12, cookSalary: 250 }));
-      }
-      setIsLoaded(true);
-    })();
+  const fetchMembers = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("members").select("*").order("name");
+    if (data) {
+      setMembers(
+        (data as Record<string, unknown>[]).map((m) => ({
+          id: m.id as string,
+          name: m.name as string,
+          phone: m.phone as string,
+          email: (m.email as string | undefined) ?? undefined,
+          joinDate: m.join_date as string,
+          roomNumber: (m.room_number as string | undefined) ?? undefined,
+          status: m.status as "active" | "inactive",
+          password: "",
+        }))
+      );
+    }
   }, []);
 
-  const save = async (key: string, data: unknown) => AsyncStorage.setItem(key, JSON.stringify(data));
+  const fetchMeals = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("meals").select("*");
+    if (data) {
+      setMeals(
+        (data as Record<string, unknown>[]).map((m) => ({
+          id: m.id as string,
+          memberId: m.member_id as string,
+          date: m.date as string,
+          morning: m.morning as boolean,
+          night: m.night as boolean,
+        }))
+      );
+    }
+  }, []);
+
+  const fetchExpenses = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("expenses").select("*").order("date", { ascending: false });
+    if (data) {
+      setExpenses(
+        (data as Record<string, unknown>[]).map((e) => ({
+          id: e.id as string,
+          type: e.type as Expense["type"],
+          shopName: (e.shop_name as string | undefined) ?? undefined,
+          date: e.date as string,
+          items: (e.items as string | undefined) ?? undefined,
+          amount: Number(e.amount),
+          notes: (e.notes as string | undefined) ?? undefined,
+        }))
+      );
+    }
+  }, []);
+
+  const fetchAdvances = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("advances").select("*").order("date", { ascending: false });
+    if (data) {
+      setAdvances(
+        (data as Record<string, unknown>[]).map((a) => ({
+          id: a.id as string,
+          memberId: a.member_id as string,
+          amount: Number(a.amount),
+          date: a.date as string,
+          method: (a.method as string) || "Cash",
+          notes: (a.notes as string | undefined) ?? undefined,
+        }))
+      );
+    }
+  }, []);
+
+  const fetchEggs = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("eggs").select("*");
+    if (data) {
+      setEggs(
+        (data as Record<string, unknown>[]).map((e) => ({
+          id: e.id as string,
+          memberId: e.member_id as string,
+          date: e.date as string,
+          count: e.count as number,
+        }))
+      );
+    }
+  }, []);
+
+  const fetchSettings = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("settings").select("*").eq("id", 1).single();
+    if (data) {
+      setSettings({
+        eggPrice: Number((data as Record<string, unknown>).egg_price),
+        cookSalary: Number((data as Record<string, unknown>).cook_salary),
+      });
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    await Promise.all([
+      fetchMembers(),
+      fetchMeals(),
+      fetchExpenses(),
+      fetchAdvances(),
+      fetchEggs(),
+      fetchSettings(),
+    ]);
+    setIsLoaded(true);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setIsLoaded(true);
+      return;
+    }
+
+    let unsubscribe: (() => void) | null = null;
+
+    sb().then((client) => {
+      const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+          void loadAll();
+        } else {
+          setMembers([]); setMeals([]); setExpenses([]);
+          setAdvances([]); setEggs([]);
+          setSettings({ eggPrice: 12, cookSalary: 250 });
+          setIsLoaded(false);
+        }
+      });
+      unsubscribe = () => subscription.unsubscribe();
+
+      client.auth.getSession().then(({ data: { session } }) => {
+        if (session) void loadAll();
+        else setIsLoaded(true);
+      });
+    });
+
+    return () => { unsubscribe?.(); };
+  }, [loadAll]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    let channel: ReturnType<Awaited<ReturnType<typeof sb>>["channel"]> | null = null;
+
+    sb().then((client) => {
+      channel = client
+        .channel("dishari-realtime")
+        .on("postgres_changes", { event: "*", schema: "public", table: "members" }, () => { void fetchMembers(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "meals" }, () => { void fetchMeals(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, () => { void fetchExpenses(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "advances" }, () => { void fetchAdvances(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "eggs" }, () => { void fetchEggs(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => { void fetchSettings(); })
+        .subscribe();
+    });
+
+    return () => {
+      sb().then((client) => { if (channel) void client.removeChannel(channel!); });
+    };
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings]);
 
   const addMember = async (m: Omit<Member, "id">) => {
-    const next = [...members, { ...m, id: uid() }];
-    setMembers(next); await save(KEYS.members, next);
+    await apiCall("POST", "/admin/members", {
+      name: m.name, phone: m.phone, email: m.email,
+      roomNumber: m.roomNumber, joinDate: m.joinDate,
+      status: m.status, password: m.password,
+    });
   };
+
   const updateMember = async (id: string, u: Partial<Member>) => {
-    const next = members.map((m) => m.id === id ? { ...m, ...u } : m);
-    setMembers(next); await save(KEYS.members, next);
+    const { password, ...rest } = u;
+    if (password !== undefined && password.trim()) {
+      await apiCall("PATCH", `/admin/members/${id}/password`, { password });
+    }
+    const row: Record<string, unknown> = {};
+    if (rest.name !== undefined) row.name = rest.name;
+    if (rest.phone !== undefined) row.phone = rest.phone;
+    if (rest.email !== undefined) row.email = rest.email;
+    if (rest.roomNumber !== undefined) row.room_number = rest.roomNumber;
+    if (rest.joinDate !== undefined) row.join_date = rest.joinDate;
+    if (rest.status !== undefined) row.status = rest.status;
+    if (Object.keys(row).length > 0) {
+      const client = await sb();
+      await client.from("members").update(row).eq("id", id);
+    }
   };
+
   const deleteMember = async (id: string) => {
-    const next = members.filter((m) => m.id !== id);
-    setMembers(next); await save(KEYS.members, next);
+    await apiCall("DELETE", `/admin/members/${id}`);
   };
 
   const setMeal = async (memberId: string, date: string, morning: boolean, night: boolean) => {
-    const existing = meals.find((m) => m.memberId === memberId && m.date === date);
-    let next: Meal[];
-    if (existing) {
-      next = meals.map((m) => m.memberId === memberId && m.date === date ? { ...m, morning, night } : m);
-    } else {
-      next = [...meals, { id: uid(), memberId, date, morning, night }];
-    }
-    setMeals(next); await save(KEYS.meals, next);
+    const client = await sb();
+    await client.from("meals").upsert(
+      { member_id: memberId, date, morning, night },
+      { onConflict: "member_id,date" }
+    );
   };
 
   const addExpense = async (e: Omit<Expense, "id">) => {
-    const next = [...expenses, { ...e, id: uid() }];
-    setExpenses(next); await save(KEYS.expenses, next);
+    const client = await sb();
+    await client.from("expenses").insert({
+      type: e.type, shop_name: e.shopName ?? null, date: e.date,
+      items: e.items ?? null, amount: e.amount, notes: e.notes ?? null,
+    });
   };
+
   const updateExpense = async (id: string, u: Partial<Expense>) => {
-    const next = expenses.map((e) => e.id === id ? { ...e, ...u } : e);
-    setExpenses(next); await save(KEYS.expenses, next);
+    const row: Record<string, unknown> = {};
+    if (u.type !== undefined) row.type = u.type;
+    if (u.shopName !== undefined) row.shop_name = u.shopName;
+    if (u.date !== undefined) row.date = u.date;
+    if (u.items !== undefined) row.items = u.items;
+    if (u.amount !== undefined) row.amount = u.amount;
+    if (u.notes !== undefined) row.notes = u.notes;
+    const client = await sb();
+    await client.from("expenses").update(row).eq("id", id);
   };
+
   const deleteExpense = async (id: string) => {
-    const next = expenses.filter((e) => e.id !== id);
-    setExpenses(next); await save(KEYS.expenses, next);
+    const client = await sb();
+    await client.from("expenses").delete().eq("id", id);
   };
 
   const addAdvance = async (a: Omit<Advance, "id">) => {
-    const next = [...advances, { ...a, id: uid() }];
-    setAdvances(next); await save(KEYS.advances, next);
+    const client = await sb();
+    await client.from("advances").insert({
+      member_id: a.memberId, amount: a.amount, date: a.date,
+      method: a.method, notes: a.notes ?? null,
+    });
   };
+
   const deleteAdvance = async (id: string) => {
-    const next = advances.filter((a) => a.id !== id);
-    setAdvances(next); await save(KEYS.advances, next);
+    const client = await sb();
+    await client.from("advances").delete().eq("id", id);
   };
 
   const setEggEntry = async (memberId: string, date: string, count: number) => {
-    const existing = eggs.find((e) => e.memberId === memberId && e.date === date);
-    let next: EggEntry[];
+    const client = await sb();
     if (count === 0) {
-      next = existing ? eggs.filter((e) => !(e.memberId === memberId && e.date === date)) : eggs;
-    } else if (existing) {
-      next = eggs.map((e) => e.memberId === memberId && e.date === date ? { ...e, count } : e);
+      await client.from("eggs").delete().match({ member_id: memberId, date });
     } else {
-      next = [...eggs, { id: uid(), memberId, date, count }];
+      await client.from("eggs").upsert(
+        { member_id: memberId, date, count },
+        { onConflict: "member_id,date" }
+      );
     }
-    setEggs(next); await save(KEYS.eggs, next);
   };
 
   const updateSettings = async (s: Partial<Settings>) => {
     const next = { ...settings, ...s };
-    setSettings(next); await save(KEYS.settings, next);
+    setSettings(next);
+    const client = await sb();
+    await client.from("settings").upsert(
+      { id: 1, egg_price: next.eggPrice, cook_salary: next.cookSalary },
+      { onConflict: "id" }
+    );
   };
 
   const getMonthTotals = (month: string) => {
@@ -269,7 +390,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const activeMemberCount = members.filter((m) => m.status === "active").length;
     const totalCookSalary = settings.cookSalary * activeMemberCount;
     const totalMonthlyExpense = totalExpense + totalCookSalary;
-
     const monthMeals = meals.filter((m) => m.date.startsWith(month));
     const totalMeals = monthMeals.reduce((s, m) => s + (m.morning ? 1 : 0) + (m.night ? 1 : 0), 0);
     const perMealCost = totalMeals > 0 ? totalMonthlyExpense / totalMeals : 0;
@@ -278,38 +398,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const calculateMonthlyBill = (memberId: string, month: string): MonthlyBill => {
     const member = members.find((m) => m.id === memberId);
-    const { perMealCost, totalExpense, totalMeals } = getMonthTotals(month);
-
+    const { perMealCost } = getMonthTotals(month);
     const memberMeals = meals.filter((m) => m.memberId === memberId && m.date.startsWith(month));
     const mealCount = memberMeals.reduce((s, m) => s + (m.morning ? 1 : 0) + (m.night ? 1 : 0), 0);
     const mealBill = mealCount * perMealCost;
-
     const memberEggs = eggs.filter((e) => e.memberId === memberId && e.date.startsWith(month));
     const eggCount = memberEggs.reduce((s, e) => s + e.count, 0);
     const eggBill = eggCount * settings.eggPrice;
-
     const cookShare = settings.cookSalary;
     const grossBill = mealBill + eggBill;
-
     const memberAdvances = advances.filter((a) => a.memberId === memberId && a.date.startsWith(month));
     const totalAdvance = memberAdvances.reduce((s, a) => s + a.amount, 0);
-
     const dueAmount = Math.max(0, grossBill - totalAdvance);
     const creditBalance = Math.max(0, totalAdvance - grossBill);
-
     return {
-      memberId,
-      memberName: member?.name ?? "Unknown",
-      mealCount,
-      perMealCost,
-      mealBill,
-      eggCount,
-      eggBill,
-      cookShare,
-      grossBill,
-      totalAdvance,
-      dueAmount,
-      creditBalance,
+      memberId, memberName: member?.name ?? "Unknown",
+      mealCount, perMealCost, mealBill,
+      eggCount, eggBill, cookShare, grossBill,
+      totalAdvance, dueAmount, creditBalance,
     };
   };
 
@@ -323,11 +429,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setMeal,
       addExpense, updateExpense, deleteExpense,
       addAdvance, deleteAdvance,
-      setEggEntry,
-      updateSettings,
-      calculateMonthlyBill,
-      calculateAllMonthlyBills,
-      getMonthTotals,
+      setEggEntry, updateSettings,
+      calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,
     }}>
       {children}
     </DataContext.Provider>
