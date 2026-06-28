@@ -1,0 +1,187 @@
+Product Requirements Document (PRD)
+Project Name
+Dishari mess – Meal Counter & Expense Management System
+
+1. Project Overview
+Dishari mess  a application designed to automate meal tracking, expense management, advance payments, and monthly settlements for shared messes, hostels, and student accommodations.
+The system eliminates manual calculations and ledger maintenance by providing real-time meal counts, expense tracking, and transparent member billing.
+
+2. Objectives
+	•	Automate daily meal tracking
+	•	Reduce manual calculation errors
+	•	Simplify expense management
+	•	Generate accurate monthly bills
+	•	Track member advances and dues
+	•	Provide transparent financial reporting
+	•	Support Bengali and English languages
+
+3. User Roles
+	•	Admin
+	•	Admins can:
+	•	Create member accounts
+	•	Set member login credentials
+	•	Edit member credentials
+	•	Reset member passwords
+	•	Manage meals
+	•	Manage expenses
+	•	Manage advances
+	•	Manage egg records
+	•	Manage fines
+	•	Manage announcements
+	•	Generate reports
+	•	Export CSV/PDF reports
+	•	Member
+	•	Members can:
+	•	Login using credentials created by admin
+	•	View meal history
+	•	View egg consumption
+	•	View expenses
+	•	View monthly bill
+	•	View advances
+	•	View fines
+	•	View announcements
+	•	Download reports
+	•	
+
+4. Authentication & Authorization
+Features
+	•	Secure login
+	•	JWT authentication
+	•	Role-based access control
+	•	Forgot password
+	•	Change password
+	•	Session management
+Roles
+	•	Admin
+	•	Member
+
+5. Member Management
+Admins can:
+	•	Add member
+	•	Edit member information
+	•	Delete member
+	•	Activate/deactivate member
+Member Details
+	•	Full name
+	•	Phone number
+	•	Email address
+	•	Profile photo
+	•	Joining date
+	•	Room number (optional)
+	•	Status
+
+6. Meal Management
+Meal Rules
+Each day consists of two meals:
+	•	Morning Meal = 1
+	•	Night Meal = 1
+Maximum meals per member per day:
+2 meals
+Admin Features
+	•	Meal Management
+	•	Select any date from the calendar.
+	•	For each member, display:
+	◦	Morning Meal → Yes / No
+	◦	Night Meal → Yes / No
+	•	Admin only needs to tap Yes or No to mark meals.
+	•	All meal records are automatically saved date-wise.
+	•	All previous meal records remain permanently stored and can be viewed anytime.
+	•	Edit or update meal entries for any past date.
+	•	Bulk update meals for multiple members at once.
+	•	Monthly meal totals are automatically recalculated after any update.
+	•	
+Member Features
+	•	View daily meals
+	•	View monthly meal totals                                      
+	•	View meal history
+	•	7.Expense Management
+	•	Grocery / Market Expenses
+	•	Vegetable Expenses
+	•	Fish Expenses
+	•	Meat / Chicken Expenses
+	•	Gas Expenses
+	•	Other Expenses
+	•	Each section will have:
+	•	Add Expense
+	•	Edit Expense
+	•	Delete Expense
+	•	Date-wise Records
+	•	Amount Entry
+	•	Optional Notes
+	•	All expenses are automatically saved and included in monthly bill calculations.
+
+8. Grocery Expense Module
+Track:
+	•	Shop name
+	•	Purchase date
+	•	Items purchased
+	•	Amount
+	•	Receipt upload
+	•	Notes
+
+9. Vegetable Expense Module
+Track:
+	•	Shop name
+	•	Purchase date
+	•	Items purchased
+	•	Amount
+	•	Receipt upload
+	•	Notes
+
+11. Advance Payment Management
+Admins can record:
+	•	Member name
+	•	Amount
+	•	Date
+	•	Payment method
+	•	Notes
+Members can view:
+	•	Total advance paid
+	•	Payment history
+	•	Remaining balance
+Egg Tracking Management
+Daily Egg Entry
+Admin can manually record egg consumption:
+	•	Select Date
+	•	Select Member Name
+	•	Enter Number of Eggs Consumed
+	•	Save Record
+Egg Price Management
+	•	Admin manually enters the current Egg Price.
+	•	Egg Price can be updated anytime.
+	•	Price changes apply to future calculations.
+Monthly Egg Summary
+System automatically calculates:
+	•	Total Eggs Consumed
+	•	Current Egg Price
+	•	Total Egg Cost
+Egg Cost Calculation
+Total Egg Cost = Total Eggs Consumed × Egg Price
+Member-wise Egg Bill
+Member Egg Bill = Member Total Eggs Consumed × Egg Price
+Final Settlement
+Member Egg Bill is added separately to the member's monthly bill.
+
+Monthly Calculation Engine
+Total Monthly Expense
+Total Monthly Expense = Grocery + Vegetable Expenses + Fish + Meat + Gas + Cook Salary + Other Expenses
+Total Monthly Meals
+Total Monthly Meals = Total Morning Meals + Total Night Meals
+Per Meal Cost
+Per Meal Cost = Total Monthly Expense ÷ Total Monthly Meals
+Member Gross Bill
+Member Gross Bill = (Member Total Meals × Per Meal Cost) + Member Egg Bill
+Member Egg Bill
+Member Egg Bill = Member Total Eggs Consumed × Egg Price
+Final Settlement
+Final Due Amount = (Member Gross Bill + Member Egg Bill) − Member Advance Payment
+Credit Balance Rule
+If Advance Payment > (Member Gross Bill + Member Egg Bill):
+Credit Balance = Advance Payment − (Member Gross Bill + Member Egg Bill)
+Final Due Amount = 0
+Note:
+	•	Egg expenses are calculated separately from meal expenses.
+	•	Advance payments are not expenses and do not affect the per-meal cost calculation.
+Fixed Cook Salary Module
+	•	Cook salary is charged as a fixed amount per member.
+	•	Default Rate: ₹250 per member per month....
