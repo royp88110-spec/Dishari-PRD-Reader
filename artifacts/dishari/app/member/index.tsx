@@ -1,9 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-  Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,

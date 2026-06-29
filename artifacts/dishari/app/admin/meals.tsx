@@ -4,6 +4,7 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Switch,
   Text,

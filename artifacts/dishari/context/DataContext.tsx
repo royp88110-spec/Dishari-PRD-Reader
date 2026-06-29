@@ -102,6 +102,7 @@ interface DataContextType {
   calculateMonthlyBill: (memberId: string, month: string) => MonthlyBill;
   calculateAllMonthlyBills: (month: string) => MonthlyBill[];
   getMonthTotals: (month: string) => { totalExpense: number; totalMeals: number; perMealCost: number };
+  refresh: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -566,6 +567,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setEggEntry, updateSettings,
       markPaid, markUnpaid,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,
+      refresh: loadAll,
     }}>
       {children}
     </DataContext.Provider>

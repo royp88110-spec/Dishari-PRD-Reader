@@ -1,11 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
