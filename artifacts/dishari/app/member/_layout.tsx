@@ -32,6 +32,7 @@ export default function MemberLayout() {
           ) : (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border }]} />
           ),
+        headerShown: false,
         tabBarLabelStyle: { fontSize: 11, marginBottom: isWeb ? 16 : 4 },
       }}
     >

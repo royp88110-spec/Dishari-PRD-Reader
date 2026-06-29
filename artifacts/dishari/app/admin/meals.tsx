@@ -70,7 +70,7 @@ export default function MealsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.dateNav, { marginTop: Platform.OS === "web" ? 67 : 12 }]}>
+      <View style={[styles.dateNav, { marginTop: insets.top + 12 }]}>
         <Pressable onPress={() => changeDate(-1)} style={styles.navArrow}>
           <Feather name="chevron-left" size={24} color={colors.primary} />
         </Pressable>

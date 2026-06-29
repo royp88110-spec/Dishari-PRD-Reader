@@ -85,7 +85,7 @@ export default function MembersScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchBar, { backgroundColor: colors.muted, borderColor: colors.border, marginTop: Platform.OS === "web" ? 67 : 12 }]}>
+      <View style={[styles.searchBar, { backgroundColor: colors.muted, borderColor: colors.border, marginTop: insets.top + 12 }]}>
         <Feather name="search" size={18} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}

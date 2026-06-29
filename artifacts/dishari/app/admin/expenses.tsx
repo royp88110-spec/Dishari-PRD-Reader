@@ -118,7 +118,7 @@ export default function ExpensesScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.monthNav, { marginTop: Platform.OS === "web" ? 67 : 12 }]}>
+      <View style={[styles.monthNav, { marginTop: insets.top + 12 }]}>
         <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
           <Feather name="chevron-left" size={22} color={colors.primary} />
         </Pressable>

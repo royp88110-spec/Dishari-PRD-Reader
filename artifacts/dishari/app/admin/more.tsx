@@ -118,7 +118,7 @@ export default function MoreScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.tabRow, { marginTop: Platform.OS === "web" ? 67 : 12, borderBottomColor: colors.border }]}>
+      <View style={[styles.tabRow, { marginTop: insets.top + 12, borderBottomColor: colors.border }]}>
         {sections.map((s) => (
           <Pressable
             key={s.key}
