@@ -46,8 +46,14 @@ export default function SetupScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: adminName.trim(), password }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; schemaNotReady?: boolean };
       if (!res.ok) {
+        if (data.schemaNotReady) {
+          // Tables don't exist — re-check status so AuthContext sets schemaNotReady
+          // and the router redirects to the SQL setup screen.
+          await refreshSetupStatus();
+          return;
+        }
         setError(data.error ?? "Setup failed. Please try again.");
         return;
       }

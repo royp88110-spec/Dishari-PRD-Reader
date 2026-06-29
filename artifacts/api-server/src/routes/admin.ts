@@ -9,27 +9,37 @@ const toEmail = (identifier: string): string => {
   return id.includes("@") ? id : `${id}@dishari.app`;
 };
 
+const isSchemaError = (err: { message?: string; code?: string } | null): boolean => {
+  if (!err) return false;
+  return (
+    err.message?.includes("schema cache") ||
+    err.message?.includes("does not exist") ||
+    err.message?.includes("relation") ||
+    err.code === "42P01" ||
+    err.code === "PGRST200" ||
+    err.code === "PGRST205"
+  ) ?? false;
+};
+
 router.get("/setup/status", async (_req, res) => {
   try {
-    const { count, error } = await supabaseAdmin
+    // Use SELECT (not HEAD) — HEAD on a missing table returns HTTP 404 with no
+    // error body, so the JS client silently gives { data: null, error: null }.
+    // A real SELECT returns PGRST205 which we can properly detect.
+    const { data, error } = await supabaseAdmin
       .from("members")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "admin");
+      .select("id")
+      .eq("role", "admin")
+      .limit(1);
     if (error) {
-      const schemaNotReady =
-        error.message.includes("schema cache") ||
-        error.message.includes("does not exist") ||
-        error.message.includes("relation") ||
-        error.code === "42P01" ||
-        error.code === "PGRST200";
-      if (schemaNotReady) {
+      if (isSchemaError(error)) {
         res.status(503).json({ needsSetup: false, schemaNotReady: true, error: "Database schema not set up. Run supabase/schema.sql in your Supabase SQL Editor." });
         return;
       }
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ needsSetup: (count ?? 0) === 0 });
+    res.json({ needsSetup: (data?.length ?? 0) === 0 });
   } catch {
     res.status(503).json({ needsSetup: false, configured: false });
   }
@@ -40,12 +50,25 @@ router.post("/setup", async (req, res) => {
     res.status(503).json({ error: "Supabase is not configured on the server. Set SUPABASE_URL and SUPABASE_SERVICE_KEY." });
     return;
   }
-  const { count } = await supabaseAdmin
-    .from("members")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "admin");
 
-  if ((count ?? 0) > 0) {
+  // Use SELECT so we get a proper PGRST205 error if the table doesn't exist.
+  // HEAD silently returns 404 with no body, masking schema problems.
+  const { data: existing, error: checkError } = await supabaseAdmin
+    .from("members")
+    .select("id")
+    .eq("role", "admin")
+    .limit(1);
+
+  if (checkError) {
+    if (isSchemaError(checkError)) {
+      res.status(503).json({ schemaNotReady: true, error: "Database schema not set up. Run supabase/schema.sql in your Supabase SQL Editor." });
+      return;
+    }
+    res.status(500).json({ error: checkError.message });
+    return;
+  }
+
+  if ((existing?.length ?? 0) > 0) {
     res.status(409).json({ error: "Admin already exists. Setup can only run once." });
     return;
   }
