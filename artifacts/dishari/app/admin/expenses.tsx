@@ -5,7 +5,6 @@ import {
   Alert,
   FlatList,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -154,6 +153,7 @@ export default function ExpensesScreen() {
       <FlatList
         data={filtered.slice().reverse()}
         keyExtractor={(e) => e.id}
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
         ListEmptyComponent={
           <View style={styles.empty}>

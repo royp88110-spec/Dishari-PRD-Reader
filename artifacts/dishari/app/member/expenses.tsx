@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -114,6 +113,7 @@ export default function MemberExpenses() {
       <FlatList
         data={filtered.slice().reverse()}
         keyExtractor={(e) => e.id}
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
         ListEmptyComponent={
           <View style={styles.empty}>

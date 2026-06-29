@@ -75,7 +75,7 @@ export default function MemberHome() {
       style={[styles.screen, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
     >
-      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) }]}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 16 }]}>
         <View>
           <Text style={[styles.welcome, { color: colors.mutedForeground }]}>Welcome back,</Text>
           <Text style={[styles.name, { color: colors.foreground }]}>{user?.name ?? "Member"}</Text>

@@ -142,7 +142,7 @@ export default function MoreScreen() {
       </View>
 
       {activeSection === "eggs" && (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
           <View style={[styles.priceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Current Egg Price</Text>
             <View style={styles.priceRow}>
@@ -190,7 +190,7 @@ export default function MoreScreen() {
       )}
 
       {activeSection === "advances" && (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
           <Pressable style={[styles.addBtn, { backgroundColor: "#D4500A" }]} onPress={() => setAdvModal(true)}>
             <Feather name="plus" size={18} color="#fff" />
             <Text style={styles.addBtnText}>Add Advance</Text>
@@ -221,6 +221,7 @@ export default function MoreScreen() {
         <FlatList
           data={bills}
           keyExtractor={(b) => b.memberId}
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
           ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No data</Text>}
           renderItem={({ item: b }) => (
@@ -254,7 +255,7 @@ export default function MoreScreen() {
       )}
 
       {activeSection === "settings" && (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
           <View style={[styles.settingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Cook Salary</Text>
             <Text style={[styles.settingDesc, { color: colors.mutedForeground }]}>Fixed amount charged per member per month</Text>

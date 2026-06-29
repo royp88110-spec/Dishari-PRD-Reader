@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -110,6 +109,7 @@ export default function MealsScreen() {
       <FlatList
         data={activeMembers}
         keyExtractor={(m) => m.id}
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         ListEmptyComponent={
           <View style={styles.empty}>

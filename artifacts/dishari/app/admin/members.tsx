@@ -5,7 +5,6 @@ import {
   Alert,
   FlatList,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -99,6 +98,7 @@ export default function MembersScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(m) => m.id}
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
         ListEmptyComponent={
           <View style={styles.empty}>
