@@ -13,27 +13,33 @@ export default function AdminLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarActiveTintColor: "#D4500A",
+        tabBarInactiveTintColor: "#C4A898",
         headerStyle: { backgroundColor: colors.card },
         headerTintColor: colors.foreground,
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: "700", fontSize: 18 },
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.card,
+          backgroundColor: isIOS ? "transparent" : "#FFFFFF",
           borderTopWidth: 0,
-          elevation: 0,
-          height: isWeb ? 84 : 60,
+          elevation: 8,
+          shadowColor: "#C04000",
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          height: isWeb ? 84 : 64,
+          paddingBottom: isIOS ? 0 : 8,
         },
+        tabBarItemStyle: { paddingTop: 8 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginBottom: isWeb ? 16 : 4 },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
           ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} />
           ),
         headerShown: false,
-        tabBarLabelStyle: { fontSize: 11, marginBottom: isWeb ? 16 : 4 },
       }}
     >
       <Tabs.Screen

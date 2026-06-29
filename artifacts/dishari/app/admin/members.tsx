@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -91,7 +92,7 @@ export default function MembersScreen() {
         icon="users"
         subtitle={`${members.length} total · ${members.filter(m => m.status === "active").length} active`}
       />
-      <View style={[styles.searchBar, { backgroundColor: colors.muted, borderColor: colors.border, marginTop: 12 }]}>
+      <View style={[styles.searchBar, { backgroundColor: colors.card }]}>
         <Feather name="search" size={18} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}
@@ -114,7 +115,7 @@ export default function MembersScreen() {
           </View>
         }
         renderItem={({ item: m }) => (
-          <View style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.memberCard, { backgroundColor: colors.card }]}>
             <View style={[styles.avatar, { backgroundColor: m.status === "active" ? "#D4500A20" : colors.muted }]}>
               <Text style={[styles.avatarText, { color: m.status === "active" ? "#D4500A" : colors.mutedForeground }]}>
                 {m.name.charAt(0).toUpperCase()}
@@ -123,7 +124,7 @@ export default function MembersScreen() {
             <View style={styles.memberInfo}>
               <View style={styles.memberNameRow}>
                 <Text style={[styles.memberName, { color: colors.foreground }]}>{m.name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: m.status === "active" ? "#16A34A20" : "#DC262620" }]}>
+                <View style={[styles.statusBadge, { backgroundColor: m.status === "active" ? "#16A34A18" : "#DC262618" }]}>
                   <Text style={[styles.statusText, { color: m.status === "active" ? "#16A34A" : "#DC2626" }]}>
                     {m.status}
                   </Text>
@@ -150,10 +151,17 @@ export default function MembersScreen() {
       />
 
       <Pressable
-        style={[styles.fab, { backgroundColor: "#D4500A" }]}
+        style={({ pressed }) => [styles.fabWrapper, { opacity: pressed ? 0.85 : 1 }]}
         onPress={openAdd}
       >
-        <Feather name="user-plus" size={24} color="#fff" />
+        <LinearGradient
+          colors={["#E25C14", "#AD3806"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fab}
+        >
+          <Feather name="user-plus" size={24} color="#fff" />
+        </LinearGradient>
       </Pressable>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -180,7 +188,7 @@ export default function MembersScreen() {
                 <View key={key} style={styles.formGroup}>
                   <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   <TextInput
-                    style={[styles.formInput, { borderColor: colors.border, backgroundColor: colors.muted, color: colors.foreground }]}
+                    style={[styles.formInput, { color: colors.foreground }]}
                     placeholder={placeholder}
                     placeholderTextColor={colors.mutedForeground}
                     value={String((form as Record<string, unknown>)[key] ?? "")}
@@ -197,7 +205,7 @@ export default function MembersScreen() {
                   {(["active", "inactive"] as const).map((s) => (
                     <Pressable
                       key={s}
-                      style={[styles.statusOpt, { borderColor: form.status === s ? "#D4500A" : colors.border, backgroundColor: form.status === s ? "#D4500A20" : colors.muted }]}
+                      style={[styles.statusOpt, { borderColor: form.status === s ? "#D4500A" : colors.border, backgroundColor: form.status === s ? "#FFF4EE" : colors.muted }]}
                       onPress={() => setForm((f) => ({ ...f, status: s }))}
                     >
                       <Text style={[styles.statusOptText, { color: form.status === s ? "#D4500A" : colors.mutedForeground }]}>
@@ -209,10 +217,12 @@ export default function MembersScreen() {
               </View>
 
               <Pressable
-                style={[styles.saveBtn, { backgroundColor: "#D4500A" }]}
+                style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]}
                 onPress={handleSave}
               >
-                <Text style={styles.saveBtnText}>{editing ? "Update Member" : "Add Member"}</Text>
+                <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+                  <Text style={styles.saveBtnText}>{editing ? "Update Member" : "Add Member"}</Text>
+                </LinearGradient>
               </Pressable>
             </ScrollView>
           </View>
@@ -226,34 +236,37 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   searchBar: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    marginHorizontal: 16, marginBottom: 12, borderWidth: 1,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    marginHorizontal: 16, marginBottom: 16, marginTop: 12,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   searchInput: { flex: 1, fontSize: 16 },
   memberCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    borderRadius: 14, padding: 14, marginBottom: 10,
-    borderWidth: 1,
+    borderRadius: 16, padding: 14, marginBottom: 12,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
+    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 18, fontWeight: "700" },
   memberInfo: { flex: 1 },
   memberNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   memberName: { fontSize: 15, fontWeight: "700" },
-  statusBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  statusText: { fontSize: 11, fontWeight: "600" },
+  statusBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { fontSize: 11, fontWeight: "700" },
   memberPhone: { fontSize: 13, marginTop: 2 },
   memberJoin: { fontSize: 11, marginTop: 2 },
   actions: { flexDirection: "row", gap: 4 },
   actionBtn: { padding: 8 },
-  fab: {
+  fabWrapper: {
     position: "absolute", right: 20, bottom: 100,
+    shadowColor: "#AD3806", shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
+  },
+  fab: {
     width: 56, height: 56, borderRadius: 28,
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#D4500A", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
   },
   empty: { alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
@@ -267,12 +280,13 @@ const styles = StyleSheet.create({
   formGroup: { marginBottom: 14 },
   formLabel: { fontSize: 12, fontWeight: "600", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
   formInput: {
-    borderWidth: 1, borderRadius: 12, paddingHorizontal: 14,
-    paddingVertical: 12, fontSize: 16,
+    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8", 
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 16,
   },
   statusRow: { flexDirection: "row", gap: 10 },
   statusOpt: { flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   statusOptText: { fontSize: 14, fontWeight: "600" },
-  saveBtn: { borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
-  saveBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  saveBtn: { borderRadius: 16, paddingVertical: 16, alignItems: "center" },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

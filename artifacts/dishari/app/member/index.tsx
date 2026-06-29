@@ -86,13 +86,13 @@ export default function MemberHome() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {/* Month navigator */}
-        <View style={[styles.monthNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
           <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-left" size={22} color={colors.primary} />
+            <Feather name="chevron-left" size={22} color="#D4500A" />
           </Pressable>
           <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
           <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-right" size={22} color={colors.primary} />
+            <Feather name="chevron-right" size={22} color="#D4500A" />
           </Pressable>
         </View>
 
@@ -100,8 +100,9 @@ export default function MemberHome() {
         <View style={[
           styles.paymentCard,
           {
-            backgroundColor: isPaid ? "#16A34A12" : "#DC262612",
+            backgroundColor: isPaid ? "#16A34A08" : "#DC262608",
             borderColor: isPaid ? "#16A34A" : "#DC2626",
+            borderWidth: 2.5,
           }
         ]}>
           <View style={styles.paymentCardInner}>
@@ -118,7 +119,7 @@ export default function MemberHome() {
             </View>
           </View>
           {isPaid && payment?.amount != null && payment.amount > 0 && (
-            <View style={[styles.paidAmountBadge, { backgroundColor: "#16A34A20" }]}>
+            <View style={[styles.paidAmountBadge, { backgroundColor: "#16A34A18" }]}>
               <Text style={[styles.paidAmountText, { color: "#16A34A" }]}>
                 ₹{payment.amount.toFixed(0)}
               </Text>
@@ -128,8 +129,9 @@ export default function MemberHome() {
 
         {/* Due / Credit card */}
         <View style={[styles.dueCard, {
-          backgroundColor: bill.dueAmount > 0 ? "#DC262608" : "#16A34A08",
+          backgroundColor: bill.dueAmount > 0 ? "#DC262605" : "#16A34A05",
           borderColor: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
+          borderWidth: 2.5,
         }]}>
           <Text style={[styles.dueLabel, { color: bill.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
             {bill.dueAmount > 0 ? "Amount Due" : "Credit Balance"}
@@ -142,7 +144,7 @@ export default function MemberHome() {
           </Text>
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My Bill Breakdown</Text>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <BillRow label="Meals Taken" value={`${bill.mealCount}`} />
@@ -169,7 +171,7 @@ export default function MemberHome() {
           />
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Mess Summary</Text>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <BillRow label="Total Monthly Expense" value={`₹${totalExpense.toFixed(0)}`} />
@@ -187,7 +189,7 @@ export default function MemberHome() {
             { label: "Eggs", value: String(bill.eggCount), icon: "circle", color: "#D97706" },
             { label: "Advance", value: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card", color: "#16A34A" },
           ].map(({ label, value, icon, color }) => (
-            <View key={label} style={[styles.miniStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={label} style={[styles.miniStat, { backgroundColor: colors.card }]}>
               <View style={[styles.miniStatIcon, { backgroundColor: color + "20" }]}>
                 <Feather name={icon as "grid"} size={16} color={color} />
               </View>
@@ -212,42 +214,50 @@ const styles = StyleSheet.create({
   },
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 14,
-    padding: 8, borderWidth: 1,
+    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16,
+    padding: 8,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
   paymentCard: {
-    marginHorizontal: 20, marginBottom: 12, borderRadius: 16,
-    padding: 16, borderWidth: 2,
+    marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
+    padding: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
-  paymentCardInner: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  paymentCardInner: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
   paymentEmoji: { fontSize: 28 },
   paymentCardText: { flex: 1 },
   paymentStatus: { fontSize: 16, fontWeight: "700" },
-  paymentSub: { fontSize: 12, marginTop: 2 },
-  paidAmountBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 },
+  paymentSub: { fontSize: 12, marginTop: 4 },
+  paidAmountBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 8 },
   paidAmountText: { fontSize: 15, fontWeight: "700" },
   dueCard: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
-    padding: 24, alignItems: "center", borderWidth: 2,
+    marginHorizontal: 20, marginBottom: 20, borderRadius: 20,
+    padding: 24, alignItems: "center",
   },
   dueLabel: { fontSize: 14, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
   dueAmount: { fontSize: 42, fontWeight: "700", marginVertical: 8 },
   dueSub: { fontSize: 13 },
   section: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 16, padding: 16, borderWidth: 1,
+    marginHorizontal: 20, marginBottom: 20, borderRadius: 20, padding: 20,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  sectionTitle: { fontSize: 17, fontWeight: "700", marginBottom: 10 },
-  billRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 9 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
+  billRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 },
   billKey: { fontSize: 14 },
   billVal: { fontSize: 14 },
-  divider: { height: 1 },
-  bigDivider: { height: 2, marginVertical: 4 },
-  statsRow: { flexDirection: "row", marginHorizontal: 20, gap: 10, marginBottom: 16 },
-  miniStat: { flex: 1, borderRadius: 14, padding: 14, alignItems: "center", gap: 6, borderWidth: 1 },
-  miniStatIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  divider: { height: 1, marginVertical: 2 },
+  bigDivider: { height: 2, marginVertical: 6 },
+  statsRow: { flexDirection: "row", marginHorizontal: 20, gap: 12, marginBottom: 20 },
+  miniStat: {
+    flex: 1, borderRadius: 16, padding: 14, alignItems: "center", gap: 6,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+  },
+  miniStatIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   miniStatVal: { fontSize: 16, fontWeight: "700" },
   miniStatLabel: { fontSize: 11 },
 });

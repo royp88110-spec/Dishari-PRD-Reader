@@ -80,7 +80,7 @@ export default function MemberMeals() {
           { label: "Night", count: totalNight, color: "#7C3AED" },
           { label: "Total", count: totalMeals, color: "#0891B2" },
         ].map(({ label, count, color }) => (
-          <View key={label} style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View key={label} style={[styles.summaryCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.summaryCount, { color }]}>{count}</Text>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{label}</Text>
           </View>
@@ -97,8 +97,9 @@ export default function MemberMeals() {
       <FlatList
         data={memberMeals}
         keyExtractor={(m) => m.id}
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.card }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: "#F2E6DF" }} />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="calendar" size={40} color={colors.muted} />
@@ -110,7 +111,7 @@ export default function MemberMeals() {
           const dayName = new Date(m.date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short" });
           const dayNum = m.date.split("-")[2];
           return (
-            <View style={[styles.mealRow, { borderBottomColor: colors.border }]}>
+            <View style={styles.mealRow}>
               <View style={styles.dateCol}>
                 <Text style={[styles.dayNum, { color: colors.foreground }]}>{dayNum}</Text>
                 <Text style={[styles.dayName, { color: colors.mutedForeground }]}>{dayName}</Text>
@@ -138,34 +139,31 @@ export default function MemberMeals() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  monthNav: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, marginBottom: 12,
+  summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 12, marginVertical: 16 },
+  summaryCard: {
+    flex: 1, borderRadius: 20, padding: 18, alignItems: "center",
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  navArrow: { padding: 8 },
-  monthText: { fontSize: 18, fontWeight: "700" },
-  summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 10, marginBottom: 12 },
-  summaryCard: { flex: 1, borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1 },
   summaryCount: { fontSize: 26, fontWeight: "700" },
-  summaryLabel: { fontSize: 12, marginTop: 2 },
+  summaryLabel: { fontSize: 12, marginTop: 4 },
   tableHeader: {
     flexDirection: "row", alignItems: "center",
-    paddingVertical: 8, paddingHorizontal: 16,
+    paddingVertical: 10, paddingHorizontal: 16,
   },
   colDate: { width: 64, fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
   colMeal: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
   colTotal: { width: 52, textAlign: "center", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
   mealRow: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 12,
   },
   dateCol: { width: 64 },
   dayNum: { fontSize: 16, fontWeight: "700" },
   dayName: { fontSize: 11 },
   mealCol: { flex: 1, alignItems: "center" },
-  mealBadge: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  totalBadge: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  mealBadge: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  totalBadge: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   totalText: { fontSize: 15, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },

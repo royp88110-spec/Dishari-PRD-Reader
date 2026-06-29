@@ -68,7 +68,7 @@ export default function SetupScreen() {
   };
 
   return (
-    <LinearGradient colors={["#FFF8F3", "#FFE8D4"]} style={styles.gradient}>
+    <LinearGradient colors={["#FFF8F3", "#FFE4CC"]} style={styles.gradient}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
@@ -81,22 +81,27 @@ export default function SetupScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <View style={[styles.logoCircle, { backgroundColor: "#D4500A" }]}>
+            <LinearGradient
+              colors={["#E25C14", "#AD3806"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoCircle}
+            >
               <Feather name="coffee" size={36} color="#fff" />
-            </View>
-            <Text style={[styles.appName, { color: "#D4500A" }]}>Dishari Mess</Text>
+            </LinearGradient>
+            <Text style={styles.appName}>Dishari Mess</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
               First Launch Setup
             </Text>
           </View>
 
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Create Admin Account</Text>
             <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
               Only one admin account is allowed. You will use these credentials to log in.
             </Text>
 
-            <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <View style={styles.inputWrap}>
               <Feather name="user" size={18} color={colors.mutedForeground} />
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
@@ -108,7 +113,7 @@ export default function SetupScreen() {
               />
             </View>
 
-            <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <View style={styles.inputWrap}>
               <Feather name="lock" size={18} color={colors.mutedForeground} />
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
@@ -125,7 +130,7 @@ export default function SetupScreen() {
               </Pressable>
             </View>
 
-            <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+            <View style={styles.inputWrap}>
               <Feather name="check-circle" size={18} color={colors.mutedForeground} />
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
@@ -144,18 +149,17 @@ export default function SetupScreen() {
             ) : null}
 
             <Pressable
-              style={({ pressed }) => [
-                styles.submitBtn,
-                { backgroundColor: "#D4500A", opacity: pressed ? 0.85 : 1 },
-              ]}
+              style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 4 }]}
               onPress={handleSetup}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitBtnText}>Create Admin Account</Text>
-              )}
+              <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtn}>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitBtnText}>Create Admin Account</Text>
+                )}
+              </LinearGradient>
             </Pressable>
           </View>
 
@@ -177,33 +181,34 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 24, flexGrow: 1, justifyContent: "center" },
   header: { alignItems: "center", marginBottom: 32 },
   logoCircle: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 88, height: 88, borderRadius: 44,
     alignItems: "center", justifyContent: "center",
-    marginBottom: 16, shadowColor: "#D4500A",
+    marginBottom: 16,
+    shadowColor: "#D4500A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
   },
-  appName: { fontSize: 28, fontWeight: "700", letterSpacing: -0.5 },
+  appName: { fontSize: 32, fontWeight: "800", letterSpacing: -0.5, color: "#D4500A" },
   subtitle: { fontSize: 14, marginTop: 4 },
   card: {
-    borderRadius: 20, padding: 24, gap: 14,
-    borderWidth: 1,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+    borderRadius: 24, padding: 24, gap: 16,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  cardTitle: { fontSize: 20, fontWeight: "700" },
+  cardTitle: { fontSize: 24, fontWeight: "800" },
   cardDesc: { fontSize: 13, lineHeight: 18, marginBottom: 4 },
   inputWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
+    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8", 
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
   },
   input: { flex: 1, fontSize: 16 },
   errorText: { fontSize: 13, marginTop: -4 },
   submitBtn: {
-    borderRadius: 14, paddingVertical: 16,
-    alignItems: "center", justifyContent: "center", marginTop: 4,
+    borderRadius: 16, paddingVertical: 16,
+    alignItems: "center", justifyContent: "center",
   },
-  submitBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   note: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 20, justifyContent: "center" },
   noteText: { fontSize: 13 },
 });

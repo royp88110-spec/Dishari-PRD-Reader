@@ -85,17 +85,17 @@ export default function MemberExpenses() {
         }
       />
 
-      <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
         <View style={styles.summaryItem}>
           <Text style={[styles.summaryVal, { color: colors.foreground }]}>₹{total.toFixed(0)}</Text>
           <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Market Exp.</Text>
         </View>
-        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+        <View style={[styles.summaryDivider, { backgroundColor: "#F2E6DF" }]} />
         <View style={styles.summaryItem}>
           <Text style={[styles.summaryVal, { color: colors.foreground }]}>₹{cookTotal.toFixed(0)}</Text>
           <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Cook Salary</Text>
         </View>
-        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+        <View style={[styles.summaryDivider, { backgroundColor: "#F2E6DF" }]} />
         <View style={styles.summaryItem}>
           <Text style={[styles.summaryVal, { color: "#D4500A" }]}>₹{grandTotal.toFixed(0)}</Text>
           <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Grand Total</Text>
@@ -111,7 +111,7 @@ export default function MemberExpenses() {
         showsHorizontalScrollIndicator={false}
         renderItem={({ item: c }) => (
           <Pressable
-            style={[styles.catChip, { backgroundColor: category === c.key ? c.color : colors.muted, borderColor: category === c.key ? c.color : colors.border }]}
+            style={[styles.catChip, { backgroundColor: category === c.key ? c.color : colors.card }]}
             onPress={() => setCategory(c.key)}
           >
             <Text style={[styles.catText, { color: category === c.key ? "#fff" : colors.mutedForeground }]}>{c.label}</Text>
@@ -123,7 +123,7 @@ export default function MemberExpenses() {
         data={filtered.slice().reverse()}
         keyExtractor={(e) => e.id}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="bar-chart-2" size={40} color={colors.muted} />
@@ -133,9 +133,9 @@ export default function MemberExpenses() {
         renderItem={({ item: e }) => {
           const cat = getCat(e.type);
           return (
-            <View style={[styles.expenseRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.expenseRow, { backgroundColor: colors.card }]}>
               <View style={[styles.expIcon, { backgroundColor: cat.color + "20" }]}>
-                <Feather name={cat.icon as "list"} size={16} color={cat.color} />
+                <Feather name={cat.icon as "list"} size={20} color={cat.color} />
               </View>
               <View style={styles.expInfo}>
                 <Text style={[styles.expName, { color: colors.foreground }]}>
@@ -155,33 +155,36 @@ export default function MemberExpenses() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  monthNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, marginBottom: 12 },
-  navArrow: { padding: 8 },
-  monthCenter: { alignItems: "center" },
-  monthText: { fontSize: 18, fontWeight: "700" },
-  monthSub: { fontSize: 13, fontWeight: "600" },
   summaryCard: {
-    flexDirection: "row", marginHorizontal: 16, marginBottom: 12,
-    borderRadius: 14, padding: 16, borderWidth: 1,
+    flexDirection: "row", marginHorizontal: 20, marginVertical: 16,
+    borderRadius: 20, padding: 20,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   summaryItem: { flex: 1, alignItems: "center" },
-  summaryVal: { fontSize: 18, fontWeight: "700" },
-  summaryKey: { fontSize: 11, marginTop: 2 },
+  summaryVal: { fontSize: 20, fontWeight: "700" },
+  summaryKey: { fontSize: 12, marginTop: 4 },
   summaryDivider: { width: 1, marginVertical: 4 },
   catScroll: { flexGrow: 0 },
-  catContent: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
-  catChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  catContent: { paddingHorizontal: 20, paddingBottom: 16, gap: 10 },
+  catChip: {
+    paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
   catText: { fontSize: 13, fontWeight: "600" },
   expenseRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderRadius: 16, padding: 14, marginBottom: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
-  expIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  expIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   expInfo: { flex: 1 },
-  expName: { fontSize: 14, fontWeight: "700" },
-  expMeta: { fontSize: 12, marginTop: 1 },
-  expDate: { fontSize: 11, marginTop: 2 },
-  expAmount: { fontSize: 16, fontWeight: "700" },
+  expName: { fontSize: 15, fontWeight: "700" },
+  expMeta: { fontSize: 13, marginTop: 1 },
+  expDate: { fontSize: 11, marginTop: 4 },
+  expAmount: { fontSize: 17, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
   headerMonthNav: {

@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -143,7 +144,7 @@ export default function ExpensesScreen() {
         {CATEGORIES.map((c) => (
           <Pressable
             key={c.key}
-            style={[styles.catChip, { backgroundColor: category === c.key ? c.color : colors.muted, borderColor: category === c.key ? c.color : colors.border }]}
+            style={[styles.catChip, { backgroundColor: category === c.key ? c.color : colors.card }]}
             onPress={() => setCategory(c.key)}
           >
             <Feather name={c.icon as "list"} size={14} color={category === c.key ? "#fff" : colors.mutedForeground} />
@@ -153,7 +154,7 @@ export default function ExpensesScreen() {
       </ScrollView>
 
       {category !== "all" && (
-        <View style={[styles.filterTotal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.filterTotal, { backgroundColor: colors.card }]}>
           <Text style={[{ color: colors.mutedForeground, fontSize: 14 }]}>{CATEGORIES.find(c => c.key === category)?.label} total:</Text>
           <Text style={[{ color: colors.foreground, fontSize: 16, fontWeight: "700" }]}>₹{total.toFixed(0)}</Text>
         </View>
@@ -173,9 +174,9 @@ export default function ExpensesScreen() {
         renderItem={({ item: e }) => {
           const cat = getCatInfo(e.type);
           return (
-            <View style={[styles.expenseCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.expenseCard, { backgroundColor: colors.card }]}>
               <View style={[styles.expenseIcon, { backgroundColor: cat.color + "20" }]}>
-                <Feather name={cat.icon as "list"} size={18} color={cat.color} />
+                <Feather name={cat.icon as "list"} size={20} color={cat.color} />
               </View>
               <View style={styles.expenseInfo}>
                 <Text style={[styles.expenseName, { color: colors.foreground }]}>
@@ -185,19 +186,31 @@ export default function ExpensesScreen() {
                 <Text style={[styles.expenseDate, { color: colors.mutedForeground }]}>{e.date}</Text>
               </View>
               <Text style={[styles.expenseAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
-              <Pressable onPress={() => openEdit(e)} style={styles.actionBtn}>
-                <Feather name="edit-2" size={16} color={colors.primary} />
-              </Pressable>
-              <Pressable onPress={() => handleDelete(e)} style={styles.actionBtn}>
-                <Feather name="trash-2" size={16} color={colors.destructive} />
-              </Pressable>
+              <View style={{ flexDirection: "column", gap: 4, marginLeft: 8 }}>
+                <Pressable onPress={() => openEdit(e)} style={styles.actionBtn}>
+                  <Feather name="edit-2" size={16} color={colors.primary} />
+                </Pressable>
+                <Pressable onPress={() => handleDelete(e)} style={styles.actionBtn}>
+                  <Feather name="trash-2" size={16} color={colors.destructive} />
+                </Pressable>
+              </View>
             </View>
           );
         }}
       />
 
-      <Pressable style={[styles.fab, { backgroundColor: "#D4500A" }]} onPress={openAdd}>
-        <Feather name="plus" size={24} color="#fff" />
+      <Pressable
+        style={({ pressed }) => [styles.fabWrapper, { opacity: pressed ? 0.85 : 1 }]}
+        onPress={openAdd}
+      >
+        <LinearGradient
+          colors={["#E25C14", "#AD3806"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fab}
+        >
+          <Feather name="plus" size={24} color="#fff" />
+        </LinearGradient>
       </Pressable>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -218,7 +231,7 @@ export default function ExpensesScreen() {
                   {CATEGORIES.slice(1).map((c) => (
                     <Pressable
                       key={c.key}
-                      style={[styles.catChip, { backgroundColor: form.type === c.key ? c.color : colors.muted, borderColor: form.type === c.key ? c.color : colors.border }]}
+                      style={[styles.catChip, { backgroundColor: form.type === c.key ? c.color : colors.muted }]}
                       onPress={() => setForm((f) => ({ ...f, type: c.key as Expense["type"] }))}
                     >
                       <Text style={[styles.catChipText, { color: form.type === c.key ? "#fff" : colors.mutedForeground }]}>{c.label}</Text>
@@ -236,7 +249,7 @@ export default function ExpensesScreen() {
                 <View key={key} style={styles.formGroup}>
                   <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   <TextInput
-                    style={[styles.formInput, { borderColor: colors.border, backgroundColor: colors.muted, color: colors.foreground }]}
+                    style={[styles.formInput, { color: colors.foreground }]}
                     placeholder={placeholder}
                     placeholderTextColor={colors.mutedForeground}
                     value={String((form as Record<string, unknown>)[key] ?? "")}
@@ -248,7 +261,7 @@ export default function ExpensesScreen() {
               <View style={styles.formGroup}>
                 <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>AMOUNT (₹) *</Text>
                 <TextInput
-                  style={[styles.formInput, { borderColor: colors.border, backgroundColor: colors.muted, color: colors.foreground }]}
+                  style={[styles.formInput, { color: colors.foreground }]}
                   placeholder="0"
                   placeholderTextColor={colors.mutedForeground}
                   value={form.amount ? String(form.amount) : ""}
@@ -257,8 +270,13 @@ export default function ExpensesScreen() {
                 />
               </View>
 
-              <Pressable style={[styles.saveBtn, { backgroundColor: "#D4500A" }]} onPress={handleSave}>
-                <Text style={styles.saveBtnText}>{editing ? "Update" : "Add Expense"}</Text>
+              <Pressable
+                style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]}
+                onPress={handleSave}
+              >
+                <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+                  <Text style={styles.saveBtnText}>{editing ? "Update" : "Add Expense"}</Text>
+                </LinearGradient>
               </Pressable>
             </ScrollView>
           </View>
@@ -270,39 +288,42 @@ export default function ExpensesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  monthNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, marginBottom: 8 },
-  navArrow: { padding: 8 },
-  monthCenter: { alignItems: "center" },
-  monthText: { fontSize: 18, fontWeight: "700" },
-  monthTotal: { fontSize: 13, fontWeight: "600" },
-  catScroll: { flexGrow: 0 },
-  catContent: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+  catScroll: { flexGrow: 0, marginTop: 12 },
+  catContent: { paddingHorizontal: 16, paddingBottom: 16, gap: 8 },
   catChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
   catChipText: { fontSize: 13, fontWeight: "600" },
   filterTotal: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    marginHorizontal: 16, marginBottom: 8, borderRadius: 12, padding: 12, borderWidth: 1,
+    marginHorizontal: 16, marginBottom: 12, borderRadius: 20, padding: 18,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   expenseCard: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderRadius: 16, padding: 14, marginBottom: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
-  expenseIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  expenseIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   expenseInfo: { flex: 1 },
-  expenseName: { fontSize: 14, fontWeight: "700" },
-  expenseMeta: { fontSize: 12, marginTop: 1 },
-  expenseDate: { fontSize: 11, marginTop: 2 },
-  expenseAmount: { fontSize: 16, fontWeight: "700" },
+  expenseName: { fontSize: 15, fontWeight: "700" },
+  expenseMeta: { fontSize: 13, marginTop: 1 },
+  expenseDate: { fontSize: 11, marginTop: 4 },
+  expenseAmount: { fontSize: 17, fontWeight: "700" },
   actionBtn: { padding: 6 },
-  fab: {
+  fabWrapper: {
     position: "absolute", right: 20, bottom: 100,
+    shadowColor: "#AD3806", shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
+  },
+  fab: {
     width: 56, height: 56, borderRadius: 28,
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#D4500A", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
   },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
   modalOverlay: { flex: 1, backgroundColor: "#00000060", justifyContent: "flex-end" },
@@ -311,9 +332,13 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: "700" },
   formGroup: { marginBottom: 14 },
   formLabel: { fontSize: 11, fontWeight: "700", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
-  formInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  saveBtn: { borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
-  saveBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  formInput: {
+    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8", 
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 16,
+  },
+  saveBtn: { borderRadius: 16, paddingVertical: 16, alignItems: "center" },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   headerMonthNav: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 12,

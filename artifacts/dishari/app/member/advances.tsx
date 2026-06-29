@@ -74,17 +74,17 @@ export default function MemberAdvances() {
       />
 
       <View style={[styles.summaryRow]}>
-        <View style={[styles.summaryCard, { backgroundColor: "#16A34A10", borderColor: "#16A34A40" }]}>
+        <View style={[styles.summaryCard, { backgroundColor: "#16A34A05", borderColor: "#16A34A" }]}>
           <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Total Paid</Text>
           <Text style={[styles.summaryVal, { color: "#16A34A" }]}>₹{totalAdvance.toFixed(0)}</Text>
         </View>
-        <View style={[styles.summaryCard, { backgroundColor: "#D4500A10", borderColor: "#D4500A40" }]}>
+        <View style={[styles.summaryCard, { backgroundColor: "#D4500A05", borderColor: "#D4500A" }]}>
           <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Gross Bill</Text>
           <Text style={[styles.summaryVal, { color: "#D4500A" }]}>₹{bill.grossBill.toFixed(0)}</Text>
         </View>
         <View style={[styles.summaryCard, {
-          backgroundColor: bill.dueAmount > 0 ? "#DC262610" : "#16A34A10",
-          borderColor: bill.dueAmount > 0 ? "#DC262640" : "#16A34A40",
+          backgroundColor: bill.dueAmount > 0 ? "#DC262605" : "#16A34A05",
+          borderColor: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
         }]}>
           <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
             {bill.dueAmount > 0 ? "Due" : "Credit"}
@@ -99,7 +99,7 @@ export default function MemberAdvances() {
         data={myAdvances}
         keyExtractor={(a) => a.id}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="credit-card" size={44} color={colors.muted} />
@@ -110,9 +110,9 @@ export default function MemberAdvances() {
           </View>
         }
         renderItem={({ item: a }) => (
-          <View style={[styles.advCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.advCard, { backgroundColor: colors.card }]}>
             <View style={[styles.advIcon, { backgroundColor: "#16A34A20" }]}>
-              <Feather name="arrow-up-right" size={18} color="#16A34A" />
+              <Feather name="arrow-up-right" size={20} color="#16A34A" />
             </View>
             <View style={styles.advInfo}>
               <Text style={[styles.advAmount, { color: "#16A34A" }]}>₹{a.amount.toFixed(0)}</Text>
@@ -121,7 +121,7 @@ export default function MemberAdvances() {
               </Text>
               {a.notes ? <Text style={[styles.advNotes, { color: colors.mutedForeground }]}>{a.notes}</Text> : null}
             </View>
-            <View style={[styles.paidBadge, { backgroundColor: "#16A34A20" }]}>
+            <View style={[styles.paidBadge, { backgroundColor: "#16A34A18" }]}>
               <Text style={[styles.paidText, { color: "#16A34A" }]}>Paid</Text>
             </View>
           </View>
@@ -133,23 +133,26 @@ export default function MemberAdvances() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  monthNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, marginBottom: 12 },
-  navArrow: { padding: 8 },
-  monthText: { fontSize: 18, fontWeight: "700" },
-  summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 10, marginBottom: 16 },
-  summaryCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: "center", borderWidth: 1 },
-  summaryLabel: { fontSize: 11, marginBottom: 4 },
-  summaryVal: { fontSize: 20, fontWeight: "700" },
-  advCard: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1,
+  summaryRow: { flexDirection: "row", paddingHorizontal: 20, gap: 12, marginVertical: 20 },
+  summaryCard: {
+    flex: 1, borderRadius: 20, padding: 18, alignItems: "center", borderWidth: 2,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  advIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  summaryLabel: { fontSize: 11, marginBottom: 6, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+  summaryVal: { fontSize: 24, fontWeight: "700" },
+  advCard: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    borderRadius: 16, padding: 16, marginBottom: 12,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+  },
+  advIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   advInfo: { flex: 1 },
-  advAmount: { fontSize: 20, fontWeight: "700" },
-  advMeta: { fontSize: 13, marginTop: 2 },
+  advAmount: { fontSize: 22, fontWeight: "700" },
+  advMeta: { fontSize: 13, marginTop: 4 },
   advNotes: { fontSize: 12, marginTop: 2 },
-  paidBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  paidBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
   paidText: { fontSize: 12, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 80, paddingHorizontal: 40, gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: "700" },

@@ -43,7 +43,7 @@ const MemberRow = React.memo(function MemberRow({
 }) {
   const total = (morning ? 1 : 0) + (night ? 1 : 0);
   return (
-    <View style={[styles.memberRow, { borderBottomColor: colors.border }]}>
+    <View style={styles.memberRow}>
       <View style={[styles.avatar, { backgroundColor: "#D4500A20" }]}>
         <Text style={[styles.avatarText, { color: "#D4500A" }]}>
           {member.name.charAt(0).toUpperCase()}
@@ -169,7 +169,7 @@ export default function MealsScreen() {
         }
       />
 
-      <View style={[styles.bulkBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.bulkBar, { backgroundColor: colors.card }]}>
         <Text style={[styles.bulkLabel, { color: colors.mutedForeground }]}>Bulk Mark</Text>
         <View style={styles.bulkBtns}>
           <Pressable
@@ -203,8 +203,9 @@ export default function MealsScreen() {
       <FlatList
         data={activeMembers}
         keyExtractor={(m) => m.id}
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.card }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: "#F2E6DF" }} />}
         // Prevent the FlatList itself from re-rendering when parent re-renders
         // due to unrelated state changes (e.g. date navigation)
         removeClippedSubviews={false}
@@ -233,17 +234,11 @@ export default function MealsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  dateNav: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, marginBottom: 12,
-  },
-  navArrow: { padding: 8 },
-  dateCenter: { alignItems: "center", flex: 1 },
-  dateText: { fontSize: 17, fontWeight: "700" },
-  dateSub: { fontSize: 12, marginTop: 2 },
   bulkBar: {
-    marginHorizontal: 16, marginBottom: 12, borderRadius: 14,
-    padding: 12, borderWidth: 1,
+    marginHorizontal: 16, marginBottom: 12, borderRadius: 16,
+    padding: 18,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   bulkLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 },
   bulkBtns: { flexDirection: "row", gap: 8 },
@@ -251,7 +246,7 @@ const styles = StyleSheet.create({
   bulkBtnText: { fontSize: 12, fontWeight: "700" },
   tableHeader: {
     flexDirection: "row", alignItems: "center",
-    paddingVertical: 8, paddingHorizontal: 16,
+    paddingVertical: 10, paddingHorizontal: 16,
   },
   colMember: { flex: 1.2, fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
   colMeal: { width: 74, textAlign: "center", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
@@ -259,7 +254,7 @@ const styles = StyleSheet.create({
   memberRow: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: 1, gap: 8,
+    gap: 8,
   },
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 14, fontWeight: "700" },

@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
@@ -45,9 +46,9 @@ function StatCard({ label, value, icon, color, sub }: {
 }) {
   const colors = useColors();
   return (
-    <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[styles.statIcon, { backgroundColor: color + "20" }]}>
-        <Feather name={icon as "home"} size={20} color={color} />
+    <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+      <View style={[styles.statIcon, { backgroundColor: color + "25" }]}>
+        <Feather name={icon as "home"} size={22} color={color} />
       </View>
       <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -133,13 +134,13 @@ export default function AdminDashboard() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {/* Month navigator */}
-        <View style={[styles.monthNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
           <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-left" size={22} color={colors.primary} />
+            <Feather name="chevron-left" size={22} color="#D4500A" />
           </Pressable>
           <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
           <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-right" size={22} color={colors.primary} />
+            <Feather name="chevron-right" size={22} color="#D4500A" />
           </Pressable>
         </View>
 
@@ -161,7 +162,7 @@ export default function AdminDashboard() {
         )}
 
         {bills.length > 0 && (
-          <View style={[styles.paymentBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.paymentBanner, { backgroundColor: colors.card }]}>
             <View style={styles.paymentBannerLeft}>
               <Feather name="check-circle" size={20} color={paidCount === bills.length ? "#16A34A" : "#D97706"} />
               <Text style={[styles.paymentBannerText, { color: colors.foreground }]}>
@@ -182,7 +183,7 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monthly Summary</Text>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Monthly Expense</Text>
@@ -205,7 +206,7 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
           {bills.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active members</Text>
@@ -241,7 +242,7 @@ export default function AdminDashboard() {
                 <View style={styles.paymentRow}>
                   <View style={[
                     styles.statusBadge,
-                    { backgroundColor: isPaid ? "#16A34A15" : "#DC262615" }
+                    { backgroundColor: isPaid ? "#16A34A18" : "#DC262618" }
                   ]}>
                     <Text style={{ fontSize: 13 }}>{isPaid ? "✅" : "❌"}</Text>
                     <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
@@ -253,28 +254,39 @@ export default function AdminDashboard() {
 
                   <Pressable
                     style={({ pressed }) => [
-                      styles.payToggleBtn,
-                      {
-                        backgroundColor: isPaid ? "#DC262615" : "#16A34A",
-                        opacity: pressed || isProcessing ? 0.75 : 1,
-                      },
+                      styles.payToggleBtnWrapper,
+                      { opacity: pressed || isProcessing ? 0.75 : 1 }
                     ]}
                     onPress={() => handleTogglePayment(b.memberId, b.dueAmount)}
                     disabled={isProcessing}
                   >
-                    {isProcessing ? (
-                      <ActivityIndicator size="small" color={isPaid ? "#DC2626" : "#fff"} />
+                    {isPaid ? (
+                      <View style={[styles.payToggleBtn, { backgroundColor: "#DC262618" }]}>
+                        {isProcessing ? (
+                          <ActivityIndicator size="small" color="#DC2626" />
+                        ) : (
+                          <>
+                            <Feather name="x-circle" size={14} color="#DC2626" />
+                            <Text style={[styles.payToggleBtnText, { color: "#DC2626" }]}>Mark Unpaid</Text>
+                          </>
+                        )}
+                      </View>
                     ) : (
-                      <>
-                        <Feather
-                          name={isPaid ? "x-circle" : "check-circle"}
-                          size={14}
-                          color={isPaid ? "#DC2626" : "#fff"}
-                        />
-                        <Text style={[styles.payToggleBtnText, { color: isPaid ? "#DC2626" : "#fff" }]}>
-                          {isPaid ? "Mark Unpaid" : "Mark as Paid"}
-                        </Text>
-                      </>
+                      <LinearGradient
+                        colors={["#16A34A", "#15803D"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.payToggleBtn}
+                      >
+                        {isProcessing ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Feather name="check-circle" size={14} color="#fff" />
+                            <Text style={[styles.payToggleBtnText, { color: "#fff" }]}>Mark as Paid</Text>
+                          </>
+                        )}
+                      </LinearGradient>
                     )}
                   </Pressable>
                 </View>
@@ -285,7 +297,7 @@ export default function AdminDashboard() {
           })}
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Expenses</Text>
           {monthExpenses.slice(-5).reverse().map((e) => (
             <View key={e.id}>
@@ -325,8 +337,10 @@ const styles = StyleSheet.create({
   },
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 14,
-    padding: 8, borderWidth: 1,
+    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16,
+    padding: 8,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
@@ -335,35 +349,38 @@ const styles = StyleSheet.create({
     gap: 12, marginBottom: 16,
   },
   statCard: {
-    width: "47%", borderRadius: 16, padding: 16,
-    borderWidth: 1, gap: 6,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+    width: "47%", borderRadius: 20, padding: 18, gap: 6,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: 22, fontWeight: "700" },
+  statIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  statValue: { fontSize: 24, fontWeight: "700" },
   statLabel: { fontSize: 12 },
   statSub: { fontSize: 11, fontWeight: "600" },
   paymentBanner: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 14,
-    padding: 14, borderWidth: 1,
+    marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
+    padding: 18,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   paymentBannerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   paymentBannerText: { fontSize: 14, fontWeight: "600" },
   paymentPill: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   paymentPillText: { fontSize: 12, fontWeight: "700" },
   section: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 16,
-    padding: 16, borderWidth: 1,
+    marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
+    padding: 18,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  sectionTitle: { fontSize: 17, fontWeight: "700", marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },
   summaryKey: { fontSize: 14 },
   summaryVal: { fontSize: 14, fontWeight: "600" },
   divider: { height: 1, marginVertical: 2 },
   memberBillRow: { flexDirection: "row", alignItems: "center", paddingTop: 10, gap: 12 },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 16, fontWeight: "700" },
   memberBillInfo: { flex: 1 },
   memberBillName: { fontSize: 15, fontWeight: "600" },
@@ -377,9 +394,10 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
   },
-  statusBadgeText: { fontSize: 12, fontWeight: "600" },
+  statusBadgeText: { fontSize: 12, fontWeight: "700" },
+  payToggleBtnWrapper: { borderRadius: 20, overflow: "hidden" },
   payToggleBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
@@ -387,7 +405,7 @@ const styles = StyleSheet.create({
   },
   payToggleBtnText: { fontSize: 12, fontWeight: "700" },
   expenseRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 12 },
-  expenseIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  expenseIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   expenseInfo: { flex: 1 },
   expenseName: { fontSize: 14, fontWeight: "600" },
   expenseDate: { fontSize: 12, marginTop: 2 },

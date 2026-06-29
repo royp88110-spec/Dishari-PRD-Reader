@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -156,22 +157,24 @@ export default function MoreScreen() {
         }
       />
 
-      <View style={[styles.monthNav, { marginTop: 12 }]}>
-        <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-left" size={20} color={colors.primary} />
-        </Pressable>
-        <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
-        <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-right" size={20} color={colors.primary} />
-        </Pressable>
+      <View style={styles.monthNavWrapper}>
+        <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
+          <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
+            <Feather name="chevron-left" size={20} color={colors.primary} />
+          </Pressable>
+          <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
+          <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
+            <Feather name="chevron-right" size={20} color={colors.primary} />
+          </Pressable>
+        </View>
       </View>
 
       {activeSection === "eggs" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
-          <View style={[styles.priceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+          <View style={[styles.priceCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Current Egg Price</Text>
             <View style={styles.priceRow}>
-              <Text style={[styles.priceVal, { color: colors.foreground }]}>₹{settings.eggPrice} per egg</Text>
+              <Text style={[styles.priceVal, { color: colors.foreground }]}>₹{settings.eggPrice} <Text style={{ fontSize: 14, fontWeight: "400", color: colors.mutedForeground }}>per egg</Text></Text>
               <Pressable
                 style={[styles.smallBtn, { backgroundColor: "#D4500A20" }]}
                 onPress={() => openEditModal({
@@ -190,52 +193,58 @@ export default function MoreScreen() {
             </View>
           </View>
 
-          <Pressable style={[styles.addBtn, { backgroundColor: "#D4500A" }]} onPress={() => { setEggForm({ memberId: "", date: `${month}-${String(new Date().getDate()).padStart(2,"0")}`, count: "" }); setEggModal(true); }}>
-            <Feather name="plus" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Add Egg Entry</Text>
+          <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]} onPress={() => { setEggForm({ memberId: "", date: `${month}-${String(new Date().getDate()).padStart(2,"0")}`, count: "" }); setEggModal(true); }}>
+            <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
+              <Feather name="plus" size={18} color="#fff" />
+              <Text style={styles.addBtnText}>Add Egg Entry</Text>
+            </LinearGradient>
           </Pressable>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Egg Entries — {monthLabel(month)}</Text>
           {monthEggs.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No egg records this month</Text>
           ) : monthEggs.slice().reverse().map((e) => (
-            <View key={e.id} style={[styles.listItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={e.id} style={[styles.listItem, { backgroundColor: colors.card }]}>
               <View style={[styles.iconWrap, { backgroundColor: "#D4500A20" }]}>
-                <Feather name="circle" size={16} color="#D4500A" />
+                <Feather name="circle" size={18} color="#D4500A" />
               </View>
               <View style={styles.itemInfo}>
                 <Text style={[styles.itemName, { color: colors.foreground }]}>{getMemberName(e.memberId)}</Text>
                 <Text style={[styles.itemDate, { color: colors.mutedForeground }]}>{e.date}</Text>
               </View>
-              <Text style={[styles.itemAmount, { color: colors.foreground }]}>{e.count} eggs</Text>
-              <Text style={[styles.itemAmountSub, { color: colors.primary }]}>₹{(e.count * settings.eggPrice).toFixed(0)}</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={[styles.itemAmount, { color: colors.foreground }]}>{e.count} eggs</Text>
+                <Text style={[styles.itemAmountSub, { color: colors.primary }]}>₹{(e.count * settings.eggPrice).toFixed(0)}</Text>
+              </View>
             </View>
           ))}
         </ScrollView>
       )}
 
       {activeSection === "advances" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
-          <Pressable style={[styles.addBtn, { backgroundColor: "#D4500A" }]} onPress={() => setAdvModal(true)}>
-            <Feather name="plus" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Add Advance</Text>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+          <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]} onPress={() => setAdvModal(true)}>
+            <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
+              <Feather name="plus" size={18} color="#fff" />
+              <Text style={styles.addBtnText}>Add Advance</Text>
+            </LinearGradient>
           </Pressable>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Advances — {monthLabel(month)}</Text>
           {monthAdvances.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No advances this month</Text>
           ) : monthAdvances.slice().reverse().map((a) => (
-            <View key={a.id} style={[styles.listItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={a.id} style={[styles.listItem, { backgroundColor: colors.card }]}>
               <View style={[styles.iconWrap, { backgroundColor: "#16A34A20" }]}>
-                <Feather name="credit-card" size={16} color="#16A34A" />
+                <Feather name="credit-card" size={18} color="#16A34A" />
               </View>
               <View style={styles.itemInfo}>
                 <Text style={[styles.itemName, { color: colors.foreground }]}>{getMemberName(a.memberId)}</Text>
                 <Text style={[styles.itemDate, { color: colors.mutedForeground }]}>{a.date} · {a.method}{a.notes ? ` · ${a.notes}` : ""}</Text>
               </View>
               <Text style={[styles.itemAmount, { color: "#16A34A" }]}>₹{a.amount}</Text>
-              <Pressable onPress={() => Alert.alert("Delete", "Remove this advance?", [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deleteAdvance(a.id) }])}>
-                <Feather name="trash-2" size={16} color={colors.destructive} />
+              <Pressable onPress={() => Alert.alert("Delete", "Remove this advance?", [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deleteAdvance(a.id) }])} style={{ padding: 6 }}>
+                <Feather name="trash-2" size={18} color={colors.destructive} />
               </Pressable>
             </View>
           ))}
@@ -247,21 +256,22 @@ export default function MoreScreen() {
           data={bills}
           keyExtractor={(b) => b.memberId}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
           ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No data</Text>}
           renderItem={({ item: b }) => (
-            <View style={[styles.reportCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.reportCard, { backgroundColor: colors.card }]}>
               <View style={styles.reportHeader}>
                 <View style={[styles.avatar, { backgroundColor: "#D4500A20" }]}>
                   <Text style={[styles.avatarText, { color: "#D4500A" }]}>{b.memberName.charAt(0)}</Text>
                 </View>
                 <Text style={[styles.reportName, { color: colors.foreground }]}>{b.memberName}</Text>
-                <View style={[styles.dueBadge, { backgroundColor: b.dueAmount > 0 ? "#DC262620" : "#16A34A20" }]}>
+                <View style={[styles.dueBadge, { backgroundColor: b.dueAmount > 0 ? "#DC262618" : "#16A34A18" }]}>
                   <Text style={[styles.dueText, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
                     {b.dueAmount > 0 ? `Due ₹${b.dueAmount.toFixed(0)}` : `Cr ₹${b.creditBalance.toFixed(0)}`}
                   </Text>
                 </View>
               </View>
+              <View style={[styles.divider, { backgroundColor: "#F2E6DF" }]} />
               {[
                 ["Meals", `${b.mealCount} × ₹${b.perMealCost.toFixed(1)} = ₹${b.mealBill.toFixed(0)}`],
                 ["Eggs", `${b.eggCount} × ₹${settings.eggPrice} = ₹${b.eggBill.toFixed(0)}`],
@@ -280,12 +290,12 @@ export default function MoreScreen() {
       )}
 
       {activeSection === "settings" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}>
-          <View style={[styles.settingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+          <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Cook Salary</Text>
             <Text style={[styles.settingDesc, { color: colors.mutedForeground }]}>Fixed amount charged per member per month</Text>
             <View style={styles.settingInputRow}>
-              <Text style={[styles.settingVal, { color: colors.foreground }]}>₹{settings.cookSalary} / member</Text>
+              <Text style={[styles.settingVal, { color: colors.foreground }]}>₹{settings.cookSalary} <Text style={{ fontSize: 14, fontWeight: "400", color: colors.mutedForeground }}>/ member</Text></Text>
               <Pressable
                 style={[styles.smallBtn, { backgroundColor: "#D4500A20" }]}
                 onPress={() => openEditModal({
@@ -304,11 +314,11 @@ export default function MoreScreen() {
             </View>
           </View>
 
-          <View style={[styles.settingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Egg Price</Text>
             <Text style={[styles.settingDesc, { color: colors.mutedForeground }]}>Current price per egg</Text>
             <View style={styles.settingInputRow}>
-              <Text style={[styles.settingVal, { color: colors.foreground }]}>₹{settings.eggPrice} / egg</Text>
+              <Text style={[styles.settingVal, { color: colors.foreground }]}>₹{settings.eggPrice} <Text style={{ fontSize: 14, fontWeight: "400", color: colors.mutedForeground }}>/ egg</Text></Text>
               <Pressable
                 style={[styles.smallBtn, { backgroundColor: "#D4500A20" }]}
                 onPress={() => openEditModal({
@@ -327,10 +337,10 @@ export default function MoreScreen() {
             </View>
           </View>
 
-          <View style={[styles.settingCard, { backgroundColor: "#FFF0E6", borderColor: "#E8D5CA" }]}>
-            <Text style={[styles.settingTitle, { color: "#D4500A" }]}>Admin Credentials</Text>
-            <Text style={[styles.settingDesc, { color: "#7A3F1E" }]}>ID: admin · Password: admin123</Text>
-            <Text style={[styles.settingDesc, { color: "#9B7B68", marginTop: 4 }]}>Share member phone + password for member login</Text>
+          <View style={[styles.settingCard, { backgroundColor: "#FFF4EE" }]}>
+            <Text style={[styles.settingTitle, { color: "#D4500A" }]}>Admin Login</Text>
+            <Text style={[styles.settingDesc, { color: "#7A3F1E" }]}>Login ID: <Text style={{ fontWeight: "700" }}>admin</Text></Text>
+            <Text style={[styles.settingDesc, { color: "#9B7B68", marginTop: 4 }]}>Members log in using their phone number and the password set for them.</Text>
           </View>
         </ScrollView>
       )}
@@ -349,9 +359,9 @@ export default function MoreScreen() {
               <View style={{ flexDirection: "row", gap: 8 }}>
                 {activeMembers.map((m) => (
                   <Pressable key={m.id}
-                    style={[styles.memberChip, { borderColor: eggForm.memberId === m.id ? "#D4500A" : colors.border, backgroundColor: eggForm.memberId === m.id ? "#D4500A20" : colors.muted }]}
+                    style={[styles.memberChip, { backgroundColor: eggForm.memberId === m.id ? "#D4500A" : colors.muted }]}
                     onPress={() => setEggForm((f) => ({ ...f, memberId: m.id }))}>
-                    <Text style={{ color: eggForm.memberId === m.id ? "#D4500A" : colors.mutedForeground, fontWeight: "600" }}>{m.name.split(" ")[0]}</Text>
+                    <Text style={{ color: eggForm.memberId === m.id ? "#fff" : colors.mutedForeground, fontWeight: "600", fontSize: 13 }}>{m.name.split(" ")[0]}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -359,18 +369,20 @@ export default function MoreScreen() {
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>DATE</Text>
-              <TextInput style={[styles.formInput, { borderColor: colors.border, backgroundColor: colors.muted, color: colors.foreground }]}
+              <TextInput style={[styles.formInput, { color: colors.foreground }]}
                 value={eggForm.date} onChangeText={(v) => setEggForm((f) => ({ ...f, date: v }))} placeholder="YYYY-MM-DD" placeholderTextColor={colors.mutedForeground} />
             </View>
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>NUMBER OF EGGS</Text>
-              <TextInput style={[styles.formInput, { borderColor: colors.border, backgroundColor: colors.muted, color: colors.foreground }]}
+              <TextInput style={[styles.formInput, { color: colors.foreground }]}
                 value={eggForm.count} onChangeText={(v) => setEggForm((f) => ({ ...f, count: v }))} placeholder="0" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
             </View>
 
-            <Pressable style={[styles.saveBtn, { backgroundColor: "#D4500A" }]} onPress={saveEgg}>
-              <Text style={styles.saveBtnText}>Save Egg Entry</Text>
+            <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveEgg}>
+              <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>Save Egg Entry</Text>
+              </LinearGradient>
             </Pressable>
           </View>
         </View>
@@ -390,9 +402,9 @@ export default function MoreScreen() {
               <View style={{ flexDirection: "row", gap: 8 }}>
                 {activeMembers.map((m) => (
                   <Pressable key={m.id}
-                    style={[styles.memberChip, { borderColor: advForm.memberId === m.id ? "#D4500A" : colors.border, backgroundColor: advForm.memberId === m.id ? "#D4500A20" : colors.muted }]}
+                    style={[styles.memberChip, { backgroundColor: advForm.memberId === m.id ? "#D4500A" : colors.muted }]}
                     onPress={() => setAdvForm((f) => ({ ...f, memberId: m.id }))}>
-                    <Text style={{ color: advForm.memberId === m.id ? "#D4500A" : colors.mutedForeground, fontWeight: "600" }}>{m.name.split(" ")[0]}</Text>
+                    <Text style={{ color: advForm.memberId === m.id ? "#fff" : colors.mutedForeground, fontWeight: "600", fontSize: 13 }}>{m.name.split(" ")[0]}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -407,7 +419,7 @@ export default function MoreScreen() {
               <View key={key} style={styles.formGroup}>
                 <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>{label}</Text>
                 <TextInput
-                  style={[styles.formInput, { borderColor: colors.border, backgroundColor: colors.muted, color: colors.foreground }]}
+                  style={[styles.formInput, { color: colors.foreground }]}
                   value={String((advForm as Record<string, unknown>)[key] ?? "")}
                   onChangeText={(v) => setAdvForm((f) => ({ ...f, [key]: v }))}
                   keyboardType={numeric ? "numeric" : "default"}
@@ -416,8 +428,10 @@ export default function MoreScreen() {
               </View>
             ))}
 
-            <Pressable style={[styles.saveBtn, { backgroundColor: "#D4500A" }]} onPress={saveAdv}>
-              <Text style={styles.saveBtnText}>Add Advance</Text>
+            <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveAdv}>
+              <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>Add Advance</Text>
+              </LinearGradient>
             </Pressable>
           </View>
         </View>
@@ -434,7 +448,7 @@ export default function MoreScreen() {
             <Text style={[styles.editTitle, { color: colors.foreground }]}>{editModal.title}</Text>
             <Text style={[styles.editSubtitle, { color: colors.mutedForeground }]}>{editModal.subtitle}</Text>
             <TextInput
-              style={[styles.editInput, { borderColor: "#D4500A", backgroundColor: colors.muted, color: colors.foreground }]}
+              style={[styles.editInput, { color: colors.foreground }]}
               value={editInputVal}
               onChangeText={setEditInputVal}
               keyboardType="numeric"
@@ -449,8 +463,10 @@ export default function MoreScreen() {
               >
                 <Text style={[styles.editCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.editSaveBtn} onPress={confirmEdit}>
-                <Text style={styles.editSaveText}>Save</Text>
+              <Pressable style={({ pressed }) => [styles.editSaveBtnWrapper, { opacity: pressed ? 0.85 : 1 }]} onPress={confirmEdit}>
+                <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.editSaveBtn}>
+                  <Text style={styles.editSaveText}>Save</Text>
+                </LinearGradient>
               </Pressable>
             </View>
           </View>
@@ -462,74 +478,96 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  tabRow: {
-    flexDirection: "row", borderBottomWidth: 1,
-    paddingHorizontal: 8,
+  monthNavWrapper: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
+  monthNav: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    borderRadius: 16, padding: 8,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  tabItem: { flex: 1, alignItems: "center", paddingVertical: 10, gap: 4, borderBottomWidth: 2, borderBottomColor: "transparent" },
-  tabLabel: { fontSize: 11, fontWeight: "700" },
-  monthNav: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 8 },
   navArrow: { padding: 8 },
-  monthText: { fontSize: 16, fontWeight: "700", minWidth: 130, textAlign: "center" },
-  priceCard: { borderRadius: 14, padding: 16, borderWidth: 1, marginBottom: 12 },
-  priceLabel: { fontSize: 12, fontWeight: "700", marginBottom: 6 },
+  monthText: { fontSize: 17, fontWeight: "700" },
+  priceCard: {
+    borderRadius: 20, padding: 18, marginBottom: 20,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+  },
+  priceLabel: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
   priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  priceVal: { fontSize: 18, fontWeight: "700" },
-  addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, paddingVertical: 14, marginBottom: 16 },
+  priceVal: { fontSize: 24, fontWeight: "700" },
+  addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 16, paddingVertical: 16 },
   addBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
   emptyText: { textAlign: "center", paddingVertical: 20, fontSize: 14 },
-  listItem: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1 },
-  iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  listItem: {
+    flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16,
+    padding: 14, marginBottom: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+  },
+  iconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   itemInfo: { flex: 1 },
-  itemName: { fontSize: 14, fontWeight: "700" },
-  itemDate: { fontSize: 12, marginTop: 2 },
-  itemAmount: { fontSize: 15, fontWeight: "700" },
-  itemAmountSub: { fontSize: 12 },
-  reportCard: { borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1 },
-  reportHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 16, fontWeight: "700" },
+  itemName: { fontSize: 15, fontWeight: "700" },
+  itemDate: { fontSize: 12, marginTop: 4 },
+  itemAmount: { fontSize: 16, fontWeight: "700" },
+  itemAmountSub: { fontSize: 13, marginTop: 2 },
+  reportCard: {
+    borderRadius: 20, padding: 18, marginBottom: 16,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+  },
+  reportHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontSize: 18, fontWeight: "700" },
   reportName: { flex: 1, fontSize: 16, fontWeight: "700" },
-  dueBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  dueText: { fontSize: 13, fontWeight: "700" },
-  reportRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5, borderTopWidth: 1, borderTopColor: "#F0E0D6" },
-  reportKey: { fontSize: 13 },
-  reportVal: { fontSize: 13, fontWeight: "600" },
-  settingCard: { borderRadius: 14, padding: 16, borderWidth: 1, marginBottom: 12 },
-  settingTitle: { fontSize: 16, fontWeight: "700", marginBottom: 4 },
+  dueBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  dueText: { fontSize: 12, fontWeight: "700" },
+  divider: { height: 1, marginBottom: 8 },
+  reportRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },
+  reportKey: { fontSize: 14 },
+  reportVal: { fontSize: 14, fontWeight: "600" },
+  settingCard: {
+    borderRadius: 20, padding: 18, marginBottom: 16,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+  },
+  settingTitle: { fontSize: 16, fontWeight: "700", marginBottom: 6 },
   settingDesc: { fontSize: 13 },
-  settingInputRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
-  settingVal: { fontSize: 18, fontWeight: "700" },
-  smallBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  settingInputRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12 },
+  settingVal: { fontSize: 20, fontWeight: "700" },
+  smallBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   smallBtnText: { fontSize: 13, fontWeight: "700" },
   modalOverlay: { flex: 1, backgroundColor: "#00000060", justifyContent: "flex-end" },
   modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "90%" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: "700" },
-  formGroup: { marginBottom: 14 },
-  formLabel: { fontSize: 11, fontWeight: "700", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
-  formInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  memberChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  saveBtn: { borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
-  saveBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  formGroup: { marginBottom: 16 },
+  formLabel: { fontSize: 12, fontWeight: "600", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
+  formInput: {
+    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8", 
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 16,
+  },
+  memberChip: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 },
+  saveBtn: { borderRadius: 16, paddingVertical: 16, alignItems: "center" },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   // Inline edit modal styles
   editOverlay: { flex: 1, backgroundColor: "#00000070", justifyContent: "center", alignItems: "center" },
   editSheet: {
-    width: "85%", borderRadius: 20, padding: 24,
+    width: "85%", borderRadius: 24, padding: 24,
     shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12,
   },
-  editTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4 },
-  editSubtitle: { fontSize: 13, marginBottom: 16 },
+  editTitle: { fontSize: 20, fontWeight: "800", marginBottom: 6 },
+  editSubtitle: { fontSize: 14, marginBottom: 20 },
   editInput: {
-    borderWidth: 1.5, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 13,
-    fontSize: 22, fontWeight: "700",
-    textAlign: "center", marginBottom: 20,
+    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8",
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 24, fontWeight: "700", textAlign: "center", marginBottom: 24,
   },
-  editActions: { flexDirection: "row", gap: 10 },
-  editCancelBtn: { flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  editActions: { flexDirection: "row", gap: 12 },
+  editCancelBtn: { flex: 1, borderWidth: 1.5, borderRadius: 16, paddingVertical: 14, alignItems: "center" },
   editCancelText: { fontSize: 15, fontWeight: "600" },
-  editSaveBtn: { flex: 1, backgroundColor: "#D4500A", borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  editSaveBtnWrapper: { flex: 1, borderRadius: 16, overflow: "hidden" },
+  editSaveBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
   editSaveText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
