@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useRef, useState } from "react";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   FlatList,
   Pressable,
@@ -148,20 +149,25 @@ export default function MealsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.dateNav, { marginTop: insets.top + 12 }]}>
-        <Pressable onPress={() => changeDate(-1)} style={styles.navArrow}>
-          <Feather name="chevron-left" size={24} color={colors.primary} />
-        </Pressable>
-        <View style={styles.dateCenter}>
-          <Text style={[styles.dateText, { color: colors.foreground }]}>{displayDate(selectedDate)}</Text>
-          <Text style={[styles.dateSub, { color: colors.mutedForeground }]}>
-            Morning: {totalMorning} · Night: {totalNight}
-          </Text>
-        </View>
-        <Pressable onPress={() => changeDate(1)} style={styles.navArrow}>
-          <Feather name="chevron-right" size={24} color={colors.primary} />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Meal Entry"
+        icon="grid"
+        subtitle="Mark daily meals for members"
+        bottomElement={
+          <View style={styles.headerDateNav}>
+            <Pressable onPress={() => changeDate(-1)} style={styles.headerNavBtn}>
+              <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={styles.headerDateText}>{displayDate(selectedDate)}</Text>
+              <Text style={styles.headerDateSub}>Morning: {totalMorning} · Night: {totalNight}</Text>
+            </View>
+            <Pressable onPress={() => changeDate(1)} style={styles.headerNavBtn}>
+              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+          </View>
+        }
+      />
 
       <View style={[styles.bulkBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.bulkLabel, { color: colors.mutedForeground }]}>Bulk Mark</Text>
@@ -264,4 +270,12 @@ const styles = StyleSheet.create({
   totalBadge: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   totalText: { fontSize: 15, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
+  headerDateNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingVertical: 4,
+  },
+  headerNavBtn: { padding: 8 },
+  headerDateText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  headerDateSub: { fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 },
 });

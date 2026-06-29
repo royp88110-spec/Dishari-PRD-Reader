@@ -1,11 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { ScreenHeader } from "@/components/ScreenHeader";
 
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
@@ -56,7 +56,6 @@ function StatCard({ label, value, icon, color, sub }: {
   );
 }
 
-/** Format ISO timestamp to a short local date string like "29 Jun" */
 function shortDate(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -69,7 +68,6 @@ export default function AdminDashboard() {
   const { logout } = useAuth();
   const { members, expenses, payments, getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid } = useData();
   const [month, setMonth] = useState(getCurrentMonth());
-  // Track in-flight payment mutations per member so rows stay disabled independently
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -89,12 +87,11 @@ export default function AdminDashboard() {
   const totalDue = bills.reduce((s, b) => s + b.dueAmount, 0);
   const totalCredit = bills.reduce((s, b) => s + b.creditBalance, 0);
 
-  // Payment helpers
   const getPayment = (memberId: string) =>
     payments.find((p) => p.memberId === memberId && p.month === month);
 
   const handleTogglePayment = async (memberId: string, dueAmount: number) => {
-    if (payingIds.has(memberId)) return; // already in-flight for this member
+    if (payingIds.has(memberId)) return;
     const payment = getPayment(memberId);
     setPayError(null);
     setMemberPaying(memberId, true);
@@ -112,230 +109,223 @@ export default function AdminDashboard() {
     }
   };
 
-  // Count paid members this month
   const paidCount = bills.filter((b) => getPayment(b.memberId)?.paid === true).length;
 
+  const todayLabel = new Date().toLocaleDateString("en-IN", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-    >
-      <View style={[styles.topBar, { paddingTop: insets.top + 16 }]}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>Welcome back,</Text>
-          <Text style={[styles.adminName, { color: colors.foreground }]}>Admin</Text>
-        </View>
-        <Pressable
-          onPress={() => logout().then(() => router.replace("/"))}
-          style={[styles.logoutBtn, { backgroundColor: colors.muted }]}
-        >
-          <Feather name="log-out" size={18} color={colors.destructive} />
-        </Pressable>
-      </View>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <ScreenHeader
+        title="Dashboard"
+        icon="home"
+        subtitle={todayLabel}
+        rightElement={
+          <Pressable
+            onPress={() => logout().then(() => router.replace("/"))}
+            style={styles.logoutBtn}
+          >
+            <Feather name="log-out" size={18} color="rgba(255,255,255,0.9)" />
+          </Pressable>
+        }
+      />
 
-      <View style={[styles.monthNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-left" size={22} color={colors.primary} />
-        </Pressable>
-        <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
-        <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-right" size={22} color={colors.primary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.statsGrid}>
-        <StatCard label="Active Members" value={String(activeMembers)} icon="users" color="#D4500A" />
-        <StatCard label="Total Meals" value={String(totalMeals)} icon="grid" color="#7C3AED" />
-        <StatCard label="Expenses" value={`₹${rawExpense.toFixed(0)}`} icon="dollar-sign" color="#0891B2" />
-        <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up" color="#16A34A" />
-      </View>
-
-      {/* Payment error banner */}
-      {payError && (
-        <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
-          <Feather name="alert-circle" size={16} color="#DC2626" />
-          <Text style={[styles.errorBannerText, { color: "#DC2626" }]}>{payError}</Text>
-          <Pressable onPress={() => setPayError(null)}>
-            <Feather name="x" size={16} color="#DC2626" />
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+        {/* Month navigator */}
+        <View style={[styles.monthNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
+            <Feather name="chevron-left" size={22} color={colors.primary} />
+          </Pressable>
+          <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
+          <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
+            <Feather name="chevron-right" size={22} color={colors.primary} />
           </Pressable>
         </View>
-      )}
 
-      {/* Payment progress banner */}
-      {bills.length > 0 && (
-        <View style={[styles.paymentBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.paymentBannerLeft}>
-            <Feather name="check-circle" size={20} color={paidCount === bills.length ? "#16A34A" : "#D97706"} />
-            <Text style={[styles.paymentBannerText, { color: colors.foreground }]}>
-              {paidCount} / {bills.length} members paid
-            </Text>
+        <View style={styles.statsGrid}>
+          <StatCard label="Active Members" value={String(activeMembers)} icon="users" color="#D4500A" />
+          <StatCard label="Total Meals" value={String(totalMeals)} icon="grid" color="#7C3AED" />
+          <StatCard label="Expenses" value={`₹${rawExpense.toFixed(0)}`} icon="dollar-sign" color="#0891B2" />
+          <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up" color="#16A34A" />
+        </View>
+
+        {payError && (
+          <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
+            <Feather name="alert-circle" size={16} color="#DC2626" />
+            <Text style={[styles.errorBannerText, { color: "#DC2626" }]}>{payError}</Text>
+            <Pressable onPress={() => setPayError(null)}>
+              <Feather name="x" size={16} color="#DC2626" />
+            </Pressable>
           </View>
-          <View style={[
-            styles.paymentPill,
-            { backgroundColor: paidCount === bills.length ? "#16A34A20" : "#D9770620" }
-          ]}>
-            <Text style={[
-              styles.paymentPillText,
-              { color: paidCount === bills.length ? "#16A34A" : "#D97706" }
+        )}
+
+        {bills.length > 0 && (
+          <View style={[styles.paymentBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.paymentBannerLeft}>
+              <Feather name="check-circle" size={20} color={paidCount === bills.length ? "#16A34A" : "#D97706"} />
+              <Text style={[styles.paymentBannerText, { color: colors.foreground }]}>
+                {paidCount} / {bills.length} members paid
+              </Text>
+            </View>
+            <View style={[
+              styles.paymentPill,
+              { backgroundColor: paidCount === bills.length ? "#16A34A20" : "#D9770620" }
             ]}>
-              {paidCount === bills.length ? "All Settled" : "Pending"}
-            </Text>
+              <Text style={[
+                styles.paymentPillText,
+                { color: paidCount === bills.length ? "#16A34A" : "#D97706" }
+              ]}>
+                {paidCount === bills.length ? "All Settled" : "Pending"}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monthly Summary</Text>
+          <View style={styles.summaryRow}>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Monthly Expense</Text>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>₹{totalExpense.toFixed(0)}</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryRow}>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Meals Served</Text>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{totalMeals}</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryRow}>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Due from Members</Text>
+            <Text style={[styles.summaryVal, { color: "#DC2626" }]}>₹{totalDue.toFixed(0)}</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryRow}>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Credit Balance</Text>
+            <Text style={[styles.summaryVal, { color: "#16A34A" }]}>₹{totalCredit.toFixed(0)}</Text>
           </View>
         </View>
-      )}
 
-      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monthly Summary</Text>
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Monthly Expense</Text>
-          <Text style={[styles.summaryVal, { color: colors.foreground }]}>₹{totalExpense.toFixed(0)}</Text>
-        </View>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Meals Served</Text>
-          <Text style={[styles.summaryVal, { color: colors.foreground }]}>{totalMeals}</Text>
-        </View>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Due from Members</Text>
-          <Text style={[styles.summaryVal, { color: "#DC2626" }]}>₹{totalDue.toFixed(0)}</Text>
-        </View>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Credit Balance</Text>
-          <Text style={[styles.summaryVal, { color: "#16A34A" }]}>₹{totalCredit.toFixed(0)}</Text>
-        </View>
-      </View>
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
+          {bills.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active members</Text>
+          ) : bills.map((b) => {
+            const payment = getPayment(b.memberId);
+            const isPaid = payment?.paid === true;
+            const isProcessing = payingIds.has(b.memberId);
 
-      {/* Member Bills with payment status */}
-      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
-        {bills.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active members</Text>
-        ) : bills.map((b) => {
-          const payment = getPayment(b.memberId);
-          const isPaid = payment?.paid === true;
-          const isProcessing = payingIds.has(b.memberId);
-
-          return (
-            <View key={b.memberId}>
-              <View style={styles.memberBillRow}>
-                {/* Avatar */}
-                <View style={[styles.avatar, { backgroundColor: isPaid ? "#16A34A20" : "#D4500A20" }]}>
-                  <Text style={[styles.avatarText, { color: isPaid ? "#16A34A" : "#D4500A" }]}>
-                    {b.memberName.charAt(0).toUpperCase()}
-                  </Text>
+            return (
+              <View key={b.memberId}>
+                <View style={styles.memberBillRow}>
+                  <View style={[styles.avatar, { backgroundColor: isPaid ? "#16A34A20" : "#D4500A20" }]}>
+                    <Text style={[styles.avatarText, { color: isPaid ? "#16A34A" : "#D4500A" }]}>
+                      {b.memberName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.memberBillInfo}>
+                    <Text style={[styles.memberBillName, { color: colors.foreground }]}>{b.memberName}</Text>
+                    <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
+                      {b.mealCount} meals · {b.eggCount} eggs
+                    </Text>
+                  </View>
+                  <View style={styles.memberBillRight}>
+                    <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
+                      ₹{b.dueAmount > 0 ? b.dueAmount.toFixed(0) : b.creditBalance.toFixed(0)}
+                    </Text>
+                    <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
+                      {b.dueAmount > 0 ? "Due" : "Credit"}
+                    </Text>
+                  </View>
                 </View>
 
-                {/* Name + meals */}
-                <View style={styles.memberBillInfo}>
-                  <Text style={[styles.memberBillName, { color: colors.foreground }]}>{b.memberName}</Text>
-                  <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
-                    {b.mealCount} meals · {b.eggCount} eggs
-                  </Text>
+                <View style={styles.paymentRow}>
+                  <View style={[
+                    styles.statusBadge,
+                    { backgroundColor: isPaid ? "#16A34A15" : "#DC262615" }
+                  ]}>
+                    <Text style={{ fontSize: 13 }}>{isPaid ? "✅" : "❌"}</Text>
+                    <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
+                      {isPaid
+                        ? `Paid${payment?.paidAt ? ` · ${shortDate(payment.paidAt)}` : ""}`
+                        : "Unpaid"}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.payToggleBtn,
+                      {
+                        backgroundColor: isPaid ? "#DC262615" : "#16A34A",
+                        opacity: pressed || isProcessing ? 0.75 : 1,
+                      },
+                    ]}
+                    onPress={() => handleTogglePayment(b.memberId, b.dueAmount)}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <ActivityIndicator size="small" color={isPaid ? "#DC2626" : "#fff"} />
+                    ) : (
+                      <>
+                        <Feather
+                          name={isPaid ? "x-circle" : "check-circle"}
+                          size={14}
+                          color={isPaid ? "#DC2626" : "#fff"}
+                        />
+                        <Text style={[styles.payToggleBtnText, { color: isPaid ? "#DC2626" : "#fff" }]}>
+                          {isPaid ? "Mark Unpaid" : "Mark as Paid"}
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
                 </View>
 
-                {/* Amount + payment toggle */}
-                <View style={styles.memberBillRight}>
-                  <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
-                    ₹{b.dueAmount > 0 ? b.dueAmount.toFixed(0) : b.creditBalance.toFixed(0)}
-                  </Text>
-                  <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
-                    {b.dueAmount > 0 ? "Due" : "Credit"}
-                  </Text>
-                </View>
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
               </View>
+            );
+          })}
+        </View>
 
-              {/* Payment status row */}
-              <View style={styles.paymentRow}>
-                {/* Status badge */}
-                <View style={[
-                  styles.statusBadge,
-                  { backgroundColor: isPaid ? "#16A34A15" : "#DC262615" }
-                ]}>
-                  <Text style={{ fontSize: 13 }}>{isPaid ? "✅" : "❌"}</Text>
-                  <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
-                    {isPaid
-                      ? `Paid${payment?.paidAt ? ` · ${shortDate(payment.paidAt)}` : ""}`
-                      : "Unpaid"}
-                  </Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Expenses</Text>
+          {monthExpenses.slice(-5).reverse().map((e) => (
+            <View key={e.id}>
+              <View style={styles.expenseRow}>
+                <View style={[styles.expenseIcon, { backgroundColor: colors.muted }]}>
+                  <Feather name="shopping-bag" size={16} color={colors.primary} />
                 </View>
-
-                {/* Toggle button — admin only */}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.payToggleBtn,
-                    {
-                      backgroundColor: isPaid ? "#DC262615" : "#16A34A",
-                      opacity: pressed || isProcessing ? 0.75 : 1,
-                    },
-                  ]}
-                  onPress={() => handleTogglePayment(b.memberId, b.dueAmount)}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <ActivityIndicator size="small" color={isPaid ? "#DC2626" : "#fff"} />
-                  ) : (
-                    <>
-                      <Feather
-                        name={isPaid ? "x-circle" : "check-circle"}
-                        size={14}
-                        color={isPaid ? "#DC2626" : "#fff"}
-                      />
-                      <Text style={[styles.payToggleBtnText, { color: isPaid ? "#DC2626" : "#fff" }]}>
-                        {isPaid ? "Mark Unpaid" : "Mark as Paid"}
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
+                <View style={styles.expenseInfo}>
+                  <Text style={[styles.expenseName, { color: colors.foreground }]}>
+                    {e.type.charAt(0).toUpperCase() + e.type.slice(1)}
+                    {e.shopName ? ` · ${e.shopName}` : ""}
+                  </Text>
+                  <Text style={[styles.expenseDate, { color: colors.mutedForeground }]}>{e.date}</Text>
+                </View>
+                <Text style={[styles.expenseAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
               </View>
-
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
             </View>
-          );
-        })}
-      </View>
-
-      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Expenses</Text>
-        {monthExpenses.slice(-5).reverse().map((e) => (
-          <View key={e.id}>
-            <View style={styles.expenseRow}>
-              <View style={[styles.expenseIcon, { backgroundColor: colors.muted }]}>
-                <Feather name="shopping-bag" size={16} color={colors.primary} />
-              </View>
-              <View style={styles.expenseInfo}>
-                <Text style={[styles.expenseName, { color: colors.foreground }]}>
-                  {e.type.charAt(0).toUpperCase() + e.type.slice(1)}
-                  {e.shopName ? ` · ${e.shopName}` : ""}
-                </Text>
-                <Text style={[styles.expenseDate, { color: colors.mutedForeground }]}>{e.date}</Text>
-              </View>
-              <Text style={[styles.expenseAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
-            </View>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          </View>
-        ))}
-        {monthExpenses.length === 0 && (
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No expenses this month</Text>
-        )}
-      </View>
-    </ScrollView>
+          ))}
+          {monthExpenses.length === 0 && (
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No expenses this month</Text>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  topBar: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", paddingHorizontal: 20, paddingBottom: 12,
+  logoutBtn: {
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
-  greeting: { fontSize: 13 },
-  adminName: { fontSize: 22, fontWeight: "700" },
-  logoutBtn: { padding: 10, borderRadius: 12 },
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 14,
+    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 14,
     padding: 8, borderWidth: 1,
   },
   navArrow: { padding: 8 },

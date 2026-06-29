@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   FlatList,
   Pressable,
@@ -64,18 +65,25 @@ export default function MemberExpenses() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.monthNav, { marginTop: insets.top + 12 }]}>
-        <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-left" size={22} color={colors.primary} />
-        </Pressable>
-        <View style={styles.monthCenter}>
-          <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
-          <Text style={[styles.monthSub, { color: colors.primary }]}>Total: ₹{grandTotal.toFixed(0)}</Text>
-        </View>
-        <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-right" size={22} color={colors.primary} />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Expenses"
+        icon="dollar-sign"
+        subtitle="Mess expense breakdown"
+        bottomElement={
+          <View style={styles.headerMonthNav}>
+            <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.headerNavBtn}>
+              <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={styles.headerMonthText}>{monthLabel(month)}</Text>
+              <Text style={styles.headerMonthSub}>Total: ₹{grandTotal.toFixed(0)}</Text>
+            </View>
+            <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.headerNavBtn}>
+              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+          </View>
+        }
+      />
 
       <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.summaryItem}>
@@ -176,4 +184,12 @@ const styles = StyleSheet.create({
   expAmount: { fontSize: 16, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
+  headerMonthNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingVertical: 4,
+  },
+  headerNavBtn: { padding: 8 },
+  headerMonthText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  headerMonthSub: { fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 },
 });

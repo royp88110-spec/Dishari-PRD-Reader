@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   Alert,
   FlatList,
@@ -119,18 +120,41 @@ export default function MoreScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.tabRow, { marginTop: insets.top + 12, borderBottomColor: colors.border }]}>
-        {sections.map((s) => (
-          <Pressable
-            key={s.key}
-            style={[styles.tabItem, activeSection === s.key && { borderBottomColor: "#D4500A", borderBottomWidth: 2.5 }]}
-            onPress={() => setActiveSection(s.key)}
-          >
-            <Feather name={s.icon as "settings"} size={16} color={activeSection === s.key ? "#D4500A" : colors.mutedForeground} />
-            <Text style={[styles.tabLabel, { color: activeSection === s.key ? "#D4500A" : colors.mutedForeground }]}>{s.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <ScreenHeader
+        title="More"
+        icon="more-horizontal"
+        subtitle="Eggs · Advances · Reports · Settings"
+        bottomElement={
+          <View style={{ flexDirection: "row", gap: 4 }}>
+            {sections.map((s) => (
+              <Pressable
+                key={s.key}
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  paddingVertical: 8,
+                  gap: 4,
+                  borderRadius: 10,
+                  backgroundColor: activeSection === s.key ? "rgba(255,255,255,0.22)" : "transparent",
+                }}
+                onPress={() => setActiveSection(s.key)}
+              >
+                <Feather
+                  name={s.icon as "settings"}
+                  size={16}
+                  color={activeSection === s.key ? "#fff" : "rgba(255,255,255,0.6)"}
+                />
+                <Text style={{
+                  fontSize: 11, fontWeight: "700",
+                  color: activeSection === s.key ? "#fff" : "rgba(255,255,255,0.6)",
+                }}>
+                  {s.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        }
+      />
 
       <View style={[styles.monthNav, { marginTop: 12 }]}>
         <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>

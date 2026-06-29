@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   FlatList,
   Pressable,
@@ -56,15 +57,22 @@ export default function MemberMeals() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.monthNav, { marginTop: insets.top + 12 }]}>
-        <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-left" size={22} color={colors.primary} />
-        </Pressable>
-        <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
-        <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-right" size={22} color={colors.primary} />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="My Meals"
+        icon="grid"
+        subtitle="Your meal history"
+        bottomElement={
+          <View style={styles.headerMonthNav}>
+            <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.headerNavBtn}>
+              <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+            <Text style={styles.headerMonthText}>{monthLabel(month)}</Text>
+            <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.headerNavBtn}>
+              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+          </View>
+        }
+      />
 
       <View style={[styles.summaryRow]}>
         {[
@@ -161,4 +169,11 @@ const styles = StyleSheet.create({
   totalText: { fontSize: 15, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
+  headerMonthNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingVertical: 4,
+  },
+  headerNavBtn: { padding: 8 },
+  headerMonthText: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "700", color: "#fff" },
 });

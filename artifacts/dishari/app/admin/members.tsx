@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   Alert,
   FlatList,
@@ -85,7 +86,12 @@ export default function MembersScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchBar, { backgroundColor: colors.muted, borderColor: colors.border, marginTop: insets.top + 12 }]}>
+      <ScreenHeader
+        title="Members"
+        icon="users"
+        subtitle={`${members.length} total · ${members.filter(m => m.status === "active").length} active`}
+      />
+      <View style={[styles.searchBar, { backgroundColor: colors.muted, borderColor: colors.border, marginTop: 12 }]}>
         <Feather name="search" size={18} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}

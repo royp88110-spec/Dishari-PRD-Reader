@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   Alert,
   FlatList,
@@ -118,18 +119,25 @@ export default function ExpensesScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.monthNav, { marginTop: insets.top + 12 }]}>
-        <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-left" size={22} color={colors.primary} />
-        </Pressable>
-        <View style={styles.monthCenter}>
-          <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
-          <Text style={[styles.monthTotal, { color: colors.primary }]}>Total: ₹{monthTotal.toFixed(0)}</Text>
-        </View>
-        <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-          <Feather name="chevron-right" size={22} color={colors.primary} />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Expenses"
+        icon="dollar-sign"
+        subtitle="Track mess expenses"
+        bottomElement={
+          <View style={styles.headerMonthNav}>
+            <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.headerNavBtn}>
+              <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={styles.headerMonthText}>{monthLabel(month)}</Text>
+              <Text style={styles.headerMonthSub}>Total: ₹{monthTotal.toFixed(0)}</Text>
+            </View>
+            <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.headerNavBtn}>
+              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+          </View>
+        }
+      />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={styles.catContent}>
         {CATEGORIES.map((c) => (
@@ -306,4 +314,12 @@ const styles = StyleSheet.create({
   formInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
   saveBtn: { borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
   saveBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  headerMonthNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingVertical: 4,
+  },
+  headerNavBtn: { padding: 8 },
+  headerMonthText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  headerMonthSub: { fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 },
 });
