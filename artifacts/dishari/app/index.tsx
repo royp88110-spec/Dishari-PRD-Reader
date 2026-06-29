@@ -125,8 +125,8 @@ export default function Index() {
   /* ── Normal routing ── */
   if (needsSetup) return <Redirect href="/setup" />;
   if (!user) return <Redirect href="/login" />;
-  if (user.role === "admin") return <Redirect href="/admin/" />;
-  return <Redirect href="/member/" />;
+  if (user.role === "admin") return <Redirect href="/admin" />;
+  return <Redirect href="/member" />;
 }
 
 function Step({ n, text }: { n: number; text: string }) {
