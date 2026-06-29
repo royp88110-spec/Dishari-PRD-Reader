@@ -89,6 +89,7 @@ interface DataContextType {
   updateMember: (id: string, u: Partial<Member>) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
   setMeal: (memberId: string, date: string, morning: boolean, night: boolean) => Promise<void>;
+  setMealsBatch: (entries: { memberId: string; date: string; morning: boolean; night: boolean }[]) => Promise<void>;
   addExpense: (e: Omit<Expense, "id">) => Promise<void>;
   updateExpense: (id: string, u: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
@@ -349,9 +350,47 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setMeal = async (memberId: string, date: string, morning: boolean, night: boolean) => {
+    // Optimistic local update — UI reflects change immediately
+    setMeals((prev) => {
+      const idx = prev.findIndex((m) => m.memberId === memberId && m.date === date);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], morning, night };
+        return next;
+      }
+      return [...prev, { id: `opt-${memberId}-${date}`, memberId, date, morning, night }];
+    });
+    // Persist to DB (fire-and-forget from caller)
     const client = await sb();
     await client.from("meals").upsert(
       { member_id: memberId, date, morning, night },
+      { onConflict: "member_id,date" }
+    );
+  };
+
+  /**
+   * Batch upsert for bulk meal operations (All Morning / All Night / Clear All).
+   * Applies optimistic local update then fires all DB writes in parallel.
+   */
+  const setMealsBatch = async (entries: { memberId: string; date: string; morning: boolean; night: boolean }[]) => {
+    if (entries.length === 0) return;
+    // Optimistic update for every entry at once
+    setMeals((prev) => {
+      const next = [...prev];
+      for (const e of entries) {
+        const idx = next.findIndex((m) => m.memberId === e.memberId && m.date === e.date);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], morning: e.morning, night: e.night };
+        } else {
+          next.push({ id: `opt-${e.memberId}-${e.date}`, memberId: e.memberId, date: e.date, morning: e.morning, night: e.night });
+        }
+      }
+      return next;
+    });
+    // Single batch upsert — all members in one round-trip
+    const client = await sb();
+    await client.from("meals").upsert(
+      entries.map((e) => ({ member_id: e.memberId, date: e.date, morning: e.morning, night: e.night })),
       { onConflict: "member_id,date" }
     );
   };
@@ -521,7 +560,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     <DataContext.Provider value={{
       members, meals, expenses, advances, eggs, settings, payments, isLoaded,
       addMember, updateMember, deleteMember,
-      setMeal,
+      setMeal, setMealsBatch,
       addExpense, updateExpense, deleteExpense,
       addAdvance, deleteAdvance,
       setEggEntry, updateSettings,
