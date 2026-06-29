@@ -52,6 +52,15 @@ export interface Settings {
   cookSalary: number;
 }
 
+export interface BillPayment {
+  id: string;
+  memberId: string;
+  month: string;       // "YYYY-MM"
+  paid: boolean;
+  paidAt: string | null;
+  amount: number;
+}
+
 export interface MonthlyBill {
   memberId: string;
   memberName: string;
@@ -74,6 +83,7 @@ interface DataContextType {
   advances: Advance[];
   eggs: EggEntry[];
   settings: Settings;
+  payments: BillPayment[];
   isLoaded: boolean;
   addMember: (m: Omit<Member, "id">) => Promise<void>;
   updateMember: (id: string, u: Partial<Member>) => Promise<void>;
@@ -86,6 +96,8 @@ interface DataContextType {
   deleteAdvance: (id: string) => Promise<void>;
   setEggEntry: (memberId: string, date: string, count: number) => Promise<void>;
   updateSettings: (s: Partial<Settings>) => Promise<void>;
+  markPaid: (memberId: string, month: string, amount: number) => Promise<void>;
+  markUnpaid: (memberId: string, month: string) => Promise<void>;
   calculateMonthlyBill: (memberId: string, month: string) => MonthlyBill;
   calculateAllMonthlyBills: (month: string) => MonthlyBill[];
   getMonthTotals: (month: string) => { totalExpense: number; totalMeals: number; perMealCost: number };
@@ -124,6 +136,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [eggs, setEggs] = useState<EggEntry[]>([]);
   const [settings, setSettings] = useState<Settings>({ eggPrice: 12, cookSalary: 250 });
+  const [payments, setPayments] = useState<BillPayment[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchMembers = useCallback(async () => {
@@ -222,6 +235,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchPayments = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("bill_payments").select("*");
+    if (data) {
+      setPayments(
+        (data as Record<string, unknown>[]).map((p) => ({
+          id: p.id as string,
+          memberId: p.member_id as string,
+          month: p.month as string,
+          paid: p.paid as boolean,
+          paidAt: (p.paid_at as string | null) ?? null,
+          amount: Number(p.amount),
+        }))
+      );
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     await Promise.all([
       fetchMembers(),
@@ -230,9 +260,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       fetchAdvances(),
       fetchEggs(),
       fetchSettings(),
+      fetchPayments(),
     ]);
     setIsLoaded(true);
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -248,7 +279,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           void loadAll();
         } else {
           setMembers([]); setMeals([]); setExpenses([]);
-          setAdvances([]); setEggs([]);
+          setAdvances([]); setEggs([]); setPayments([]);
           setSettings({ eggPrice: 12, cookSalary: 250 });
           setIsLoaded(false);
         }
@@ -278,13 +309,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on("postgres_changes", { event: "*", schema: "public", table: "advances" }, () => { void fetchAdvances(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "eggs" }, () => { void fetchEggs(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => { void fetchSettings(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "bill_payments" }, () => { void fetchPayments(); })
         .subscribe();
     });
 
     return () => {
       sb().then((client) => { if (channel) void client.removeChannel(channel!); });
     };
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments]);
 
   const addMember = async (m: Omit<Member, "id">) => {
     await apiCall("POST", "/admin/members", {
@@ -384,6 +416,69 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  /**
+   * Mark a member's bill as paid for a given month.
+   * Upserts into bill_payments so it's idempotent.
+   */
+  const markPaid = async (memberId: string, month: string, amount: number) => {
+    const client = await sb();
+    await client.from("bill_payments").upsert(
+      {
+        member_id: memberId,
+        month,
+        paid: true,
+        paid_at: new Date().toISOString(),
+        amount,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "member_id,month" }
+    );
+    // Optimistic local update
+    setPayments((prev) => {
+      const exists = prev.find((p) => p.memberId === memberId && p.month === month);
+      const now = new Date().toISOString();
+      if (exists) {
+        return prev.map((p) =>
+          p.memberId === memberId && p.month === month
+            ? { ...p, paid: true, paidAt: now, amount }
+            : p
+        );
+      }
+      return [...prev, { id: "optimistic", memberId, month, paid: true, paidAt: now, amount }];
+    });
+  };
+
+  /**
+   * Mark a member's bill as unpaid for a given month.
+   * Uses upsert so it is idempotent even if no prior row exists.
+   */
+  const markUnpaid = async (memberId: string, month: string) => {
+    const client = await sb();
+    await client.from("bill_payments").upsert(
+      {
+        member_id: memberId,
+        month,
+        paid: false,
+        paid_at: null,
+        amount: 0,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "member_id,month" }
+    );
+    // Symmetric upsert-style local update: update existing or insert if absent
+    setPayments((prev) => {
+      const exists = prev.find((p) => p.memberId === memberId && p.month === month);
+      if (exists) {
+        return prev.map((p) =>
+          p.memberId === memberId && p.month === month
+            ? { ...p, paid: false, paidAt: null, amount: 0 }
+            : p
+        );
+      }
+      return [...prev, { id: "optimistic", memberId, month, paid: false, paidAt: null, amount: 0 }];
+    });
+  };
+
   const getMonthTotals = (month: string) => {
     const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
     const totalExpense = monthExpenses.reduce((s, e) => s + e.amount, 0);
@@ -424,12 +519,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      members, meals, expenses, advances, eggs, settings, isLoaded,
+      members, meals, expenses, advances, eggs, settings, payments, isLoaded,
       addMember, updateMember, deleteMember,
       setMeal,
       addExpense, updateExpense, deleteExpense,
       addAdvance, deleteAdvance,
       setEggEntry, updateSettings,
+      markPaid, markUnpaid,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,
     }}>
       {children}

@@ -48,16 +48,27 @@ function BillRow({ label, value, color, bold }: { label: string; value: string; 
   );
 }
 
+/** Format ISO timestamp → "29 Jun 2026" */
+function friendlyDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
 export default function MemberHome() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { calculateMonthlyBill, getMonthTotals, settings } = useData();
+  const { calculateMonthlyBill, getMonthTotals, settings, payments } = useData();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const memberId = user?.memberId ?? "";
   const bill = calculateMonthlyBill(memberId, month);
   const { perMealCost, totalExpense, totalMeals } = getMonthTotals(month);
+
+  // Payment status for this member & month
+  const payment = payments.find((p) => p.memberId === memberId && p.month === month);
+  const isPaid = payment?.paid === true;
 
   return (
     <ScrollView
@@ -87,6 +98,37 @@ export default function MemberHome() {
         </Pressable>
       </View>
 
+      {/* ── Payment Status Card ── */}
+      <View style={[
+        styles.paymentCard,
+        {
+          backgroundColor: isPaid ? "#16A34A12" : "#DC262612",
+          borderColor: isPaid ? "#16A34A" : "#DC2626",
+        }
+      ]}>
+        <View style={styles.paymentCardInner}>
+          <Text style={styles.paymentEmoji}>{isPaid ? "✅" : "❌"}</Text>
+          <View style={styles.paymentCardText}>
+            <Text style={[styles.paymentStatus, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
+              {isPaid ? "Bill Paid" : "Bill Unpaid"}
+            </Text>
+            <Text style={[styles.paymentSub, { color: colors.mutedForeground }]}>
+              {isPaid
+                ? `Payment received on ${friendlyDate(payment?.paidAt ?? null)}`
+                : "Contact admin after paying your bill"}
+            </Text>
+          </View>
+        </View>
+        {isPaid && payment?.amount != null && payment.amount > 0 && (
+          <View style={[styles.paidAmountBadge, { backgroundColor: "#16A34A20" }]}>
+            <Text style={[styles.paidAmountText, { color: "#16A34A" }]}>
+              ₹{payment.amount.toFixed(0)}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Due / Credit card ── */}
       <View style={[styles.dueCard, {
         backgroundColor: bill.dueAmount > 0 ? "#DC262608" : "#16A34A08",
         borderColor: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
@@ -173,6 +215,18 @@ const styles = StyleSheet.create({
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
+  paymentCard: {
+    marginHorizontal: 20, marginBottom: 12, borderRadius: 16,
+    padding: 16, borderWidth: 2,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  paymentCardInner: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  paymentEmoji: { fontSize: 28 },
+  paymentCardText: { flex: 1 },
+  paymentStatus: { fontSize: 16, fontWeight: "700" },
+  paymentSub: { fontSize: 12, marginTop: 2 },
+  paidAmountBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 },
+  paidAmountText: { fontSize: 15, fontWeight: "700" },
   dueCard: {
     marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
     padding: 24, alignItems: "center", borderWidth: 2,

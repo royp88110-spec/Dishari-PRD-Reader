@@ -195,12 +195,37 @@ CREATE POLICY "admin writes settings"
   USING (get_my_role() = 'admin')
   WITH CHECK (get_my_role() = 'admin');
 
+CREATE TABLE IF NOT EXISTS bill_payments (
+  id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id   UUID          NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  month       TEXT          NOT NULL,          -- e.g. "2026-06"
+  paid        BOOLEAN       NOT NULL DEFAULT false,
+  paid_at     TIMESTAMPTZ,
+  amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ   DEFAULT now(),
+  updated_at  TIMESTAMPTZ   DEFAULT now(),
+  UNIQUE (member_id, month)
+);
+
+ALTER TABLE bill_payments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "admin manages bill_payments"
+  ON bill_payments FOR ALL TO authenticated
+  USING (get_my_role() = 'admin')
+  WITH CHECK (get_my_role() = 'admin');
+
+CREATE POLICY "member reads own bill_payment"
+  ON bill_payments FOR SELECT TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM members WHERE id = bill_payments.member_id AND user_id = auth.uid())
+  );
+
 -- ── 6. Enable Realtime ────────────────────────────────────────
 -- In the Supabase dashboard → Database → Replication,
 -- enable the following tables for realtime:
--- members, meals, expenses, advances, eggs, settings, fines, announcements
+-- members, meals, expenses, advances, eggs, settings, fines, announcements, bill_payments
 --
 -- Or run:
 ALTER PUBLICATION supabase_realtime ADD TABLE
   members, meals, expenses, advances, eggs,
-  fines, announcements, settings;
+  fines, announcements, settings, bill_payments;

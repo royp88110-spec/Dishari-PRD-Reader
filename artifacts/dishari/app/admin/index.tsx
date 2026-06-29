@@ -1,7 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -53,12 +56,29 @@ function StatCard({ label, value, icon, color, sub }: {
   );
 }
 
+/** Format ISO timestamp to a short local date string like "29 Jun" */
+function shortDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
 export default function AdminDashboard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { logout, user } = useAuth();
-  const { members, expenses, getMonthTotals, calculateAllMonthlyBills } = useData();
+  const { logout } = useAuth();
+  const { members, expenses, payments, getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid } = useData();
   const [month, setMonth] = useState(getCurrentMonth());
+  // Track in-flight payment mutations per member so rows stay disabled independently
+  const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
+  const [payError, setPayError] = useState<string | null>(null);
+
+  const setMemberPaying = (id: string, paying: boolean) =>
+    setPayingIds((prev) => {
+      const next = new Set(prev);
+      paying ? next.add(id) : next.delete(id);
+      return next;
+    });
 
   const { totalExpense, totalMeals, perMealCost } = getMonthTotals(month);
   const activeMembers = members.filter((m) => m.status === "active").length;
@@ -68,6 +88,32 @@ export default function AdminDashboard() {
   const bills = calculateAllMonthlyBills(month);
   const totalDue = bills.reduce((s, b) => s + b.dueAmount, 0);
   const totalCredit = bills.reduce((s, b) => s + b.creditBalance, 0);
+
+  // Payment helpers
+  const getPayment = (memberId: string) =>
+    payments.find((p) => p.memberId === memberId && p.month === month);
+
+  const handleTogglePayment = async (memberId: string, dueAmount: number) => {
+    if (payingIds.has(memberId)) return; // already in-flight for this member
+    const payment = getPayment(memberId);
+    setPayError(null);
+    setMemberPaying(memberId, true);
+    try {
+      if (payment?.paid) {
+        await markUnpaid(memberId, month);
+      } else {
+        await markPaid(memberId, month, dueAmount);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      setPayError("Failed to update payment status. Please try again.");
+    } finally {
+      setMemberPaying(memberId, false);
+    }
+  };
+
+  // Count paid members this month
+  const paidCount = bills.filter((b) => getPayment(b.memberId)?.paid === true).length;
 
   return (
     <ScrollView
@@ -104,6 +150,40 @@ export default function AdminDashboard() {
         <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up" color="#16A34A" />
       </View>
 
+      {/* Payment error banner */}
+      {payError && (
+        <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
+          <Feather name="alert-circle" size={16} color="#DC2626" />
+          <Text style={[styles.errorBannerText, { color: "#DC2626" }]}>{payError}</Text>
+          <Pressable onPress={() => setPayError(null)}>
+            <Feather name="x" size={16} color="#DC2626" />
+          </Pressable>
+        </View>
+      )}
+
+      {/* Payment progress banner */}
+      {bills.length > 0 && (
+        <View style={[styles.paymentBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.paymentBannerLeft}>
+            <Feather name="check-circle" size={20} color={paidCount === bills.length ? "#16A34A" : "#D97706"} />
+            <Text style={[styles.paymentBannerText, { color: colors.foreground }]}>
+              {paidCount} / {bills.length} members paid
+            </Text>
+          </View>
+          <View style={[
+            styles.paymentPill,
+            { backgroundColor: paidCount === bills.length ? "#16A34A20" : "#D9770620" }
+          ]}>
+            <Text style={[
+              styles.paymentPillText,
+              { color: paidCount === bills.length ? "#16A34A" : "#D97706" }
+            ]}>
+              {paidCount === bills.length ? "All Settled" : "Pending"}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monthly Summary</Text>
         <View style={styles.summaryRow}>
@@ -127,36 +207,93 @@ export default function AdminDashboard() {
         </View>
       </View>
 
+      {/* Member Bills with payment status */}
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
         {bills.length === 0 ? (
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active members</Text>
-        ) : bills.map((b) => (
-          <View key={b.memberId}>
-            <View style={styles.memberBillRow}>
-              <View style={[styles.avatar, { backgroundColor: "#D4500A20" }]}>
-                <Text style={[styles.avatarText, { color: "#D4500A" }]}>
-                  {b.memberName.charAt(0).toUpperCase()}
-                </Text>
+        ) : bills.map((b) => {
+          const payment = getPayment(b.memberId);
+          const isPaid = payment?.paid === true;
+          const isProcessing = payingIds.has(b.memberId);
+
+          return (
+            <View key={b.memberId}>
+              <View style={styles.memberBillRow}>
+                {/* Avatar */}
+                <View style={[styles.avatar, { backgroundColor: isPaid ? "#16A34A20" : "#D4500A20" }]}>
+                  <Text style={[styles.avatarText, { color: isPaid ? "#16A34A" : "#D4500A" }]}>
+                    {b.memberName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+
+                {/* Name + meals */}
+                <View style={styles.memberBillInfo}>
+                  <Text style={[styles.memberBillName, { color: colors.foreground }]}>{b.memberName}</Text>
+                  <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
+                    {b.mealCount} meals · {b.eggCount} eggs
+                  </Text>
+                </View>
+
+                {/* Amount + payment toggle */}
+                <View style={styles.memberBillRight}>
+                  <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
+                    ₹{b.dueAmount > 0 ? b.dueAmount.toFixed(0) : b.creditBalance.toFixed(0)}
+                  </Text>
+                  <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
+                    {b.dueAmount > 0 ? "Due" : "Credit"}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.memberBillInfo}>
-                <Text style={[styles.memberBillName, { color: colors.foreground }]}>{b.memberName}</Text>
-                <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
-                  {b.mealCount} meals · {b.eggCount} eggs
-                </Text>
+
+              {/* Payment status row */}
+              <View style={styles.paymentRow}>
+                {/* Status badge */}
+                <View style={[
+                  styles.statusBadge,
+                  { backgroundColor: isPaid ? "#16A34A15" : "#DC262615" }
+                ]}>
+                  <Text style={{ fontSize: 13 }}>{isPaid ? "✅" : "❌"}</Text>
+                  <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
+                    {isPaid
+                      ? `Paid${payment?.paidAt ? ` · ${shortDate(payment.paidAt)}` : ""}`
+                      : "Unpaid"}
+                  </Text>
+                </View>
+
+                {/* Toggle button — admin only */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.payToggleBtn,
+                    {
+                      backgroundColor: isPaid ? "#DC262615" : "#16A34A",
+                      opacity: pressed || isProcessing ? 0.75 : 1,
+                    },
+                  ]}
+                  onPress={() => handleTogglePayment(b.memberId, b.dueAmount)}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator size="small" color={isPaid ? "#DC2626" : "#fff"} />
+                  ) : (
+                    <>
+                      <Feather
+                        name={isPaid ? "x-circle" : "check-circle"}
+                        size={14}
+                        color={isPaid ? "#DC2626" : "#fff"}
+                      />
+                      <Text style={[styles.payToggleBtnText, { color: isPaid ? "#DC2626" : "#fff" }]}>
+                        {isPaid ? "Mark Unpaid" : "Mark as Paid"}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
               </View>
-              <View style={styles.memberBillRight}>
-                <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
-                  ₹{b.dueAmount > 0 ? b.dueAmount.toFixed(0) : b.creditBalance.toFixed(0)}
-                </Text>
-                <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
-                  {b.dueAmount > 0 ? "Due" : "Credit"}
-                </Text>
-              </View>
+
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
             </View>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -186,8 +323,6 @@ export default function AdminDashboard() {
     </ScrollView>
   );
 }
-
-import { Platform } from "react-native";
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -219,6 +354,15 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: "700" },
   statLabel: { fontSize: 12 },
   statSub: { fontSize: 11, fontWeight: "600" },
+  paymentBanner: {
+    marginHorizontal: 20, marginBottom: 16, borderRadius: 14,
+    padding: 14, borderWidth: 1,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  paymentBannerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  paymentBannerText: { fontSize: 14, fontWeight: "600" },
+  paymentPill: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
+  paymentPillText: { fontSize: 12, fontWeight: "700" },
   section: {
     marginHorizontal: 20, marginBottom: 16, borderRadius: 16,
     padding: 16, borderWidth: 1,
@@ -228,7 +372,7 @@ const styles = StyleSheet.create({
   summaryKey: { fontSize: 14 },
   summaryVal: { fontSize: 14, fontWeight: "600" },
   divider: { height: 1, marginVertical: 2 },
-  memberBillRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, gap: 12 },
+  memberBillRow: { flexDirection: "row", alignItems: "center", paddingTop: 10, gap: 12 },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 16, fontWeight: "700" },
   memberBillInfo: { flex: 1 },
@@ -237,6 +381,21 @@ const styles = StyleSheet.create({
   memberBillRight: { alignItems: "flex-end" },
   memberBillAmount: { fontSize: 16, fontWeight: "700" },
   memberBillStatus: { fontSize: 11 },
+  paymentRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingVertical: 8, gap: 8,
+  },
+  statusBadge: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  },
+  statusBadgeText: { fontSize: 12, fontWeight: "600" },
+  payToggleBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    minWidth: 110, justifyContent: "center",
+  },
+  payToggleBtnText: { fontSize: 12, fontWeight: "700" },
   expenseRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 12 },
   expenseIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   expenseInfo: { flex: 1 },
@@ -244,4 +403,10 @@ const styles = StyleSheet.create({
   expenseDate: { fontSize: 12, marginTop: 2 },
   expenseAmount: { fontSize: 15, fontWeight: "700" },
   emptyText: { fontSize: 14, textAlign: "center", paddingVertical: 8 },
+  errorBanner: {
+    marginHorizontal: 20, marginBottom: 12, borderRadius: 12,
+    padding: 12, borderWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 8,
+  },
+  errorBannerText: { flex: 1, fontSize: 13, fontWeight: "600" },
 });
