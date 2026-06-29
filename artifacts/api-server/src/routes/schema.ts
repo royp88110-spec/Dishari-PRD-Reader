@@ -7,10 +7,7 @@ const SCHEMA_SQL = `-- Dishari Mess — Supabase Schema
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE OR REPLACE FUNCTION get_my_role()
-RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT role FROM members WHERE user_id = auth.uid() LIMIT 1;
-$$;
+-- ── Tables ──────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS members (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
