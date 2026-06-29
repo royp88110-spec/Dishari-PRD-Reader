@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runMigrations } from "./lib/migrate";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,15 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Run DB migrations automatically (requires SUPABASE_DB_PASSWORD)
+  runMigrations().then(({ ok, message }) => {
+    if (ok) {
+      logger.info("Auto-migration complete");
+    } else {
+      logger.warn({ message }, "Auto-migration skipped or failed");
+    }
+  }).catch((err: unknown) => {
+    logger.error({ err }, "Unexpected error during migration");
+  });
 });
