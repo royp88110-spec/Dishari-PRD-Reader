@@ -239,6 +239,7 @@ export default function MoreScreen() {
               {[
                 ["Meals", `${b.mealCount} × ₹${b.perMealCost.toFixed(1)} = ₹${b.mealBill.toFixed(0)}`],
                 ["Eggs", `${b.eggCount} × ₹${settings.eggPrice} = ₹${b.eggBill.toFixed(0)}`],
+                ["Cook Salary", `₹${b.cookShare.toFixed(0)}`],
                 ["Gross Bill", `₹${b.grossBill.toFixed(0)}`],
                 ["Advance Paid", `₹${b.totalAdvance.toFixed(0)}`],
               ].map(([k, v]) => (

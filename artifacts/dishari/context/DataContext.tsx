@@ -480,15 +480,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getMonthTotals = (month: string) => {
+    // Cook salary is NOT included here — it is a flat per-member charge
+    // added individually to each member's bill in calculateMonthlyBill.
     const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
     const totalExpense = monthExpenses.reduce((s, e) => s + e.amount, 0);
-    const activeMemberCount = members.filter((m) => m.status === "active").length;
-    const totalCookSalary = settings.cookSalary * activeMemberCount;
-    const totalMonthlyExpense = totalExpense + totalCookSalary;
     const monthMeals = meals.filter((m) => m.date.startsWith(month));
     const totalMeals = monthMeals.reduce((s, m) => s + (m.morning ? 1 : 0) + (m.night ? 1 : 0), 0);
-    const perMealCost = totalMeals > 0 ? totalMonthlyExpense / totalMeals : 0;
-    return { totalExpense: totalMonthlyExpense, totalMeals, perMealCost };
+    const perMealCost = totalMeals > 0 ? totalExpense / totalMeals : 0;
+    return { totalExpense, totalMeals, perMealCost };
   };
 
   const calculateMonthlyBill = (memberId: string, month: string): MonthlyBill => {
@@ -501,7 +500,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const eggCount = memberEggs.reduce((s, e) => s + e.count, 0);
     const eggBill = eggCount * settings.eggPrice;
     const cookShare = settings.cookSalary;
-    const grossBill = mealBill + eggBill;
+    // Cook salary is added as a flat per-member charge on top of meal + egg bills
+    const grossBill = mealBill + eggBill + cookShare;
     const memberAdvances = advances.filter((a) => a.memberId === memberId && a.date.startsWith(month));
     const totalAdvance = memberAdvances.reduce((s, a) => s + a.amount, 0);
     const dueAmount = Math.max(0, grossBill - totalAdvance);

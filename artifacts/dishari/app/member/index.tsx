@@ -157,6 +157,8 @@ export default function MemberHome() {
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <BillRow label="Egg Bill" value={`₹${bill.eggBill.toFixed(2)}`} />
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        <BillRow label="Cook Salary" value={`₹${settings.cookSalary.toFixed(2)}`} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <BillRow label="Gross Bill" value={`₹${bill.grossBill.toFixed(2)}`} bold />
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <BillRow label="Advance Paid" value={`- ₹${bill.totalAdvance.toFixed(2)}`} color="#16A34A" />
