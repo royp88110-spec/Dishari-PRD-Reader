@@ -117,11 +117,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, password: string): Promise<boolean> => {
     if (!supabaseReady) return false;
     const { getSupabase } = await import("@/lib/supabase");
-    const { error } = await getSupabase().auth.signInWithPassword({
+    const { data, error } = await getSupabase().auth.signInWithPassword({
       email: toEmail(identifier),
       password,
     });
-    return !error;
+    if (error || !data.session) return false;
+    // Eagerly load the member profile so user state is set before the
+    // caller navigates away — prevents the "press twice" issue caused by
+    // relying solely on the async onAuthStateChange listener.
+    await loadMemberForSession(data.session.user.id);
+    return true;
   };
 
   const logout = async () => {

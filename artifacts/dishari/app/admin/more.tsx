@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -43,6 +44,18 @@ function monthLabel(m: string) {
 
 type Section = "eggs" | "advances" | "reports" | "settings";
 
+type EditModalState = {
+  visible: boolean;
+  title: string;
+  subtitle: string;
+  value: string;
+  onSave: (val: string) => void;
+};
+
+const EDIT_MODAL_CLOSED: EditModalState = {
+  visible: false, title: "", subtitle: "", value: "", onSave: () => {},
+};
+
 export default function MoreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -58,6 +71,20 @@ export default function MoreScreen() {
 
   const [advModal, setAdvModal] = useState(false);
   const [advForm, setAdvForm] = useState({ memberId: "", amount: "", date: new Date().toISOString().slice(0, 10), method: "Cash", notes: "" });
+
+  // Cross-platform inline edit modal (replaces Alert.prompt)
+  const [editModal, setEditModal] = useState<EditModalState>(EDIT_MODAL_CLOSED);
+  const [editInputVal, setEditInputVal] = useState("");
+
+  const openEditModal = (state: Omit<EditModalState, "visible">) => {
+    setEditInputVal(state.value);
+    setEditModal({ ...state, visible: true });
+  };
+  const closeEditModal = () => setEditModal(EDIT_MODAL_CLOSED);
+  const confirmEdit = () => {
+    editModal.onSave(editInputVal);
+    closeEditModal();
+  };
 
   const activeMembers = members.filter((m) => m.status === "active");
 
@@ -122,12 +149,15 @@ export default function MoreScreen() {
               <Text style={[styles.priceVal, { color: colors.foreground }]}>₹{settings.eggPrice} per egg</Text>
               <Pressable
                 style={[styles.smallBtn, { backgroundColor: "#D4500A20" }]}
-                onPress={() => {
-                  Alert.prompt("Update Egg Price", "Enter new price per egg:", (v) => {
-                    const p = parseFloat(v ?? "");
+                onPress={() => openEditModal({
+                  title: "Update Egg Price",
+                  subtitle: "Enter new price per egg (₹)",
+                  value: String(settings.eggPrice),
+                  onSave: (v) => {
+                    const p = parseFloat(v);
                     if (!isNaN(p) && p > 0) updateSettings({ eggPrice: p });
-                  }, "plain-text", String(settings.eggPrice), "numeric");
-                }}
+                  },
+                })}
               >
                 <Feather name="edit-2" size={14} color="#D4500A" />
                 <Text style={[styles.smallBtnText, { color: "#D4500A" }]}>Edit</Text>
@@ -231,12 +261,15 @@ export default function MoreScreen() {
               <Text style={[styles.settingVal, { color: colors.foreground }]}>₹{settings.cookSalary} / member</Text>
               <Pressable
                 style={[styles.smallBtn, { backgroundColor: "#D4500A20" }]}
-                onPress={() => {
-                  Alert.prompt("Cook Salary", "Enter amount per member:", (v) => {
-                    const p = parseFloat(v ?? "");
+                onPress={() => openEditModal({
+                  title: "Cook Salary",
+                  subtitle: "Enter amount per member (₹)",
+                  value: String(settings.cookSalary),
+                  onSave: (v) => {
+                    const p = parseFloat(v);
                     if (!isNaN(p) && p >= 0) updateSettings({ cookSalary: p });
-                  }, "plain-text", String(settings.cookSalary), "numeric");
-                }}
+                  },
+                })}
               >
                 <Feather name="edit-2" size={14} color="#D4500A" />
                 <Text style={[styles.smallBtnText, { color: "#D4500A" }]}>Edit</Text>
@@ -251,12 +284,15 @@ export default function MoreScreen() {
               <Text style={[styles.settingVal, { color: colors.foreground }]}>₹{settings.eggPrice} / egg</Text>
               <Pressable
                 style={[styles.smallBtn, { backgroundColor: "#D4500A20" }]}
-                onPress={() => {
-                  Alert.prompt("Egg Price", "Enter price per egg:", (v) => {
-                    const p = parseFloat(v ?? "");
+                onPress={() => openEditModal({
+                  title: "Egg Price",
+                  subtitle: "Enter price per egg (₹)",
+                  value: String(settings.eggPrice),
+                  onSave: (v) => {
+                    const p = parseFloat(v);
                     if (!isNaN(p) && p > 0) updateSettings({ eggPrice: p });
-                  }, "plain-text", String(settings.eggPrice), "numeric");
-                }}
+                  },
+                })}
               >
                 <Feather name="edit-2" size={14} color="#D4500A" />
                 <Text style={[styles.smallBtnText, { color: "#D4500A" }]}>Edit</Text>
@@ -272,6 +308,7 @@ export default function MoreScreen() {
         </ScrollView>
       )}
 
+      {/* ── Egg entry modal ── */}
       <Modal visible={eggModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
@@ -312,6 +349,7 @@ export default function MoreScreen() {
         </View>
       </Modal>
 
+      {/* ── Advance modal ── */}
       <Modal visible={advModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
@@ -356,6 +394,40 @@ export default function MoreScreen() {
             </Pressable>
           </View>
         </View>
+      </Modal>
+
+      {/* ── Cross-platform inline edit modal (replaces Alert.prompt) ── */}
+      <Modal visible={editModal.visible} animationType="fade" transparent statusBarTranslucent>
+        <KeyboardAvoidingView
+          style={styles.editOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeEditModal} />
+          <View style={[styles.editSheet, { backgroundColor: colors.card }]}>
+            <Text style={[styles.editTitle, { color: colors.foreground }]}>{editModal.title}</Text>
+            <Text style={[styles.editSubtitle, { color: colors.mutedForeground }]}>{editModal.subtitle}</Text>
+            <TextInput
+              style={[styles.editInput, { borderColor: "#D4500A", backgroundColor: colors.muted, color: colors.foreground }]}
+              value={editInputVal}
+              onChangeText={setEditInputVal}
+              keyboardType="numeric"
+              autoFocus
+              selectTextOnFocus
+              placeholderTextColor={colors.mutedForeground}
+            />
+            <View style={styles.editActions}>
+              <Pressable
+                style={[styles.editCancelBtn, { borderColor: colors.border }]}
+                onPress={closeEditModal}
+              >
+                <Text style={[styles.editCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.editSaveBtn} onPress={confirmEdit}>
+                <Text style={styles.editSaveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -414,4 +486,23 @@ const styles = StyleSheet.create({
   memberChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   saveBtn: { borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 8, marginBottom: 20 },
   saveBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  // Inline edit modal styles
+  editOverlay: { flex: 1, backgroundColor: "#00000070", justifyContent: "center", alignItems: "center" },
+  editSheet: {
+    width: "85%", borderRadius: 20, padding: 24,
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12,
+  },
+  editTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4 },
+  editSubtitle: { fontSize: 13, marginBottom: 16 },
+  editInput: {
+    borderWidth: 1.5, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 22, fontWeight: "700",
+    textAlign: "center", marginBottom: 20,
+  },
+  editActions: { flexDirection: "row", gap: 10 },
+  editCancelBtn: { flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  editCancelText: { fontSize: 15, fontWeight: "600" },
+  editSaveBtn: { flex: 1, backgroundColor: "#D4500A", borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  editSaveText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
