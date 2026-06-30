@@ -47,6 +47,15 @@ export interface EggEntry {
   count: number;
 }
 
+export interface Fine {
+  id: string;
+  memberId: string;
+  amount: number;
+  date: string;
+  reason: string;
+  notes?: string;
+}
+
 export interface Settings {
   eggPrice: number;
   cookSalary: number;
@@ -70,6 +79,7 @@ export interface MonthlyBill {
   eggCount: number;
   eggBill: number;
   cookShare: number;
+  fineTotal: number;
   grossBill: number;
   totalAdvance: number;
   dueAmount: number;
@@ -82,6 +92,7 @@ interface DataContextType {
   expenses: Expense[];
   advances: Advance[];
   eggs: EggEntry[];
+  fines: Fine[];
   settings: Settings;
   payments: BillPayment[];
   isLoaded: boolean;
@@ -95,6 +106,9 @@ interface DataContextType {
   deleteExpense: (id: string) => Promise<void>;
   addAdvance: (a: Omit<Advance, "id">) => Promise<void>;
   deleteAdvance: (id: string) => Promise<void>;
+  addFine: (f: Omit<Fine, "id">) => Promise<void>;
+  updateFine: (id: string, u: Partial<Fine>) => Promise<void>;
+  deleteFine: (id: string) => Promise<void>;
   setEggEntry: (memberId: string, date: string, count: number) => Promise<void>;
   updateSettings: (s: Partial<Settings>) => Promise<void>;
   markPaid: (memberId: string, month: string, amount: number) => Promise<void>;
@@ -138,6 +152,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [eggs, setEggs] = useState<EggEntry[]>([]);
   const [settings, setSettings] = useState<Settings>({ eggPrice: 12, cookSalary: 250 });
+  const [fines, setFines] = useState<Fine[]>([]);
   const [payments, setPayments] = useState<BillPayment[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -254,6 +269,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchFines = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("fines").select("*").order("date", { ascending: false });
+    if (data) {
+      setFines(
+        (data as Record<string, unknown>[]).map((f) => ({
+          id: f.id as string,
+          memberId: f.member_id as string,
+          amount: Number(f.amount),
+          date: f.date as string,
+          reason: (f.reason as string) || "",
+          notes: (f.notes as string | undefined) ?? undefined,
+        }))
+      );
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     await Promise.all([
       fetchMembers(),
@@ -263,9 +295,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       fetchEggs(),
       fetchSettings(),
       fetchPayments(),
+      fetchFines(),
     ]);
     setIsLoaded(true);
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -282,6 +315,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } else {
           setMembers([]); setMeals([]); setExpenses([]);
           setAdvances([]); setEggs([]); setPayments([]);
+          setFines([]);
           setSettings({ eggPrice: 12, cookSalary: 250 });
           setIsLoaded(false);
         }
@@ -312,13 +346,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on("postgres_changes", { event: "*", schema: "public", table: "eggs" }, () => { void fetchEggs(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => { void fetchSettings(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "bill_payments" }, () => { void fetchPayments(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "fines" }, () => { void fetchFines(); })
         .subscribe();
     });
 
     return () => {
       sb().then((client) => { if (channel) void client.removeChannel(channel!); });
     };
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines]);
 
   const addMember = async (m: Omit<Member, "id">) => {
     await apiCall("POST", "/admin/members", {
@@ -530,6 +565,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return { totalExpense, totalMeals, perMealCost };
   };
 
+  const addFine = async (f: Omit<Fine, "id">) => {
+    const client = await sb();
+    await client.from("fines").insert({
+      member_id: f.memberId, amount: f.amount, date: f.date,
+      reason: f.reason, notes: f.notes ?? null,
+    });
+  };
+
+  const updateFine = async (id: string, u: Partial<Fine>) => {
+    const row: Record<string, unknown> = {};
+    if (u.memberId !== undefined) row.member_id = u.memberId;
+    if (u.amount !== undefined) row.amount = u.amount;
+    if (u.date !== undefined) row.date = u.date;
+    if (u.reason !== undefined) row.reason = u.reason;
+    // Always sync notes when provided — empty string clears existing note (stored as NULL)
+    if ("notes" in u) row.notes = (u.notes && u.notes.trim()) ? u.notes.trim() : null;
+    const client = await sb();
+    await client.from("fines").update(row).eq("id", id);
+  };
+
+  const deleteFine = async (id: string) => {
+    const client = await sb();
+    await client.from("fines").delete().eq("id", id);
+  };
+
   const calculateMonthlyBill = (memberId: string, month: string): MonthlyBill => {
     const member = members.find((m) => m.id === memberId);
     const { perMealCost } = getMonthTotals(month);
@@ -540,8 +600,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const eggCount = memberEggs.reduce((s, e) => s + e.count, 0);
     const eggBill = eggCount * settings.eggPrice;
     const cookShare = settings.cookSalary;
-    // Cook salary is added as a flat per-member charge on top of meal + egg bills
-    const grossBill = mealBill + eggBill + cookShare;
+    // Fine is per-member only — does NOT affect shared per-meal cost
+    const memberFines = fines.filter((f) => f.memberId === memberId && f.date.startsWith(month));
+    const fineTotal = memberFines.reduce((s, f) => s + f.amount, 0);
+    const grossBill = mealBill + eggBill + cookShare + fineTotal;
     const memberAdvances = advances.filter((a) => a.memberId === memberId && a.date.startsWith(month));
     const totalAdvance = memberAdvances.reduce((s, a) => s + a.amount, 0);
     const dueAmount = Math.max(0, grossBill - totalAdvance);
@@ -549,7 +611,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return {
       memberId, memberName: member?.name ?? "Unknown",
       mealCount, perMealCost, mealBill,
-      eggCount, eggBill, cookShare, grossBill,
+      eggCount, eggBill, cookShare, fineTotal, grossBill,
       totalAdvance, dueAmount, creditBalance,
     };
   };
@@ -559,11 +621,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      members, meals, expenses, advances, eggs, settings, payments, isLoaded,
+      members, meals, expenses, advances, eggs, fines, settings, payments, isLoaded,
       addMember, updateMember, deleteMember,
       setMeal, setMealsBatch,
       addExpense, updateExpense, deleteExpense,
       addAdvance, deleteAdvance,
+      addFine, updateFine, deleteFine,
       setEggEntry, updateSettings,
       markPaid, markUnpaid,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,

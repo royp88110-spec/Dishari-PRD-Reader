@@ -1,1 +1,2 @@
 - [Supabase migration](supabase-migration.md) — full migration from AsyncStorage to Supabase; lazy client init required; Metro needs unstable_enablePackageExports
+- [Fine Management RLS](fine-management-rls.md) — fines RLS must use member_id-scoped policies, not broad USING(true); notes clearing requires "notes" in u check not undefined check

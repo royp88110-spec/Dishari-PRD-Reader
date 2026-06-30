@@ -158,6 +158,12 @@ export default function MemberHome() {
           <BillRow label="Egg Bill" value={`₹${bill.eggBill.toFixed(2)}`} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <BillRow label="Cook Salary" value={`₹${settings.cookSalary.toFixed(2)}`} />
+          {bill.fineTotal > 0 && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <BillRow label="Fine" value={`₹${bill.fineTotal.toFixed(2)}`} color="#DC2626" />
+            </>
+          )}
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <BillRow label="Gross Bill" value={`₹${bill.grossBill.toFixed(2)}`} bold />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />

@@ -66,8 +66,12 @@ CREATE TABLE IF NOT EXISTS fines (
   amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
   date        TEXT        NOT NULL,
   reason      TEXT,
+  notes       TEXT,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migration for existing installations (safe to run even if column exists)
+DO $ BEGIN ALTER TABLE fines ADD COLUMN IF NOT EXISTS notes TEXT; EXCEPTION WHEN others THEN NULL; END $;
 
 CREATE TABLE IF NOT EXISTS announcements (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -136,12 +140,20 @@ DO $$ BEGIN CREATE POLICY "admin writes eggs" ON eggs FOR ALL TO authenticated
   USING (get_my_role()='admin') WITH CHECK (get_my_role()='admin');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-DO $$ BEGIN CREATE POLICY "authenticated read fines" ON fines FOR SELECT TO authenticated USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- Drop the old broad read policy on existing installations before adding scoped ones
+DO $ BEGIN DROP POLICY IF EXISTS "authenticated read fines" ON fines; END $;
 
-DO $$ BEGIN CREATE POLICY "admin writes fines" ON fines FOR ALL TO authenticated
+DO $ BEGIN CREATE POLICY "admin reads all fines" ON fines FOR SELECT TO authenticated
+  USING (get_my_role()='admin');
+EXCEPTION WHEN duplicate_object THEN NULL; END $;
+
+DO $ BEGIN CREATE POLICY "member reads own fines" ON fines FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM members WHERE id=fines.member_id AND user_id=auth.uid()));
+EXCEPTION WHEN duplicate_object THEN NULL; END $;
+
+DO $ BEGIN CREATE POLICY "admin writes fines" ON fines FOR ALL TO authenticated
   USING (get_my_role()='admin') WITH CHECK (get_my_role()='admin');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+EXCEPTION WHEN duplicate_object THEN NULL; END $;
 
 DO $$ BEGIN CREATE POLICY "authenticated read announcements" ON announcements FOR SELECT TO authenticated USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;

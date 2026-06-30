@@ -71,6 +71,13 @@ export default function MemberLayout() {
           tabBarIcon: ({ color }) => <Feather name="credit-card" size={22} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="fines"
+        options={{
+          title: "Fines",
+          tabBarIcon: ({ color }) => <Feather name="alert-circle" size={22} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
