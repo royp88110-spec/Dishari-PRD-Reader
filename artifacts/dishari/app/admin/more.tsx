@@ -50,7 +50,7 @@ type EditModalState = {
   title: string;
   subtitle: string;
   value: string;
-  onSave: (val: string) => void;
+  onSave: (val: string) => void | Promise<void>;
 };
 const EDIT_MODAL_CLOSED: EditModalState = {
   visible: false, title: "", subtitle: "", value: "", onSave: () => {},
@@ -74,15 +74,18 @@ export default function MoreScreen() {
   // Egg state
   const [eggModal, setEggModal] = useState(false);
   const [eggForm, setEggForm] = useState({ memberId: "", date: TODAY, count: "" });
+  const [isSavingEgg, setIsSavingEgg] = useState(false);
 
   // Advance state
   const [advModal, setAdvModal] = useState(false);
   const [advForm, setAdvForm] = useState({ memberId: "", amount: "", date: TODAY, method: "Cash", notes: "" });
+  const [isSavingAdv, setIsSavingAdv] = useState(false);
 
   // Fine state
   const [fineModal, setFineModal] = useState(false);
   const [editingFine, setEditingFine] = useState<Fine | null>(null);
   const [fineForm, setFineForm] = useState({ memberId: "", amount: "", date: TODAY, reason: "", notes: "" });
+  const [isSavingFine, setIsSavingFine] = useState(false);
 
   // Inline numeric edit modal
   const [editModal, setEditModal] = useState<EditModalState>(EDIT_MODAL_CLOSED);
@@ -93,7 +96,14 @@ export default function MoreScreen() {
     setEditModal({ ...state, visible: true });
   };
   const closeEditModal = () => setEditModal(EDIT_MODAL_CLOSED);
-  const confirmEdit = () => { editModal.onSave(editInputVal); closeEditModal(); };
+  const confirmEdit = async () => {
+    try {
+      await editModal.onSave(editInputVal);
+      closeEditModal();
+    } catch (err) {
+      Alert.alert("Save Failed", (err as Error).message || "Could not update setting.");
+    }
+  };
 
   const activeMembers = members.filter((m) => m.status === "active");
   const getMemberName = (id: string) => members.find((m) => m.id === id)?.name ?? "Unknown";
@@ -105,19 +115,35 @@ export default function MoreScreen() {
 
   // ── Egg save ──
   const saveEgg = async () => {
-    if (!eggForm.memberId || !eggForm.count) return Alert.alert("Error", "Fill all fields");
-    await setEggEntry(eggForm.memberId, eggForm.date, parseInt(eggForm.count) || 0);
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setEggModal(false);
+    if (!eggForm.memberId) return Alert.alert("Validation Error", "Please select a member.");
+    if (!eggForm.count) return Alert.alert("Validation Error", "Please enter the number of eggs.");
+    setIsSavingEgg(true);
+    try {
+      await setEggEntry(eggForm.memberId, eggForm.date, parseInt(eggForm.count) || 0);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEggModal(false);
+    } catch (err) {
+      Alert.alert("Save Failed", (err as Error).message || "Could not save egg entry.");
+    } finally {
+      setIsSavingEgg(false);
+    }
   };
 
   // ── Advance save ──
   const saveAdv = async () => {
-    if (!advForm.memberId || !advForm.amount) return Alert.alert("Error", "Fill all fields");
-    await addAdvance({ memberId: advForm.memberId, amount: parseFloat(advForm.amount) || 0, date: advForm.date, method: advForm.method, notes: advForm.notes });
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setAdvModal(false);
-    setAdvForm({ memberId: "", amount: "", date: TODAY, method: "Cash", notes: "" });
+    if (!advForm.memberId) return Alert.alert("Validation Error", "Please select a member.");
+    if (!advForm.amount || parseFloat(advForm.amount) <= 0) return Alert.alert("Validation Error", "Please enter a valid amount.");
+    setIsSavingAdv(true);
+    try {
+      await addAdvance({ memberId: advForm.memberId, amount: parseFloat(advForm.amount) || 0, date: advForm.date, method: advForm.method, notes: advForm.notes });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setAdvModal(false);
+      setAdvForm({ memberId: "", amount: "", date: TODAY, method: "Cash", notes: "" });
+    } catch (err) {
+      Alert.alert("Save Failed", (err as Error).message || "Could not save advance.");
+    } finally {
+      setIsSavingAdv(false);
+    }
   };
 
   // ── Fine open (add/edit) ──
@@ -134,30 +160,37 @@ export default function MoreScreen() {
 
   // ── Fine save ──
   const saveFine = async () => {
-    if (!fineForm.memberId || !fineForm.amount || !fineForm.reason) {
-      return Alert.alert("Error", "Member, amount and reason are required");
+    if (!fineForm.memberId) return Alert.alert("Validation Error", "Please select a member.");
+    if (!fineForm.amount || parseFloat(fineForm.amount) <= 0) return Alert.alert("Validation Error", "Please enter a valid amount.");
+    if (!fineForm.reason.trim()) return Alert.alert("Validation Error", "Reason is required.");
+    setIsSavingFine(true);
+    try {
+      const payload = {
+        memberId: fineForm.memberId,
+        amount: parseFloat(fineForm.amount) || 0,
+        date: fineForm.date,
+        reason: fineForm.reason.trim(),
+        // When editing, always include notes so clearing an existing note sends the empty value
+        // (updateFine maps "" → null in the DB). When adding, omit if blank.
+        ...(editingFine
+          ? { notes: fineForm.notes }
+          : fineForm.notes.trim()
+            ? { notes: fineForm.notes.trim() }
+            : {}),
+      };
+      if (editingFine) {
+        await updateFine(editingFine.id, payload);
+      } else {
+        await addFine(payload);
+      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFineModal(false);
+      setEditingFine(null);
+    } catch (err) {
+      Alert.alert("Save Failed", (err as Error).message || "Could not save fine.");
+    } finally {
+      setIsSavingFine(false);
     }
-    const payload = {
-      memberId: fineForm.memberId,
-      amount: parseFloat(fineForm.amount) || 0,
-      date: fineForm.date,
-      reason: fineForm.reason,
-      // When editing, always include notes so clearing an existing note sends the empty value
-      // (updateFine maps "" → null in the DB). When adding, omit if blank.
-      ...(editingFine
-        ? { notes: fineForm.notes }
-        : fineForm.notes.trim()
-          ? { notes: fineForm.notes.trim() }
-          : {}),
-    };
-    if (editingFine) {
-      await updateFine(editingFine.id, payload);
-    } else {
-      await addFine(payload);
-    }
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setFineModal(false);
-    setEditingFine(null);
   };
 
   const sections: { key: Section; label: string; icon: string }[] = [
@@ -232,7 +265,7 @@ export default function MoreScreen() {
                   title: "Update Egg Price",
                   subtitle: "Enter new price per egg (₹)",
                   value: String(settings.eggPrice),
-                  onSave: (v) => { const p = parseFloat(v); if (!isNaN(p) && p > 0) updateSettings({ eggPrice: p }); },
+                  onSave: async (v) => { const p = parseFloat(v); if (isNaN(p) || p <= 0) throw new Error("Please enter a valid positive number."); await updateSettings({ eggPrice: p }); },
                 })}
               >
                 <Feather name="edit-2" size={14} color="#D4500A" />
@@ -320,7 +353,10 @@ export default function MoreScreen() {
                   style={styles.fineActionBtn}
                   onPress={() => Alert.alert("Delete Fine", `Remove ₹${f.amount} fine for ${getMemberName(f.memberId)}?`, [
                     { text: "Cancel", style: "cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => deleteFine(f.id) },
+                    { text: "Delete", style: "destructive", onPress: async () => {
+                      try { await deleteFine(f.id); }
+                      catch (err) { Alert.alert("Delete Failed", (err as Error).message || "Could not delete fine."); }
+                    }},
                   ])}
                 >
                   <Feather name="trash-2" size={14} color="#DC2626" />
@@ -358,7 +394,10 @@ export default function MoreScreen() {
               <Pressable
                 onPress={() => Alert.alert("Delete", "Remove this advance?", [
                   { text: "Cancel", style: "cancel" },
-                  { text: "Delete", style: "destructive", onPress: () => deleteAdvance(a.id) },
+                  { text: "Delete", style: "destructive", onPress: async () => {
+                    try { await deleteAdvance(a.id); }
+                    catch (err) { Alert.alert("Delete Failed", (err as Error).message || "Could not delete advance."); }
+                  }},
                 ])}
                 style={{ padding: 6 }}
               >
@@ -423,7 +462,7 @@ export default function MoreScreen() {
                   title: "Cook Salary",
                   subtitle: "Enter amount per member (₹)",
                   value: String(settings.cookSalary),
-                  onSave: (v) => { const p = parseFloat(v); if (!isNaN(p) && p >= 0) updateSettings({ cookSalary: p }); },
+                  onSave: async (v) => { const p = parseFloat(v); if (isNaN(p) || p < 0) throw new Error("Please enter a valid number (0 or above)."); await updateSettings({ cookSalary: p }); },
                 })}
               >
                 <Feather name="edit-2" size={14} color="#D4500A" />
@@ -443,7 +482,7 @@ export default function MoreScreen() {
                   title: "Egg Price",
                   subtitle: "Enter price per egg (₹)",
                   value: String(settings.eggPrice),
-                  onSave: (v) => { const p = parseFloat(v); if (!isNaN(p) && p > 0) updateSettings({ eggPrice: p }); },
+                  onSave: async (v) => { const p = parseFloat(v); if (isNaN(p) || p <= 0) throw new Error("Please enter a valid positive number."); await updateSettings({ eggPrice: p }); },
                 })}
               >
                 <Feather name="edit-2" size={14} color="#D4500A" />
@@ -492,9 +531,9 @@ export default function MoreScreen() {
                 value={eggForm.count} onChangeText={(v) => setEggForm((f) => ({ ...f, count: v }))}
                 placeholder="0" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
             </View>
-            <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveEgg}>
+            <Pressable style={({ pressed }) => [{ opacity: (pressed || isSavingEgg) ? 0.7 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveEgg} disabled={isSavingEgg}>
               <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                <Text style={styles.saveBtnText}>Save Egg Entry</Text>
+                <Text style={styles.saveBtnText}>{isSavingEgg ? "Saving…" : "Save Egg Entry"}</Text>
               </LinearGradient>
             </Pressable>
           </View>
@@ -538,9 +577,9 @@ export default function MoreScreen() {
                 />
               </View>
             ))}
-            <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveAdv}>
+            <Pressable style={({ pressed }) => [{ opacity: (pressed || isSavingAdv) ? 0.7 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveAdv} disabled={isSavingAdv}>
               <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                <Text style={styles.saveBtnText}>Add Advance</Text>
+                <Text style={styles.saveBtnText}>{isSavingAdv ? "Saving…" : "Add Advance"}</Text>
               </LinearGradient>
             </Pressable>
           </View>
@@ -591,9 +630,9 @@ export default function MoreScreen() {
                 </View>
               ))}
 
-              <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveFine}>
+              <Pressable style={({ pressed }) => [{ opacity: (pressed || isSavingFine) ? 0.7 : 1, marginTop: 8, marginBottom: 20 }]} onPress={saveFine} disabled={isSavingFine}>
                 <LinearGradient colors={["#DC2626", "#B91C1C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                  <Text style={styles.saveBtnText}>{editingFine ? "Save Changes" : "Add Fine"}</Text>
+                  <Text style={styles.saveBtnText}>{isSavingFine ? "Saving…" : editingFine ? "Save Changes" : "Add Fine"}</Text>
                 </LinearGradient>
               </Pressable>
             </View>

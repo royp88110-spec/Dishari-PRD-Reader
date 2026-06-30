@@ -67,6 +67,7 @@ export default function ExpensesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [form, setForm] = useState<Omit<Expense, "id">>(EMPTY_FORM);
+  const [isSaving, setIsSaving] = useState(false);
 
   const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
   const filtered = category === "all"
@@ -90,16 +91,27 @@ export default function ExpensesScreen() {
 
   const handleSave = async () => {
     if (!form.amount || form.amount <= 0) {
-      Alert.alert("Error", "Please enter a valid amount.");
+      Alert.alert("Validation Error", "Please enter a valid amount.");
       return;
     }
-    if (editing) {
-      await updateExpense(editing.id, form);
-    } else {
-      await addExpense(form);
+    if (!form.date.trim()) {
+      Alert.alert("Validation Error", "Please enter a date.");
+      return;
     }
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setModalVisible(false);
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updateExpense(editing.id, form);
+      } else {
+        await addExpense(form);
+      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModalVisible(false);
+    } catch (err) {
+      Alert.alert("Save Failed", (err as Error).message || "Something went wrong. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = (e: Expense) => {
@@ -108,8 +120,12 @@ export default function ExpensesScreen() {
       {
         text: "Delete", style: "destructive",
         onPress: async () => {
-          await deleteExpense(e.id);
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          try {
+            await deleteExpense(e.id);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } catch (err) {
+            Alert.alert("Delete Failed", (err as Error).message || "Could not delete expense.");
+          }
         },
       },
     ]);
@@ -271,11 +287,12 @@ export default function ExpensesScreen() {
               </View>
 
               <Pressable
-                style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]}
+                style={({ pressed }) => [{ opacity: (pressed || isSaving) ? 0.7 : 1, marginTop: 8, marginBottom: 20 }]}
                 onPress={handleSave}
+                disabled={isSaving}
               >
                 <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                  <Text style={styles.saveBtnText}>{editing ? "Update" : "Add Expense"}</Text>
+                  <Text style={styles.saveBtnText}>{isSaving ? "Saving…" : editing ? "Update" : "Add Expense"}</Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>

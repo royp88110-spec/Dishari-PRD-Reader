@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useRef, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -105,22 +106,25 @@ export default function MealsScreen() {
   const activeMembersRef = useRef(activeMembers);
   activeMembersRef.current = activeMembers;
 
-  // Instant toggle — optimistic update fires in setMeal, haptic is synchronous
+  // Instant toggle — optimistic update fires in setMeal; haptic is synchronous.
+  // Failures surface via Alert so the user knows to retry if the DB write failed.
   const toggle = useCallback((memberId: string, type: "morning" | "night") => {
     const date = selectedDateRef.current;
     const existing = mealsRef.current.find((m) => m.memberId === memberId && m.date === date);
     const morning = existing?.morning ?? false;
     const night = existing?.night ?? false;
-    void setMealRef.current(
+    setMealRef.current(
       memberId,
       date,
       type === "morning" ? !morning : morning,
       type === "night" ? !night : night,
-    );
+    ).catch((err: Error) => {
+      Alert.alert("Sync Failed", err.message || "Meal toggle could not be saved. The display has been reverted.");
+    });
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []); // empty deps — all reads go through refs
 
-  // Bulk actions: single batch write, single optimistic state update
+  // Bulk actions: single batch write, single optimistic state update.
   const bulkMark = useCallback((type: "morning" | "night" | "clear") => {
     const date = selectedDateRef.current;
     const entries = activeMembersRef.current.map((m) => {
@@ -132,7 +136,9 @@ export default function MealsScreen() {
         night:   type === "clear" ? false : type === "night"   ? true : existing?.night   ?? false,
       };
     });
-    void setMealsBatchRef.current(entries);
+    setMealsBatchRef.current(entries).catch((err: Error) => {
+      Alert.alert("Sync Failed", err.message || "Bulk meal update could not be saved. The display has been reverted.");
+    });
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []); // empty deps — all reads go through refs
 

@@ -34,6 +34,7 @@ export default function MembersScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
   const [form, setForm] = useState<Omit<Member, "id">>(EMPTY);
+  const [isSaving, setIsSaving] = useState(false);
 
   const filtered = members.filter(
     (m) =>
@@ -54,35 +55,54 @@ export default function MembersScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.phone.trim() || !form.password.trim()) {
-      Alert.alert("Error", "Name, Phone, and Password are required.");
+    if (!form.name.trim() || !form.phone.trim()) {
+      Alert.alert("Validation Error", "Name and Phone are required.");
       return;
     }
-    if (editing) {
-      await updateMember(editing.id, form);
-    } else {
-      await addMember(form);
+    if (!editing && !form.password.trim()) {
+      Alert.alert("Validation Error", "Password is required for new members.");
+      return;
     }
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setModalVisible(false);
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updateMember(editing.id, form);
+      } else {
+        await addMember(form);
+      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModalVisible(false);
+    } catch (err) {
+      Alert.alert("Save Failed", (err as Error).message || "Something went wrong. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = (m: Member) => {
-    Alert.alert("Delete Member", `Delete ${m.name}?`, [
+    Alert.alert("Delete Member", `Delete ${m.name}? This cannot be undone.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete", style: "destructive",
         onPress: async () => {
-          await deleteMember(m.id);
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          try {
+            await deleteMember(m.id);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } catch (err) {
+            Alert.alert("Delete Failed", (err as Error).message || "Could not delete member.");
+          }
         },
       },
     ]);
   };
 
   const toggleStatus = async (m: Member) => {
-    await updateMember(m.id, { status: m.status === "active" ? "inactive" : "active" });
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await updateMember(m.id, { status: m.status === "active" ? "inactive" : "active" });
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (err) {
+      Alert.alert("Error", (err as Error).message || "Could not update status.");
+    }
   };
 
   return (
@@ -217,11 +237,12 @@ export default function MembersScreen() {
               </View>
 
               <Pressable
-                style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 20 }]}
+                style={({ pressed }) => [{ opacity: (pressed || isSaving) ? 0.7 : 1, marginTop: 8, marginBottom: 20 }]}
                 onPress={handleSave}
+                disabled={isSaving}
               >
                 <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                  <Text style={styles.saveBtnText}>{editing ? "Update Member" : "Add Member"}</Text>
+                  <Text style={styles.saveBtnText}>{isSaving ? "Saving…" : editing ? "Update Member" : "Add Member"}</Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>

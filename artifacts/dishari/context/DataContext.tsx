@@ -145,6 +145,24 @@ const apiCall = async (method: string, path: string, body?: unknown): Promise<un
 
 const sb = () => import("@/lib/supabase").then(({ getSupabase }) => getSupabase());
 
+/**
+ * Throw a descriptive error if a Supabase operation returned an error.
+ * The Supabase JS client never throws — callers must check the returned error.
+ */
+function checkError(result: { error: { message: string } | null }): void {
+  if (result.error) throw new Error(result.error.message);
+}
+
+/**
+ * Throw if the operation errored OR returned no data.
+ * Use for inserts/updates that return a row (.select().single()).
+ */
+function getData<T>(result: { data: T | null; error: { message: string } | null }): T {
+  if (result.error) throw new Error(result.error.message);
+  if (result.data === null) throw new Error("No data returned from database.");
+  return result.data;
+}
+
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -311,7 +329,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     sb().then((client) => {
       const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
         if (session) {
-          void loadAll();
+          loadAll().catch((err: Error) => console.error("[DataContext] loadAll failed:", err.message));
         } else {
           setMembers([]); setMeals([]); setExpenses([]);
           setAdvances([]); setEggs([]); setPayments([]);
@@ -323,9 +341,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       unsubscribe = () => subscription.unsubscribe();
 
       client.auth.getSession().then(({ data: { session } }) => {
-        if (session) void loadAll();
-        else setIsLoaded(true);
+        if (session) {
+          loadAll().catch((err: Error) => {
+            console.error("[DataContext] initial loadAll failed:", err.message);
+            setIsLoaded(true);
+          });
+        } else {
+          setIsLoaded(true);
+        }
+      }).catch((err: Error) => {
+        console.error("[DataContext] getSession failed:", err.message);
+        setIsLoaded(true);
       });
+    }).catch((err: Error) => {
+      console.error("[DataContext] Supabase client init failed:", err.message);
+      setIsLoaded(true);
     });
 
     return () => { unsubscribe?.(); };
@@ -336,83 +366,144 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     let channel: ReturnType<Awaited<ReturnType<typeof sb>>["channel"]> | null = null;
 
+    const safeAsync = (fn: () => Promise<void>, label: string) => () => {
+      fn().catch((err: Error) => console.error(`[DataContext] ${label} failed:`, err.message));
+    };
+
     sb().then((client) => {
       channel = client
         .channel("dishari-realtime")
-        .on("postgres_changes", { event: "*", schema: "public", table: "members" }, () => { void fetchMembers(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "meals" }, () => { void fetchMeals(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, () => { void fetchExpenses(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "advances" }, () => { void fetchAdvances(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "eggs" }, () => { void fetchEggs(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => { void fetchSettings(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "bill_payments" }, () => { void fetchPayments(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "fines" }, () => { void fetchFines(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "members" }, safeAsync(fetchMembers, "fetchMembers"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "meals" }, safeAsync(fetchMeals, "fetchMeals"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, safeAsync(fetchExpenses, "fetchExpenses"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "advances" }, safeAsync(fetchAdvances, "fetchAdvances"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "eggs" }, safeAsync(fetchEggs, "fetchEggs"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, safeAsync(fetchSettings, "fetchSettings"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "bill_payments" }, safeAsync(fetchPayments, "fetchPayments"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "fines" }, safeAsync(fetchFines, "fetchFines"))
         .subscribe();
+    }).catch((err: Error) => {
+      console.error("[DataContext] realtime channel setup failed:", err.message);
     });
 
     return () => {
-      sb().then((client) => { if (channel) void client.removeChannel(channel!); });
+      sb().then((client) => {
+        if (channel) client.removeChannel(channel!).catch((err: Error) => {
+          console.error("[DataContext] removeChannel failed:", err.message);
+        });
+      }).catch((err: Error) => {
+        console.error("[DataContext] cleanup sb() failed:", err.message);
+      });
     };
   }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines]);
 
+  // ── Members ──────────────────────────────────────────────────────────────
+  // addMember: server-first (API creates auth user + row, returns the row).
+  // Commit the returned row to local state — no rollback needed.
   const addMember = async (m: Omit<Member, "id">) => {
-    await apiCall("POST", "/admin/members", {
+    const res = await apiCall("POST", "/admin/members", {
       name: m.name, phone: m.phone, email: m.email,
       roomNumber: m.roomNumber, joinDate: m.joinDate,
       status: m.status, password: m.password,
-    });
+    }) as { success: boolean; member: Record<string, unknown> };
+    const r = res.member;
+    const newMember: Member = {
+      id: r.id as string,
+      name: r.name as string,
+      phone: r.phone as string,
+      email: (r.email as string | undefined) ?? undefined,
+      joinDate: r.join_date as string,
+      roomNumber: (r.room_number as string | undefined) ?? undefined,
+      status: r.status as "active" | "inactive",
+      password: "",
+    };
+    setMembers((prev) =>
+      [...prev, newMember].sort((a, b) => a.name.localeCompare(b.name))
+    );
   };
 
   const updateMember = async (id: string, u: Partial<Member>) => {
-    const { password, ...rest } = u;
-    if (password !== undefined && password.trim()) {
-      await apiCall("PATCH", `/admin/members/${id}/password`, { password });
-    }
-    const row: Record<string, unknown> = {};
-    if (rest.name !== undefined) row.name = rest.name;
-    if (rest.phone !== undefined) row.phone = rest.phone;
-    if (rest.email !== undefined) row.email = rest.email;
-    if (rest.roomNumber !== undefined) row.room_number = rest.roomNumber;
-    if (rest.joinDate !== undefined) row.join_date = rest.joinDate;
-    if (rest.status !== undefined) row.status = rest.status;
-    if (Object.keys(row).length > 0) {
-      const client = await sb();
-      await client.from("members").update(row).eq("id", id);
+    // Per-entity optimistic update: snapshot only this member, revert only this
+    // member on failure — concurrent realtime updates to other members are unaffected.
+    const prevMember = members.find((m) => m.id === id);
+    setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...u } : m)));
+    try {
+      const { password, ...rest } = u;
+      if (password !== undefined && password.trim()) {
+        await apiCall("PATCH", `/admin/members/${id}/password`, { password });
+      }
+      const row: Record<string, unknown> = {};
+      if (rest.name !== undefined) row.name = rest.name;
+      if (rest.phone !== undefined) row.phone = rest.phone;
+      if (rest.email !== undefined) row.email = rest.email;
+      if (rest.roomNumber !== undefined) row.room_number = rest.roomNumber;
+      if (rest.joinDate !== undefined) row.join_date = rest.joinDate;
+      if (rest.status !== undefined) row.status = rest.status;
+      if (Object.keys(row).length > 0) {
+        const client = await sb();
+        checkError(await client.from("members").update(row).eq("id", id));
+      }
+    } catch (err) {
+      if (prevMember) setMembers((ms) => ms.map((m) => (m.id === id ? prevMember : m)));
+      throw err;
     }
   };
 
   const deleteMember = async (id: string) => {
-    await apiCall("DELETE", `/admin/members/${id}`);
+    const prevMember = members.find((m) => m.id === id);
+    setMembers((ms) => ms.filter((m) => m.id !== id));
+    try {
+      await apiCall("DELETE", `/admin/members/${id}`);
+    } catch (err) {
+      // Re-insert the member only if realtime hasn't already done so
+      if (prevMember) {
+        setMembers((ms) =>
+          ms.some((m) => m.id === id)
+            ? ms
+            : [...ms, prevMember].sort((a, b) => a.name.localeCompare(b.name))
+        );
+      }
+      throw err;
+    }
   };
 
+  // ── Meals ─────────────────────────────────────────────────────────────────
   const setMeal = async (memberId: string, date: string, morning: boolean, night: boolean) => {
-    // Optimistic local update — UI reflects change immediately
-    setMeals((prev) => {
-      const idx = prev.findIndex((m) => m.memberId === memberId && m.date === date);
+    const prevMeal = meals.find((m) => m.memberId === memberId && m.date === date);
+    setMeals((ms) => {
+      const idx = ms.findIndex((m) => m.memberId === memberId && m.date === date);
       if (idx >= 0) {
-        const next = [...prev];
+        const next = [...ms];
         next[idx] = { ...next[idx], morning, night };
         return next;
       }
-      return [...prev, { id: `opt-${memberId}-${date}`, memberId, date, morning, night }];
+      return [...ms, { id: `opt-${memberId}-${date}`, memberId, date, morning, night }];
     });
-    // Persist to DB (fire-and-forget from caller)
-    const client = await sb();
-    await client.from("meals").upsert(
-      { member_id: memberId, date, morning, night },
-      { onConflict: "member_id,date" }
-    );
+    try {
+      const client = await sb();
+      checkError(
+        await client.from("meals").upsert(
+          { member_id: memberId, date, morning, night },
+          { onConflict: "member_id,date" }
+        )
+      );
+    } catch (err) {
+      // Revert only this meal slot
+      setMeals((ms) => {
+        const without = ms.filter((m) => !(m.memberId === memberId && m.date === date));
+        return prevMeal ? [...without, prevMeal] : without;
+      });
+      throw err;
+    }
   };
 
-  /**
-   * Batch upsert for bulk meal operations (All Morning / All Night / Clear All).
-   * Applies optimistic local update then fires all DB writes in parallel.
-   */
   const setMealsBatch = async (entries: { memberId: string; date: string; morning: boolean; night: boolean }[]) => {
     if (entries.length === 0) return;
-    // Optimistic update for every entry at once
-    setMeals((prev) => {
-      const next = [...prev];
+    // Snapshot all affected slots before mutating
+    const affectedKeys = new Set(entries.map((e) => `${e.memberId}|${e.date}`));
+    const prevSlots = meals.filter((m) => affectedKeys.has(`${m.memberId}|${m.date}`));
+    setMeals((ms) => {
+      const next = [...ms];
       for (const e of entries) {
         const idx = next.findIndex((m) => m.memberId === e.memberId && m.date === e.date);
         if (idx >= 0) {
@@ -423,171 +514,287 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
       return next;
     });
-    // Single batch upsert — all members in one round-trip
-    const client = await sb();
-    await client.from("meals").upsert(
-      entries.map((e) => ({ member_id: e.memberId, date: e.date, morning: e.morning, night: e.night })),
-      { onConflict: "member_id,date" }
-    );
-  };
-
-  const addExpense = async (e: Omit<Expense, "id">) => {
-    const client = await sb();
-    await client.from("expenses").insert({
-      type: e.type, shop_name: e.shopName ?? null, date: e.date,
-      items: e.items ?? null, amount: e.amount, notes: e.notes ?? null,
-    });
-  };
-
-  const updateExpense = async (id: string, u: Partial<Expense>) => {
-    const row: Record<string, unknown> = {};
-    if (u.type !== undefined) row.type = u.type;
-    if (u.shopName !== undefined) row.shop_name = u.shopName;
-    if (u.date !== undefined) row.date = u.date;
-    if (u.items !== undefined) row.items = u.items;
-    if (u.amount !== undefined) row.amount = u.amount;
-    if (u.notes !== undefined) row.notes = u.notes;
-    const client = await sb();
-    await client.from("expenses").update(row).eq("id", id);
-  };
-
-  const deleteExpense = async (id: string) => {
-    const client = await sb();
-    await client.from("expenses").delete().eq("id", id);
-  };
-
-  const addAdvance = async (a: Omit<Advance, "id">) => {
-    const client = await sb();
-    await client.from("advances").insert({
-      member_id: a.memberId, amount: a.amount, date: a.date,
-      method: a.method, notes: a.notes ?? null,
-    });
-  };
-
-  const deleteAdvance = async (id: string) => {
-    const client = await sb();
-    await client.from("advances").delete().eq("id", id);
-  };
-
-  const setEggEntry = async (memberId: string, date: string, count: number) => {
-    const client = await sb();
-    if (count === 0) {
-      await client.from("eggs").delete().match({ member_id: memberId, date });
-    } else {
-      await client.from("eggs").upsert(
-        { member_id: memberId, date, count },
-        { onConflict: "member_id,date" }
+    try {
+      const client = await sb();
+      checkError(
+        await client.from("meals").upsert(
+          entries.map((e) => ({ member_id: e.memberId, date: e.date, morning: e.morning, night: e.night })),
+          { onConflict: "member_id,date" }
+        )
       );
+    } catch (err) {
+      // Revert only the affected slots, leave everything else intact
+      setMeals((ms) => {
+        const withoutAffected = ms.filter((m) => !affectedKeys.has(`${m.memberId}|${m.date}`));
+        return [...withoutAffected, ...prevSlots];
+      });
+      throw err;
     }
   };
 
+  // ── Expenses ──────────────────────────────────────────────────────────────
+  // addExpense: server-first (insert returns the created row).
+  const addExpense = async (e: Omit<Expense, "id">) => {
+    const client = await sb();
+    const r = getData(
+      await client.from("expenses").insert({
+        type: e.type, shop_name: e.shopName ?? null, date: e.date,
+        items: e.items ?? null, amount: e.amount, notes: e.notes ?? null,
+      }).select().single()
+    ) as Record<string, unknown>;
+    setExpenses((prev) => [
+      {
+        id: r.id as string,
+        type: r.type as Expense["type"],
+        shopName: (r.shop_name as string | undefined) ?? undefined,
+        date: r.date as string,
+        items: (r.items as string | undefined) ?? undefined,
+        amount: Number(r.amount),
+        notes: (r.notes as string | undefined) ?? undefined,
+      },
+      ...prev,
+    ]);
+  };
+
+  const updateExpense = async (id: string, u: Partial<Expense>) => {
+    const prevExpense = expenses.find((e) => e.id === id);
+    setExpenses((es) => es.map((e) => (e.id === id ? { ...e, ...u } : e)));
+    try {
+      const row: Record<string, unknown> = {};
+      if (u.type !== undefined) row.type = u.type;
+      if (u.shopName !== undefined) row.shop_name = u.shopName;
+      if (u.date !== undefined) row.date = u.date;
+      if (u.items !== undefined) row.items = u.items;
+      if (u.amount !== undefined) row.amount = u.amount;
+      if (u.notes !== undefined) row.notes = u.notes;
+      const client = await sb();
+      checkError(await client.from("expenses").update(row).eq("id", id));
+    } catch (err) {
+      if (prevExpense) setExpenses((es) => es.map((e) => (e.id === id ? prevExpense : e)));
+      throw err;
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    const prevExpense = expenses.find((e) => e.id === id);
+    setExpenses((es) => es.filter((e) => e.id !== id));
+    try {
+      const client = await sb();
+      checkError(await client.from("expenses").delete().eq("id", id));
+    } catch (err) {
+      if (prevExpense) {
+        setExpenses((es) =>
+          es.some((e) => e.id === id) ? es : [prevExpense, ...es]
+        );
+      }
+      throw err;
+    }
+  };
+
+  // ── Advances ──────────────────────────────────────────────────────────────
+  // addAdvance: server-first (insert returns the created row).
+  const addAdvance = async (a: Omit<Advance, "id">) => {
+    const client = await sb();
+    const r = getData(
+      await client.from("advances").insert({
+        member_id: a.memberId, amount: a.amount, date: a.date,
+        method: a.method, notes: a.notes ?? null,
+      }).select().single()
+    ) as Record<string, unknown>;
+    setAdvances((prev) => [
+      {
+        id: r.id as string,
+        memberId: r.member_id as string,
+        amount: Number(r.amount),
+        date: r.date as string,
+        method: (r.method as string) || "Cash",
+        notes: (r.notes as string | undefined) ?? undefined,
+      },
+      ...prev,
+    ]);
+  };
+
+  const deleteAdvance = async (id: string) => {
+    const prevAdvance = advances.find((a) => a.id === id);
+    setAdvances((as) => as.filter((a) => a.id !== id));
+    try {
+      const client = await sb();
+      checkError(await client.from("advances").delete().eq("id", id));
+    } catch (err) {
+      if (prevAdvance) {
+        setAdvances((as) =>
+          as.some((a) => a.id === id) ? as : [prevAdvance, ...as]
+        );
+      }
+      throw err;
+    }
+  };
+
+  // ── Eggs ──────────────────────────────────────────────────────────────────
+  const setEggEntry = async (memberId: string, date: string, count: number) => {
+    const prevEgg = eggs.find((e) => e.memberId === memberId && e.date === date);
+    setEggs((es) => {
+      const without = es.filter((e) => !(e.memberId === memberId && e.date === date));
+      if (count === 0) return without;
+      return [...without, { id: prevEgg?.id ?? `opt-${memberId}-${date}`, memberId, date, count }];
+    });
+    try {
+      const client = await sb();
+      if (count === 0) {
+        checkError(await client.from("eggs").delete().match({ member_id: memberId, date }));
+      } else {
+        checkError(
+          await client.from("eggs").upsert(
+            { member_id: memberId, date, count },
+            { onConflict: "member_id,date" }
+          )
+        );
+      }
+    } catch (err) {
+      // Revert only this egg slot
+      setEggs((es) => {
+        const without = es.filter((e) => !(e.memberId === memberId && e.date === date));
+        return prevEgg ? [...without, prevEgg] : without;
+      });
+      throw err;
+    }
+  };
+
+  // ── Settings ──────────────────────────────────────────────────────────────
   const updateSettings = async (s: Partial<Settings>) => {
+    const prev = settings;
     const next = { ...settings, ...s };
     setSettings(next);
-    const client = await sb();
-    await client.from("settings").upsert(
-      { id: 1, egg_price: next.eggPrice, cook_salary: next.cookSalary },
-      { onConflict: "id" }
-    );
+    try {
+      const client = await sb();
+      checkError(
+        await client.from("settings").upsert(
+          { id: 1, egg_price: next.eggPrice, cook_salary: next.cookSalary },
+          { onConflict: "id" }
+        )
+      );
+    } catch (err) {
+      setSettings(prev);
+      throw err;
+    }
   };
 
-  /**
-   * Mark a member's bill as paid for a given month.
-   * Upserts into bill_payments so it's idempotent.
-   */
+  // ── Bill payments ─────────────────────────────────────────────────────────
   const markPaid = async (memberId: string, month: string, amount: number) => {
-    const client = await sb();
-    await client.from("bill_payments").upsert(
-      {
-        member_id: memberId,
-        month,
-        paid: true,
-        paid_at: new Date().toISOString(),
-        amount,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "member_id,month" }
-    );
-    // Optimistic local update
-    setPayments((prev) => {
-      const exists = prev.find((p) => p.memberId === memberId && p.month === month);
-      const now = new Date().toISOString();
-      if (exists) {
-        return prev.map((p) =>
-          p.memberId === memberId && p.month === month
-            ? { ...p, paid: true, paidAt: now, amount }
-            : p
-        );
-      }
-      return [...prev, { id: "optimistic", memberId, month, paid: true, paidAt: now, amount }];
+    const prevPayment = payments.find((p) => p.memberId === memberId && p.month === month);
+    const now = new Date().toISOString();
+    setPayments((ps) => {
+      const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
+      return [...without, { id: prevPayment?.id ?? "optimistic", memberId, month, paid: true, paidAt: now, amount }];
     });
+    try {
+      const client = await sb();
+      checkError(
+        await client.from("bill_payments").upsert(
+          { member_id: memberId, month, paid: true, paid_at: now, amount, updated_at: now },
+          { onConflict: "member_id,month" }
+        )
+      );
+    } catch (err) {
+      // Revert only this payment slot
+      setPayments((ps) => {
+        const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
+        return prevPayment ? [...without, prevPayment] : without;
+      });
+      throw err;
+    }
   };
 
-  /**
-   * Mark a member's bill as unpaid for a given month.
-   * Uses upsert so it is idempotent even if no prior row exists.
-   */
   const markUnpaid = async (memberId: string, month: string) => {
-    const client = await sb();
-    await client.from("bill_payments").upsert(
-      {
-        member_id: memberId,
-        month,
-        paid: false,
-        paid_at: null,
-        amount: 0,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "member_id,month" }
-    );
-    // Symmetric upsert-style local update: update existing or insert if absent
-    setPayments((prev) => {
-      const exists = prev.find((p) => p.memberId === memberId && p.month === month);
-      if (exists) {
-        return prev.map((p) =>
-          p.memberId === memberId && p.month === month
-            ? { ...p, paid: false, paidAt: null, amount: 0 }
-            : p
-        );
-      }
-      return [...prev, { id: "optimistic", memberId, month, paid: false, paidAt: null, amount: 0 }];
+    const prevPayment = payments.find((p) => p.memberId === memberId && p.month === month);
+    setPayments((ps) => {
+      const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
+      return [...without, { id: prevPayment?.id ?? "optimistic", memberId, month, paid: false, paidAt: null, amount: 0 }];
     });
+    try {
+      const client = await sb();
+      const now = new Date().toISOString();
+      checkError(
+        await client.from("bill_payments").upsert(
+          { member_id: memberId, month, paid: false, paid_at: null, amount: 0, updated_at: now },
+          { onConflict: "member_id,month" }
+        )
+      );
+    } catch (err) {
+      setPayments((ps) => {
+        const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
+        return prevPayment ? [...without, prevPayment] : without;
+      });
+      throw err;
+    }
   };
 
+  // ── Fines ─────────────────────────────────────────────────────────────────
+  // addFine: server-first (insert returns the created row).
+  const addFine = async (f: Omit<Fine, "id">) => {
+    const client = await sb();
+    const r = getData(
+      await client.from("fines").insert({
+        member_id: f.memberId, amount: f.amount, date: f.date,
+        reason: f.reason, notes: f.notes ?? null,
+      }).select().single()
+    ) as Record<string, unknown>;
+    setFines((prev) => [
+      {
+        id: r.id as string,
+        memberId: r.member_id as string,
+        amount: Number(r.amount),
+        date: r.date as string,
+        reason: (r.reason as string) || "",
+        notes: (r.notes as string | undefined) ?? undefined,
+      },
+      ...prev,
+    ]);
+  };
+
+  const updateFine = async (id: string, u: Partial<Fine>) => {
+    const prevFine = fines.find((f) => f.id === id);
+    setFines((fs) => fs.map((f) => (f.id === id ? { ...f, ...u } : f)));
+    try {
+      const row: Record<string, unknown> = {};
+      if (u.memberId !== undefined) row.member_id = u.memberId;
+      if (u.amount !== undefined) row.amount = u.amount;
+      if (u.date !== undefined) row.date = u.date;
+      if (u.reason !== undefined) row.reason = u.reason;
+      // Always sync notes when provided — empty string clears existing note (stored as NULL)
+      if ("notes" in u) row.notes = (u.notes && u.notes.trim()) ? u.notes.trim() : null;
+      const client = await sb();
+      checkError(await client.from("fines").update(row).eq("id", id));
+    } catch (err) {
+      if (prevFine) setFines((fs) => fs.map((f) => (f.id === id ? prevFine : f)));
+      throw err;
+    }
+  };
+
+  const deleteFine = async (id: string) => {
+    const prevFine = fines.find((f) => f.id === id);
+    setFines((fs) => fs.filter((f) => f.id !== id));
+    try {
+      const client = await sb();
+      checkError(await client.from("fines").delete().eq("id", id));
+    } catch (err) {
+      if (prevFine) {
+        setFines((fs) =>
+          fs.some((f) => f.id === id) ? fs : [prevFine, ...fs]
+        );
+      }
+      throw err;
+    }
+  };
+
+  // ── Calculations ──────────────────────────────────────────────────────────
   const getMonthTotals = (month: string) => {
-    // Cook salary is NOT included here — it is a flat per-member charge
-    // added individually to each member's bill in calculateMonthlyBill.
     const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
     const totalExpense = monthExpenses.reduce((s, e) => s + e.amount, 0);
     const monthMeals = meals.filter((m) => m.date.startsWith(month));
     const totalMeals = monthMeals.reduce((s, m) => s + (m.morning ? 1 : 0) + (m.night ? 1 : 0), 0);
     const perMealCost = totalMeals > 0 ? totalExpense / totalMeals : 0;
     return { totalExpense, totalMeals, perMealCost };
-  };
-
-  const addFine = async (f: Omit<Fine, "id">) => {
-    const client = await sb();
-    await client.from("fines").insert({
-      member_id: f.memberId, amount: f.amount, date: f.date,
-      reason: f.reason, notes: f.notes ?? null,
-    });
-  };
-
-  const updateFine = async (id: string, u: Partial<Fine>) => {
-    const row: Record<string, unknown> = {};
-    if (u.memberId !== undefined) row.member_id = u.memberId;
-    if (u.amount !== undefined) row.amount = u.amount;
-    if (u.date !== undefined) row.date = u.date;
-    if (u.reason !== undefined) row.reason = u.reason;
-    // Always sync notes when provided — empty string clears existing note (stored as NULL)
-    if ("notes" in u) row.notes = (u.notes && u.notes.trim()) ? u.notes.trim() : null;
-    const client = await sb();
-    await client.from("fines").update(row).eq("id", id);
-  };
-
-  const deleteFine = async (id: string) => {
-    const client = await sb();
-    await client.from("fines").delete().eq("id", id);
   };
 
   const calculateMonthlyBill = (memberId: string, month: string): MonthlyBill => {
@@ -600,7 +807,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const eggCount = memberEggs.reduce((s, e) => s + e.count, 0);
     const eggBill = eggCount * settings.eggPrice;
     const cookShare = settings.cookSalary;
-    // Fine is per-member only — does NOT affect shared per-meal cost
     const memberFines = fines.filter((f) => f.memberId === memberId && f.date.startsWith(month));
     const fineTotal = memberFines.reduce((s, f) => s + f.amount, 0);
     const grossBill = mealBill + eggBill + cookShare + fineTotal;
