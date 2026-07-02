@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS fines (
   amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
   date        TEXT        NOT NULL,
   reason      TEXT,
+  notes       TEXT,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -229,3 +230,45 @@ CREATE POLICY "member reads own bill_payment"
 ALTER PUBLICATION supabase_realtime ADD TABLE
   members, meals, expenses, advances, eggs,
   fines, announcements, settings, bill_payments;
+
+-- ── 7. Migrations (safe to re-run on existing databases) ──────
+
+-- Add notes column to fines if missing (databases created before this column was added)
+ALTER TABLE fines ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Create bill_payments table and its policies if they do not already exist.
+-- Wrapped in a DO block so re-running the full schema is idempotent.
+DO $bp$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'bill_payments'
+  ) THEN
+    CREATE TABLE bill_payments (
+      id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+      member_id   UUID          NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      month       TEXT          NOT NULL,
+      paid        BOOLEAN       NOT NULL DEFAULT false,
+      paid_at     TIMESTAMPTZ,
+      amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
+      created_at  TIMESTAMPTZ   DEFAULT now(),
+      updated_at  TIMESTAMPTZ   DEFAULT now(),
+      UNIQUE (member_id, month)
+    );
+
+    ALTER TABLE bill_payments ENABLE ROW LEVEL SECURITY;
+
+    CREATE POLICY "admin manages bill_payments"
+      ON bill_payments FOR ALL TO authenticated
+      USING (get_my_role() = 'admin')
+      WITH CHECK (get_my_role() = 'admin');
+
+    CREATE POLICY "member reads own bill_payment"
+      ON bill_payments FOR SELECT TO authenticated
+      USING (
+        EXISTS (SELECT 1 FROM members WHERE id = bill_payments.member_id AND user_id = auth.uid())
+      );
+
+    ALTER PUBLICATION supabase_realtime ADD TABLE bill_payments;
+  END IF;
+END $bp$;

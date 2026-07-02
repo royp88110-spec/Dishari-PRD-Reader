@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -71,6 +71,8 @@ export default function AdminDashboard() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [payError, setPayError] = useState<string | null>(null);
+  const [paySuccess, setPaySuccess] = useState<string | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setMemberPaying = (id: string, paying: boolean) =>
     setPayingIds((prev) => {
@@ -95,16 +97,31 @@ export default function AdminDashboard() {
     if (payingIds.has(memberId)) return;
     const payment = getPayment(memberId);
     setPayError(null);
+    setPaySuccess(null);
     setMemberPaying(memberId, true);
     try {
       if (payment?.paid) {
         await markUnpaid(memberId, month);
+        setPaySuccess("Payment marked as unpaid.");
       } else {
         await markPaid(memberId, month, dueAmount);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setPaySuccess("Payment recorded successfully.");
       }
-    } catch {
-      setPayError("Failed to update payment status. Please try again.");
+      // Auto-dismiss success banner after 3 seconds; cancel any prior timer first
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setPaySuccess(null), 3000);
+    } catch (err) {
+      const msg = (err as Error).message ?? "";
+      const isSchemaError =
+        msg.includes("does not exist") ||
+        msg.includes("schema cache") ||
+        msg.includes("relation");
+      setPayError(
+        isSchemaError
+          ? "Database migration needed: the bill_payments table is missing. Copy the schema SQL from the Setup screen and re-run it in your Supabase SQL Editor."
+          : msg || "Failed to update payment status. Please try again."
+      );
     } finally {
       setMemberPaying(memberId, false);
     }
@@ -151,10 +168,20 @@ export default function AdminDashboard() {
           <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up" color="#16A34A" />
         </View>
 
+        {paySuccess && (
+          <View style={[styles.errorBanner, { backgroundColor: "#16A34A15", borderColor: "#16A34A" }]}>
+            <Feather name="check-circle" size={16} color="#16A34A" />
+            <Text style={[styles.errorBannerText, { color: "#16A34A" }]}>{paySuccess}</Text>
+            <Pressable onPress={() => setPaySuccess(null)}>
+              <Feather name="x" size={16} color="#16A34A" />
+            </Pressable>
+          </View>
+        )}
+
         {payError && (
           <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
             <Feather name="alert-circle" size={16} color="#DC2626" />
-            <Text style={[styles.errorBannerText, { color: "#DC2626" }]}>{payError}</Text>
+            <Text style={[styles.errorBannerText, { color: "#DC2626", flex: 1 }]}>{payError}</Text>
             <Pressable onPress={() => setPayError(null)}>
               <Feather name="x" size={16} color="#DC2626" />
             </Pressable>

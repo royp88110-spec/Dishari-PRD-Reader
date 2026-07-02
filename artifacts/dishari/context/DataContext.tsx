@@ -730,15 +730,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── Fines ─────────────────────────────────────────────────────────────────
+  // Helper: detect "notes column not in schema cache" errors from old DBs.
+  const isNotesColumnMissing = (e: { message?: string } | null) =>
+    !!(e?.message?.includes("notes") && (e.message.includes("schema cache") || e.message.includes("does not exist")));
+
   // addFine: server-first (insert returns the created row).
+  // If the notes column is missing (pre-migration DB), the insert is retried without
+  // notes so the fine is still saved — notes are silently dropped until migrated.
   const addFine = async (f: Omit<Fine, "id">) => {
     const client = await sb();
-    const r = getData(
-      await client.from("fines").insert({
-        member_id: f.memberId, amount: f.amount, date: f.date,
-        reason: f.reason, notes: f.notes ?? null,
-      }).select().single()
-    ) as Record<string, unknown>;
+    let result = await client.from("fines").insert({
+      member_id: f.memberId, amount: f.amount, date: f.date, reason: f.reason,
+      ...(f.notes ? { notes: f.notes } : {}),
+    }).select().single();
+    if (isNotesColumnMissing(result.error)) {
+      result = await client.from("fines").insert({
+        member_id: f.memberId, amount: f.amount, date: f.date, reason: f.reason,
+      }).select().single();
+    }
+    const r = getData(result) as Record<string, unknown>;
     setFines((prev) => [
       {
         id: r.id as string,
@@ -761,10 +771,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (u.amount !== undefined) row.amount = u.amount;
       if (u.date !== undefined) row.date = u.date;
       if (u.reason !== undefined) row.reason = u.reason;
-      // Always sync notes when provided — empty string clears existing note (stored as NULL)
+      // Include notes in the update (supports both setting and clearing to null).
+      // If the notes column is missing, retry without it so the rest of the update succeeds.
       if ("notes" in u) row.notes = (u.notes && u.notes.trim()) ? u.notes.trim() : null;
       const client = await sb();
-      checkError(await client.from("fines").update(row).eq("id", id));
+      let updateResult = await client.from("fines").update(row).eq("id", id);
+      if (isNotesColumnMissing(updateResult.error)) {
+        const { notes: _dropped, ...rowWithoutNotes } = row;
+        updateResult = await client.from("fines").update(rowWithoutNotes).eq("id", id);
+      }
+      checkError(updateResult);
     } catch (err) {
       if (prevFine) setFines((fs) => fs.map((f) => (f.id === id ? prevFine : f)));
       throw err;
