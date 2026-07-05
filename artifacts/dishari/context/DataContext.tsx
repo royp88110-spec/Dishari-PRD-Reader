@@ -697,14 +697,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      checkError(
-        await client.from("bill_payments").upsert(
-          { member_id: memberId, month, paid: true, paid_at: now },
-          { onConflict: "member_id,month" }
-        )
-      );
+      // Use the real DB row ID when available — avoids an extra SELECT and any race
+      const existingId = prevPayment && prevPayment.id !== "optimistic" ? prevPayment.id : null;
+      if (existingId) {
+        checkError(
+          await client.from("bill_payments")
+            .update({ paid: true, paid_at: now })
+            .eq("id", existingId)
+        );
+      } else {
+        // No local row yet — check DB before inserting to avoid duplicates
+        const { data: dbRow, error: selectErr } = await client
+          .from("bill_payments")
+          .select("id")
+          .eq("member_id", memberId)
+          .eq("month", month)
+          .maybeSingle();
+        if (selectErr) throw new Error(selectErr.message);
+        if (dbRow?.id) {
+          checkError(
+            await client.from("bill_payments")
+              .update({ paid: true, paid_at: now })
+              .eq("id", dbRow.id)
+          );
+        } else {
+          checkError(
+            await client.from("bill_payments")
+              .insert({ member_id: memberId, month, paid: true, paid_at: now })
+          );
+        }
+      }
     } catch (err) {
-      // Revert only this payment slot
       setPayments((ps) => {
         const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
         return prevPayment ? [...without, prevPayment] : without;
@@ -721,12 +744,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      checkError(
-        await client.from("bill_payments").upsert(
-          { member_id: memberId, month, paid: false, paid_at: null },
-          { onConflict: "member_id,month" }
-        )
-      );
+      const existingId = prevPayment && prevPayment.id !== "optimistic" ? prevPayment.id : null;
+      if (existingId) {
+        checkError(
+          await client.from("bill_payments")
+            .update({ paid: false, paid_at: null })
+            .eq("id", existingId)
+        );
+      } else {
+        const { data: dbRow, error: selectErr } = await client
+          .from("bill_payments")
+          .select("id")
+          .eq("member_id", memberId)
+          .eq("month", month)
+          .maybeSingle();
+        if (selectErr) throw new Error(selectErr.message);
+        if (dbRow?.id) {
+          checkError(
+            await client.from("bill_payments")
+              .update({ paid: false, paid_at: null })
+              .eq("id", dbRow.id)
+          );
+        } else {
+          checkError(
+            await client.from("bill_payments")
+              .insert({ member_id: memberId, month, paid: false, paid_at: null })
+          );
+        }
+      }
     } catch (err) {
       setPayments((ps) => {
         const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
