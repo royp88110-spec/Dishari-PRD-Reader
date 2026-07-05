@@ -277,6 +277,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await client.from("bill_payments").select("*");
     if (error) {
       setPaymentsError(error.message);
+      setPayments([]);
       return;
     }
     setPaymentsError(null);
@@ -288,7 +289,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           month: p.month as string,
           paid: p.paid as boolean,
           paidAt: (p.paid_at as string | null) ?? null,
-          amount: Number(p.amount),
+          amount: p.amount != null ? Number(p.amount) : 0,
         }))
       );
     }
@@ -698,7 +699,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const client = await sb();
       checkError(
         await client.from("bill_payments").upsert(
-          { member_id: memberId, month, paid: true, paid_at: now, amount, updated_at: now },
+          { member_id: memberId, month, paid: true, paid_at: now },
           { onConflict: "member_id,month" }
         )
       );
@@ -720,10 +721,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      const now = new Date().toISOString();
       checkError(
         await client.from("bill_payments").upsert(
-          { member_id: memberId, month, paid: false, paid_at: null, amount: 0, updated_at: now },
+          { member_id: memberId, month, paid: false, paid_at: null },
           { onConflict: "member_id,month" }
         )
       );

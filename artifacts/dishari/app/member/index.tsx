@@ -119,10 +119,10 @@ export default function MemberHome() {
               </Text>
             </View>
           </View>
-          {isPaid && payment?.amount != null && payment.amount > 0 && (
+          {isPaid && bill.grossBill > 0 && (
             <View style={[styles.paidAmountBadge, { backgroundColor: "#16A34A18" }]}>
               <Text style={[styles.paidAmountText, { color: "#16A34A" }]}>
-                ₹{payment.amount.toFixed(0)}
+                ₹{bill.grossBill.toFixed(0)}
               </Text>
             </View>
           )}
