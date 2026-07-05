@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import {
   Alert,
   FlatList,
@@ -419,9 +420,7 @@ export default function MoreScreen() {
           renderItem={({ item: b }) => (
             <View style={[styles.reportCard, { backgroundColor: colors.card }]}>
               <View style={styles.reportHeader}>
-                <View style={[styles.avatar, { backgroundColor: "#D4500A20" }]}>
-                  <Text style={[styles.avatarText, { color: "#D4500A" }]}>{b.memberName.charAt(0)}</Text>
-                </View>
+                <MemberAvatar name={b.memberName} size={44} bgColor="#D4500A20" textColor="#D4500A" />
                 <Text style={[styles.reportName, { color: colors.foreground }]}>{b.memberName}</Text>
                 <View style={[styles.dueBadge, { backgroundColor: b.dueAmount > 0 ? "#DC262618" : "#16A34A18" }]}>
                   <Text style={[styles.dueText, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>

@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useRef, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import {
   Alert,
   FlatList,
@@ -45,11 +46,7 @@ const MemberRow = React.memo(function MemberRow({
   const total = (morning ? 1 : 0) + (night ? 1 : 0);
   return (
     <View style={styles.memberRow}>
-      <View style={[styles.avatar, { backgroundColor: "#D4500A20" }]}>
-        <Text style={[styles.avatarText, { color: "#D4500A" }]}>
-          {member.name.charAt(0).toUpperCase()}
-        </Text>
-      </View>
+      <MemberAvatar name={member.name} size={36} bgColor="#D4500A20" textColor="#D4500A" />
       <View style={styles.colMemberInfo}>
         <Text style={[styles.memberName, { color: colors.foreground }]} numberOfLines={1}>
           {member.name}

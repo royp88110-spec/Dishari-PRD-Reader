@@ -7,6 +7,7 @@ export interface AuthUser {
   name: string;
   role: "admin" | "member";
   memberId: string;
+  photoUrl?: string;
 }
 
 interface AuthContextType {
@@ -49,7 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabaseReady]);
 
-  const loadMemberForSession = useCallback(async (userId: string | undefined) => {
+  const loadMemberForSession = useCallback(async (
+    userId: string | undefined,
+    userMeta?: Record<string, unknown>,
+  ) => {
     if (!userId || !supabaseReady) {
       setUser(null);
       return;
@@ -63,11 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .single();
 
     if (member) {
+      const rawPhoto = userMeta?.avatar_url ?? userMeta?.picture;
+      const photoUrl = typeof rawPhoto === "string" && rawPhoto ? rawPhoto : undefined;
       setUser({
         id: userId,
         name: member.name as string,
         role: member.role as "admin" | "member",
         memberId: member.id as string,
+        photoUrl: photoUrl || undefined,
       });
       setNeedsSetup(false);
     } else {
@@ -90,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const sb = getSupabase();
       const { data: { session } } = await sb.auth.getSession();
       if (mounted) {
-        await loadMemberForSession(session?.user.id);
+        await loadMemberForSession(session?.user.id, session?.user.user_metadata);
         setIsLoading(false);
       }
     };
@@ -102,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const sb = getSupabase();
       const { data: { subscription } } = sb.auth.onAuthStateChange(
         (_event, session) => {
-          void loadMemberForSession(session?.user.id);
+          void loadMemberForSession(session?.user.id, session?.user.user_metadata);
         }
       );
       unsubscribe = () => subscription.unsubscribe();
@@ -125,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Eagerly load the member profile so user state is set before the
     // caller navigates away — prevents the "press twice" issue caused by
     // relying solely on the async onAuthStateChange listener.
-    await loadMemberForSession(data.session.user.id);
+    await loadMemberForSession(data.session.user.id, data.session.user.user_metadata);
     return true;
   };
 

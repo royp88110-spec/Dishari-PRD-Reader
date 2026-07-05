@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import {
   Alert,
   FlatList,
@@ -136,11 +137,12 @@ export default function MembersScreen() {
         }
         renderItem={({ item: m }) => (
           <View style={[styles.memberCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.avatar, { backgroundColor: m.status === "active" ? "#D4500A20" : colors.muted }]}>
-              <Text style={[styles.avatarText, { color: m.status === "active" ? "#D4500A" : colors.mutedForeground }]}>
-                {m.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <MemberAvatar
+              name={m.name}
+              size={44}
+              bgColor={m.status === "active" ? "#D4500A20" : colors.muted}
+              textColor={m.status === "active" ? "#D4500A" : colors.mutedForeground}
+            />
             <View style={styles.memberInfo}>
               <View style={styles.memberNameRow}>
                 <Text style={[styles.memberName, { color: colors.foreground }]}>{m.name}</Text>

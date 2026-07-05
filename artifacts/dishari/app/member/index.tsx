@@ -72,7 +72,8 @@ export default function MemberHome() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title={user?.name ?? "My Bill"}
-        icon="file-text"
+        avatarName={user?.name}
+        avatarUrl={user?.photoUrl}
         subtitle="Welcome back"
         rightElement={
           <Pressable

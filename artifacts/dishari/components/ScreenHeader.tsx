@@ -3,18 +3,24 @@ import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MemberAvatar } from "@/components/MemberAvatar";
 
 type Props = {
   title: string;
-  icon: React.ComponentProps<typeof Feather>["name"];
+  /** Feather icon shown in the badge when no avatar props are supplied */
+  icon?: React.ComponentProps<typeof Feather>["name"];
   subtitle?: string;
   rightElement?: React.ReactNode;
   /** Optional content rendered inside the gradient below the title row */
   bottomElement?: React.ReactNode;
+  /** When set, replaces the icon badge with a name-initials / photo avatar */
+  avatarName?: string;
+  avatarUrl?: string;
 };
 
-export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElement }: Props) {
+export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElement, avatarName, avatarUrl }: Props) {
   const insets = useSafeAreaInsets();
+  const showAvatar = avatarName !== undefined || avatarUrl !== undefined;
 
   return (
     <LinearGradient
@@ -25,9 +31,20 @@ export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElemen
     >
       <View style={styles.topRow}>
         <View style={styles.leftSection}>
-          <View style={styles.iconBadge}>
-            <Feather name={icon} size={18} color="#fff" />
-          </View>
+          {showAvatar ? (
+            <MemberAvatar
+              name={avatarName}
+              photoUrl={avatarUrl}
+              size={44}
+              borderRadius={14}
+              bgColor="rgba(255,255,255,0.2)"
+              textColor="#fff"
+            />
+          ) : (
+            <View style={styles.iconBadge}>
+              <Feather name={icon ?? "home"} size={18} color="#fff" />
+            </View>
+          )}
           <View style={styles.textGroup}>
             {subtitle ? (
               <Text style={styles.subtitle} numberOfLines={1}>

@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { MemberAvatar } from "@/components/MemberAvatar";
 
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
@@ -245,11 +246,12 @@ export default function AdminDashboard() {
             return (
               <View key={b.memberId}>
                 <View style={styles.memberBillRow}>
-                  <View style={[styles.avatar, { backgroundColor: isPaid ? "#16A34A20" : "#D4500A20" }]}>
-                    <Text style={[styles.avatarText, { color: isPaid ? "#16A34A" : "#D4500A" }]}>
-                      {b.memberName.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
+                  <MemberAvatar
+                    name={b.memberName}
+                    size={42}
+                    bgColor={isPaid ? "#16A34A20" : "#D4500A20"}
+                    textColor={isPaid ? "#16A34A" : "#D4500A"}
+                  />
                   <View style={styles.memberBillInfo}>
                     <Text style={[styles.memberBillName, { color: colors.foreground }]}>{b.memberName}</Text>
                     <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
