@@ -68,7 +68,7 @@ export default function AdminDashboard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
-  const { members, expenses, payments, getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid } = useData();
+  const { members, expenses, payments, paymentsError, getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid } = useData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [payError, setPayError] = useState<string | null>(null);
@@ -114,15 +114,7 @@ export default function AdminDashboard() {
       successTimerRef.current = setTimeout(() => setPaySuccess(null), 3000);
     } catch (err) {
       const msg = (err as Error).message ?? "";
-      const isSchemaError =
-        msg.includes("does not exist") ||
-        msg.includes("schema cache") ||
-        msg.includes("relation");
-      setPayError(
-        isSchemaError
-          ? "Database migration needed: the bill_payments table is missing. Copy the schema SQL from the Setup screen and re-run it in your Supabase SQL Editor."
-          : msg || "Failed to update payment status. Please try again."
-      );
+      setPayError(msg || "Failed to update payment status. Please try again.");
     } finally {
       setMemberPaying(memberId, false);
     }
@@ -179,10 +171,29 @@ export default function AdminDashboard() {
           </View>
         )}
 
+        {paymentsError && (
+          <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
+            <Feather name="alert-circle" size={16} color="#DC2626" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.errorBannerText, { color: "#DC2626", fontWeight: "700" }]}>
+                bill_payments table not accessible
+              </Text>
+              <Text style={[styles.errorBannerText, { color: "#DC2626", fontSize: 11, marginTop: 2 }]}>
+                {paymentsError}
+              </Text>
+              <Text style={[styles.errorBannerText, { color: "#DC262690", fontSize: 11, marginTop: 4 }]}>
+                Go to Supabase → SQL Editor and re-run the bill_payments migration SQL.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {payError && (
           <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
             <Feather name="alert-circle" size={16} color="#DC2626" />
-            <Text style={[styles.errorBannerText, { color: "#DC2626", flex: 1 }]}>{payError}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.errorBannerText, { color: "#DC2626", flex: 1 }]}>{payError}</Text>
+            </View>
             <Pressable onPress={() => setPayError(null)}>
               <Feather name="x" size={16} color="#DC2626" />
             </Pressable>

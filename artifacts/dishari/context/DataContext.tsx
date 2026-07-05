@@ -95,6 +95,7 @@ interface DataContextType {
   fines: Fine[];
   settings: Settings;
   payments: BillPayment[];
+  paymentsError: string | null;
   isLoaded: boolean;
   addMember: (m: Omit<Member, "id">) => Promise<void>;
   updateMember: (id: string, u: Partial<Member>) => Promise<void>;
@@ -172,6 +173,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>({ eggPrice: 12, cookSalary: 250 });
   const [fines, setFines] = useState<Fine[]>([]);
   const [payments, setPayments] = useState<BillPayment[]>([]);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchMembers = useCallback(async () => {
@@ -272,7 +274,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const fetchPayments = useCallback(async () => {
     const client = await sb();
-    const { data } = await client.from("bill_payments").select("*");
+    const { data, error } = await client.from("bill_payments").select("*");
+    if (error) {
+      setPaymentsError(error.message);
+      return;
+    }
+    setPaymentsError(null);
     if (data) {
       setPayments(
         (data as Record<string, unknown>[]).map((p) => ({
@@ -843,7 +850,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      members, meals, expenses, advances, eggs, fines, settings, payments, isLoaded,
+      members, meals, expenses, advances, eggs, fines, settings, payments, paymentsError, isLoaded,
       addMember, updateMember, deleteMember,
       setMeal, setMealsBatch,
       addExpense, updateExpense, deleteExpense,
