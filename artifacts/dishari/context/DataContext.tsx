@@ -688,6 +688,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── Bill payments ─────────────────────────────────────────────────────────
+  // Helper: build the base row payload for bill_payments inserts.
+  // The DB may have a separate `year` column (NOT NULL); we always populate it
+  // so inserts don't violate the constraint regardless of schema variant.
+  const buildPaymentRow = (memberId: string, month: string, extra: Record<string, unknown>) => {
+    const year = Number(month.split("-")[0]);
+    return { member_id: memberId, month, year, ...extra };
+  };
+
   const markPaid = async (memberId: string, month: string, amount: number) => {
     const prevPayment = payments.find((p) => p.memberId === memberId && p.month === month);
     const now = new Date().toISOString();
@@ -723,7 +731,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } else {
           checkError(
             await client.from("bill_payments")
-              .insert({ member_id: memberId, month, paid: true, paid_at: now })
+              .insert(buildPaymentRow(memberId, month, { paid: true, paid_at: now }))
           );
         }
       }
@@ -768,7 +776,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } else {
           checkError(
             await client.from("bill_payments")
-              .insert({ member_id: memberId, month, paid: false, paid_at: null })
+              .insert(buildPaymentRow(memberId, month, { paid: false, paid_at: null }))
           );
         }
       }
