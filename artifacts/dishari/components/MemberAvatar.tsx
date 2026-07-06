@@ -35,19 +35,19 @@ export function MemberAvatar({
   const br = borderRadius ?? size / 2;
   const initials = name?.trim().charAt(0).toUpperCase() ?? "";
 
-  const container = {
+  const base = {
     width: size,
     height: size,
     borderRadius: br,
     backgroundColor: bgColor,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    overflow: "hidden" as const,
   };
 
   if (photoUrl && !imgFailed) {
+    // overflow:hidden is safe on an Image wrapper (no child clipping issue)
     return (
-      <View style={container}>
+      <View style={{ ...base, overflow: "hidden" as const }}>
         <Image
           source={{ uri: photoUrl }}
           style={{ width: size, height: size }}
@@ -58,9 +58,13 @@ export function MemberAvatar({
   }
 
   if (initials) {
+    // No overflow:hidden — Android clips Text children inside rounded Views
     return (
-      <View style={container}>
-        <Text style={{ fontSize: size * 0.42, fontWeight: "700", color: textColor }}>
+      <View style={base}>
+        <Text
+          style={{ fontSize: size * 0.42, fontWeight: "700", color: textColor }}
+          allowFontScaling={false}
+        >
           {initials}
         </Text>
       </View>
@@ -68,7 +72,7 @@ export function MemberAvatar({
   }
 
   return (
-    <View style={container}>
+    <View style={base}>
       <Feather name="user" size={size * 0.48} color={textColor} />
     </View>
   );
