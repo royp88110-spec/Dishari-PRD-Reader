@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -60,8 +61,15 @@ export default function MemberAdvances() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title="My Advances"
-        icon="credit-card"
+        avatarName={user?.name}
+        avatarUrl={user?.photoUrl}
         subtitle="Advance payment history"
+        rightElement={
+          <Image
+            source={require("../../assets/images/icon.png")}
+            style={{ width: 38, height: 38, borderRadius: 10 }}
+          />
+        }
         bottomElement={
           <View style={styles.headerMonthNav}>
             <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.headerNavBtn}>

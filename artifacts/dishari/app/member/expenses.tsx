@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
@@ -51,6 +53,7 @@ function monthLabel(m: string) {
 export default function MemberExpenses() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { expenses, settings, members } = useData();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
@@ -69,8 +72,15 @@ export default function MemberExpenses() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title="Expenses"
-        icon="dollar-sign"
+        avatarName={user?.name}
+        avatarUrl={user?.photoUrl}
         subtitle="Mess expense breakdown"
+        rightElement={
+          <Image
+            source={require("../../assets/images/icon.png")}
+            style={{ width: 38, height: 38, borderRadius: 10 }}
+          />
+        }
         bottomElement={
           <View style={styles.headerMonthNav}>
             <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.headerNavBtn}>
