@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "5feedfe1-5e54-45fd-afd3-ccc6661321f0"
+      }
+    },
+    "android": {
+      "package": "com.parimalroy.disharimess"
+    }
+  }
+}
