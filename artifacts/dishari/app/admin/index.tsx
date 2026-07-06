@@ -5,6 +5,8 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Dimensions,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,6 +14,14 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +30,9 @@ import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { useRefresh } from "@/hooks/useRefresh";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const SIDEBAR_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 340);
 
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
@@ -70,13 +83,33 @@ export default function AdminDashboard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
-  const { members, expenses, payments, paymentsError, getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid } = useData();
+  const { members, expenses, payments, paymentsError, announcements, deleteAnnouncement, getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid } = useData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [payError, setPayError] = useState<string | null>(null);
   const [paySuccess, setPaySuccess] = useState<string | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { refreshing, onRefresh } = useRefresh();
+
+  // ── Announcement sidebar ──────────────────────────────────────────────────
+  const sidebarX = useSharedValue(SIDEBAR_WIDTH);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  const openSidebar = () => {
+    setSidebarVisible(true);
+    sidebarX.value = withSpring(0, { damping: 22, stiffness: 200, mass: 0.8 });
+  };
+  const closeSidebar = () => {
+    sidebarX.value = withSpring(SIDEBAR_WIDTH, { damping: 22, stiffness: 200, mass: 0.8 });
+    setTimeout(() => setSidebarVisible(false), 320);
+  };
+
+  const sidebarStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: sidebarX.value }],
+  }));
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(sidebarX.value, [0, SIDEBAR_WIDTH], [1, 0], Extrapolation.CLAMP),
+  }));
 
   const setMemberPaying = (id: string, paying: boolean) =>
     setPayingIds((prev) => {
@@ -136,12 +169,25 @@ export default function AdminDashboard() {
         icon="home"
         subtitle={todayLabel}
         rightElement={
-          <Pressable
-            onPress={() => logout().then(() => router.replace("/"))}
-            style={styles.logoutBtn}
-          >
-            <Feather name="log-out" size={18} color="rgba(255,255,255,0.9)" />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {/* Bell button — opens announcement sidebar */}
+            <Pressable onPress={openSidebar} style={styles.headerBtn}>
+              <Feather name="bell" size={18} color="rgba(255,255,255,0.9)" />
+              {announcements.length > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {announcements.length > 9 ? "9+" : String(announcements.length)}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => logout().then(() => router.replace("/"))}
+              style={styles.headerBtn}
+            >
+              <Feather name="log-out" size={18} color="rgba(255,255,255,0.9)" />
+            </Pressable>
+          </View>
         }
       />
 
@@ -368,19 +414,151 @@ export default function AdminDashboard() {
           )}
         </View>
       </ScrollView>
+
+      {/* ── Announcement Sidebar ── */}
+      {sidebarVisible && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          {/* Backdrop */}
+          <Animated.View style={[styles.backdrop, backdropStyle]} pointerEvents="auto">
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeSidebar} />
+          </Animated.View>
+
+          {/* Panel */}
+          <Animated.View
+            style={[styles.sidebar, { backgroundColor: colors.card, paddingTop: insets.top }, sidebarStyle]}
+            pointerEvents="auto"
+          >
+            {/* Sidebar header */}
+            <View style={styles.sidebarHeader}>
+              <View style={styles.sidebarTitleRow}>
+                <View style={[styles.sidebarIconWrap, { backgroundColor: "#D4500A20" }]}>
+                  <Feather name="bell" size={18} color="#D4500A" />
+                </View>
+                <Text style={[styles.sidebarTitle, { color: colors.foreground }]}>Announcements</Text>
+              </View>
+              <Pressable onPress={closeSidebar} style={styles.sidebarClose}>
+                <Feather name="x" size={20} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+
+            <View style={[styles.sidebarDivider, { backgroundColor: colors.border }]} />
+
+            {/* Announcements list */}
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {announcements.length === 0 ? (
+                <View style={styles.sidebarEmpty}>
+                  <Feather name="bell-off" size={40} color={colors.mutedForeground} />
+                  <Text style={[styles.sidebarEmptyText, { color: colors.mutedForeground }]}>
+                    No announcements yet
+                  </Text>
+                  <Text style={[styles.sidebarEmptyHint, { color: colors.mutedForeground }]}>
+                    Post one from More → News
+                  </Text>
+                </View>
+              ) : announcements.map((a) => (
+                <View key={a.id} style={[styles.annCard, { backgroundColor: colors.background }]}>
+                  <View style={styles.annCardHeader}>
+                    <Text style={[styles.annCardTitle, { color: colors.foreground }]} numberOfLines={2}>
+                      {a.title}
+                    </Text>
+                    <Pressable
+                      onPress={() =>
+                        Alert.alert("Delete", `Remove "${a.title}"?`, [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete", style: "destructive",
+                            onPress: async () => {
+                              try { await deleteAnnouncement(a.id); }
+                              catch (err) { Alert.alert("Error", (err as Error).message); }
+                            },
+                          },
+                        ])
+                      }
+                      style={{ padding: 4 }}
+                    >
+                      <Feather name="trash-2" size={15} color="#DC2626" />
+                    </Pressable>
+                  </View>
+                  <Text style={[styles.annCardBody, { color: colors.mutedForeground }]}>{a.body}</Text>
+                  <View style={styles.annCardFooter}>
+                    <Feather name="clock" size={11} color="#D4500A" />
+                    <Text style={styles.annCardDate}>
+                      {new Date(a.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric", month: "short", year: "numeric",
+                      })}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  logoutBtn: {
+  headerBtn: {
     padding: 10,
     borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.2)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
   },
+  bellBadge: {
+    position: "absolute", top: 4, right: 4,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: "#DC2626",
+    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: { fontSize: 9, fontWeight: "800", color: "#fff" },
+  // Sidebar
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  sidebar: {
+    position: "absolute", right: 0, top: 0, bottom: 0,
+    width: SIDEBAR_WIDTH,
+    shadowColor: "#000",
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 24,
+  },
+  sidebarHeader: {
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18, paddingVertical: 16,
+  },
+  sidebarTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  sidebarIconWrap: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  sidebarTitle: { fontSize: 18, fontWeight: "800" },
+  sidebarClose: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
+  },
+  sidebarDivider: { height: 1, marginHorizontal: 16 },
+  sidebarEmpty: { alignItems: "center", paddingTop: 60, gap: 12 },
+  sidebarEmptyText: { fontSize: 15, fontWeight: "600" },
+  sidebarEmptyHint: { fontSize: 12 },
+  // Announcement cards inside sidebar
+  annCard: {
+    borderRadius: 16, padding: 14, marginBottom: 10,
+    borderLeftWidth: 3, borderLeftColor: "#D4500A",
+  },
+  annCardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 6 },
+  annCardTitle: { flex: 1, fontSize: 14, fontWeight: "700", lineHeight: 20 },
+  annCardBody: { fontSize: 13, lineHeight: 19, marginBottom: 8 },
+  annCardFooter: { flexDirection: "row", alignItems: "center", gap: 4 },
+  annCardDate: { fontSize: 11, fontWeight: "600", color: "#D4500A" },
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16,
