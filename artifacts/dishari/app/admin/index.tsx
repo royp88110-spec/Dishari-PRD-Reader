@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +19,7 @@ import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
@@ -74,6 +76,7 @@ export default function AdminDashboard() {
   const [payError, setPayError] = useState<string | null>(null);
   const [paySuccess, setPaySuccess] = useState<string | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { refreshing, onRefresh } = useRefresh();
 
   const setMemberPaying = (id: string, paying: boolean) =>
     setPayingIds((prev) => {
@@ -142,7 +145,10 @@ export default function AdminDashboard() {
         }
       />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+      >
         {/* Month navigator */}
         <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
           <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>

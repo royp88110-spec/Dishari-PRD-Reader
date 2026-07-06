@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useRefresh } from "@/hooks/useRefresh";
 
 const CATEGORIES = [
   { key: "all", label: "All", icon: "list", color: "#374151" },
@@ -51,6 +52,7 @@ export default function MemberExpenses() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { expenses, settings, members } = useData();
+  const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
   const [category, setCategory] = useState("all");
 
@@ -124,6 +126,7 @@ export default function MemberExpenses() {
         keyExtractor={(e) => e.id}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="bar-chart-2" size={40} color={colors.muted} />

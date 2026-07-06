@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function getCurrentMonth() {
   const d = new Date();
@@ -43,6 +44,7 @@ export default function MemberAdvances() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { advances, calculateMonthlyBill } = useData();
+  const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const memberId = user?.memberId ?? "";
@@ -100,6 +102,7 @@ export default function MemberAdvances() {
         keyExtractor={(a) => a.id}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="credit-card" size={44} color={colors.muted} />

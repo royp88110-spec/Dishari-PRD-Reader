@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function getCurrentMonth() {
   const d = new Date();
@@ -42,6 +44,7 @@ export default function MemberFinesScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { fines } = useData();
+  const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const memberId = user?.memberId ?? "";
@@ -69,7 +72,10 @@ export default function MemberFinesScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+      >
         {/* Summary card */}
         <View style={[styles.summaryCard, {
           backgroundColor: totalFine > 0 ? "#DC262608" : "#16A34A08",

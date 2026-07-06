@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData } from "@/context/DataContext";
 import type { Fine } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function getCurrentMonth() {
   const d = new Date();
@@ -69,6 +70,7 @@ export default function MoreScreen() {
     updateSettings, calculateAllMonthlyBills,
   } = useData();
 
+  const { refreshing, onRefresh } = useRefresh();
   const [activeSection, setActiveSection] = useState<Section>("eggs");
   const [month, setMonth] = useState(getCurrentMonth());
 
@@ -255,7 +257,7 @@ export default function MoreScreen() {
 
       {/* ══ EGGS ══ */}
       {activeSection === "eggs" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}>
           <View style={[styles.priceCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Current Egg Price</Text>
             <View style={styles.priceRow}>
@@ -308,7 +310,7 @@ export default function MoreScreen() {
 
       {/* ══ FINES ══ */}
       {activeSection === "fines" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}>
           {/* Summary strip */}
           {monthFines.length > 0 && (
             <View style={[styles.fineSummary, { backgroundColor: "#DC262610", borderColor: "#DC262640" }]}>
@@ -371,7 +373,7 @@ export default function MoreScreen() {
 
       {/* ══ ADVANCES ══ */}
       {activeSection === "advances" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}>
           <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]} onPress={() => setAdvModal(true)}>
             <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
               <Feather name="plus" size={18} color="#fff" />
@@ -416,6 +418,7 @@ export default function MoreScreen() {
           keyExtractor={(b) => b.memberId}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
           ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No data</Text>}
           renderItem={({ item: b }) => (
             <View style={[styles.reportCard, { backgroundColor: colors.card }]}>
@@ -449,7 +452,7 @@ export default function MoreScreen() {
 
       {/* ══ SETTINGS ══ */}
       {activeSection === "settings" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}>
           <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Cook Salary</Text>
             <Text style={[styles.settingDesc, { color: colors.mutedForeground }]}>Fixed amount charged per member per month</Text>

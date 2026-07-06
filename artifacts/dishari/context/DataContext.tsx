@@ -478,6 +478,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // ── Meals ─────────────────────────────────────────────────────────────────
   const setMeal = async (memberId: string, date: string, morning: boolean, night: boolean) => {
     const prevMeal = meals.find((m) => m.memberId === memberId && m.date === date);
+    // Optimistic update
     setMeals((ms) => {
       const idx = ms.findIndex((m) => m.memberId === memberId && m.date === date);
       if (idx >= 0) {
@@ -489,12 +490,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      checkError(
-        await client.from("meals").upsert(
-          { member_id: memberId, date, morning, night },
-          { onConflict: "member_id,date" }
-        )
-      );
+      // Avoid upsert onConflict — requires UNIQUE constraint. Instead: check then insert/update.
+      const { data: existing, error: fetchErr } = await client
+        .from("meals")
+        .select("id")
+        .eq("member_id", memberId)
+        .eq("date", date)
+        .maybeSingle();
+      if (fetchErr) throw new Error(fetchErr.message);
+      if (existing) {
+        checkError(await client.from("meals").update({ morning, night }).eq("id", existing.id));
+      } else {
+        checkError(await client.from("meals").insert({ member_id: memberId, date, morning, night }));
+      }
     } catch (err) {
       // Revert only this meal slot
       setMeals((ms) => {
@@ -510,6 +518,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Snapshot all affected slots before mutating
     const affectedKeys = new Set(entries.map((e) => `${e.memberId}|${e.date}`));
     const prevSlots = meals.filter((m) => affectedKeys.has(`${m.memberId}|${m.date}`));
+    // Optimistic update
     setMeals((ms) => {
       const next = [...ms];
       for (const e of entries) {
@@ -524,12 +533,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      checkError(
-        await client.from("meals").upsert(
-          entries.map((e) => ({ member_id: e.memberId, date: e.date, morning: e.morning, night: e.night })),
-          { onConflict: "member_id,date" }
-        )
+      // Fetch existing rows for all affected (member_id, date) pairs in one query
+      const uniqueDates = [...new Set(entries.map((e) => e.date))];
+      const memberIds = [...new Set(entries.map((e) => e.memberId))];
+      const { data: existingRows, error: fetchErr } = await client
+        .from("meals")
+        .select("id, member_id, date")
+        .in("date", uniqueDates)
+        .in("member_id", memberIds);
+      if (fetchErr) throw new Error(fetchErr.message);
+      const existingMap = new Map(
+        (existingRows ?? []).map((r) => [`${r.member_id as string}|${r.date as string}`, r.id as string])
       );
+      const toInsert = entries.filter((e) => !existingMap.has(`${e.memberId}|${e.date}`));
+      const toUpdate = entries.filter((e) => existingMap.has(`${e.memberId}|${e.date}`));
+      if (toInsert.length > 0) {
+        checkError(
+          await client.from("meals").insert(
+            toInsert.map((e) => ({ member_id: e.memberId, date: e.date, morning: e.morning, night: e.night }))
+          )
+        );
+      }
+      // Run updates in parallel — each row has different values so can't batch in one UPDATE
+      if (toUpdate.length > 0) {
+        const results = await Promise.all(
+          toUpdate.map((e) => {
+            const id = existingMap.get(`${e.memberId}|${e.date}`)!;
+            return client.from("meals").update({ morning: e.morning, night: e.night }).eq("id", id);
+          })
+        );
+        for (const res of results) checkError(res);
+      }
     } catch (err) {
       // Revert only the affected slots, leave everything else intact
       setMeals((ms) => {

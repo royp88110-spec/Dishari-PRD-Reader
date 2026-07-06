@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function getCurrentMonth() {
   const d = new Date();
@@ -43,6 +44,7 @@ export default function MemberMeals() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { meals } = useData();
+  const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const memberId = user?.memberId ?? "";
@@ -99,6 +101,7 @@ export default function MemberMeals() {
         keyExtractor={(m) => m.id}
         style={{ flex: 1, backgroundColor: colors.card }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
         ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: "#F2E6DF" }} />}
         ListEmptyComponent={
           <View style={styles.empty}>

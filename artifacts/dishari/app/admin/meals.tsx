@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Member, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function formatDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -87,6 +88,7 @@ export default function MealsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { members, meals, setMeal, setMealsBatch } = useData();
+  const { refreshing, onRefresh } = useRefresh();
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
 
   const activeMembers = members.filter((m) => m.status === "active");
@@ -208,6 +210,7 @@ export default function MealsScreen() {
         keyExtractor={(m) => m.id}
         style={{ flex: 1, backgroundColor: colors.card }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
         ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: "#F2E6DF" }} />}
         // Prevent the FlatList itself from re-rendering when parent re-renders
         // due to unrelated state changes (e.g. date navigation)

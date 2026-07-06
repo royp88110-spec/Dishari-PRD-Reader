@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { useRefresh } from "@/hooks/useRefresh";
 
 function getCurrentMonth() {
   const d = new Date();
@@ -59,6 +61,7 @@ export default function MemberHome() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { calculateMonthlyBill, getMonthTotals, settings, payments } = useData();
+  const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const memberId = user?.memberId ?? "";
@@ -85,7 +88,10 @@ export default function MemberHome() {
         }
       />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+      >
         {/* Month navigator */}
         <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
           <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
