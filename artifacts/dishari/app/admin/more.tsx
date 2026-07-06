@@ -45,7 +45,7 @@ function monthLabel(m: string) {
   return `${names[parseInt(mo) - 1]} ${y}`;
 }
 
-type Section = "eggs" | "fines" | "advances" | "reports" | "settings";
+type Section = "eggs" | "fines" | "advances" | "reports" | "announce" | "settings";
 
 type EditModalState = {
   visible: boolean;
@@ -64,10 +64,11 @@ export default function MoreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const {
-    members, eggs, advances, fines, settings,
+    members, eggs, advances, fines, settings, announcements,
     setEggEntry, addAdvance, deleteAdvance,
     addFine, updateFine, deleteFine,
     updateSettings, calculateAllMonthlyBills,
+    addAnnouncement, deleteAnnouncement,
   } = useData();
 
   const { refreshing, onRefresh } = useRefresh();
@@ -89,6 +90,11 @@ export default function MoreScreen() {
   const [editingFine, setEditingFine] = useState<Fine | null>(null);
   const [fineForm, setFineForm] = useState({ memberId: "", amount: "", date: TODAY, reason: "", notes: "" });
   const [isSavingFine, setIsSavingFine] = useState(false);
+
+  // Announcement state
+  const [annModal, setAnnModal] = useState(false);
+  const [annForm, setAnnForm] = useState({ title: "", body: "" });
+  const [isSavingAnn, setIsSavingAnn] = useState(false);
 
   // Inline numeric edit modal
   const [editModal, setEditModal] = useState<EditModalState>(EDIT_MODAL_CLOSED);
@@ -196,12 +202,29 @@ export default function MoreScreen() {
     }
   };
 
+  // ── Announcement save ──
+  const saveAnnouncement = async () => {
+    if (!annForm.title.trim()) return Alert.alert("Validation Error", "Please enter a title.");
+    if (!annForm.body.trim()) return Alert.alert("Validation Error", "Please enter a message.");
+    setIsSavingAnn(true);
+    try {
+      await addAnnouncement(annForm.title.trim(), annForm.body.trim());
+      setAnnModal(false);
+      setAnnForm({ title: "", body: "" });
+    } catch (err) {
+      Alert.alert("Save Failed", (err as Error).message || "Could not post announcement.");
+    } finally {
+      setIsSavingAnn(false);
+    }
+  };
+
   const sections: { key: Section; label: string; icon: string }[] = [
-    { key: "eggs",     label: "Eggs",    icon: "circle" },
-    { key: "fines",    label: "Fines",   icon: "alert-circle" },
-    { key: "advances", label: "Adv",     icon: "credit-card" },
-    { key: "reports",  label: "Bill",    icon: "bar-chart-2" },
-    { key: "settings", label: "Setup",   icon: "settings" },
+    { key: "eggs",     label: "Eggs",  icon: "circle" },
+    { key: "fines",    label: "Fines", icon: "alert-circle" },
+    { key: "advances", label: "Adv",   icon: "credit-card" },
+    { key: "reports",  label: "Bill",  icon: "bar-chart-2" },
+    { key: "announce", label: "News",  icon: "bell" },
+    { key: "settings", label: "Setup", icon: "settings" },
   ];
 
   return (
@@ -209,7 +232,7 @@ export default function MoreScreen() {
       <ScreenHeader
         title="More"
         icon="more-horizontal"
-        subtitle="Eggs · Fines · Advances · Reports"
+        subtitle="Eggs · Fines · Advances · News"
         bottomElement={
           <View style={{ flexDirection: "row", gap: 2 }}>
             {sections.map((s) => (
@@ -501,6 +524,53 @@ export default function MoreScreen() {
         </ScrollView>
       )}
 
+      {/* ══ ANNOUNCE ══ */}
+      {activeSection === "announce" && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}>
+          <Pressable
+            style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]}
+            onPress={() => { setAnnForm({ title: "", body: "" }); setAnnModal(true); }}
+          >
+            <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
+              <Feather name="plus" size={18} color="#fff" />
+              <Text style={styles.addBtnText}>Post Announcement</Text>
+            </LinearGradient>
+          </Pressable>
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>All Announcements</Text>
+          {announcements.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No announcements yet</Text>
+          ) : announcements.map((a) => (
+            <View key={a.id} style={[styles.annCard, { backgroundColor: colors.card }]}>
+              <View style={styles.annCardTop}>
+                <View style={[styles.annIconWrap, { backgroundColor: "#D4500A20" }]}>
+                  <Feather name="bell" size={16} color="#D4500A" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.annTitle, { color: colors.foreground }]}>{a.title}</Text>
+                  <Text style={[styles.annDate, { color: colors.mutedForeground }]}>
+                    {new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => Alert.alert("Delete", `Remove "${a.title}"?`, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Delete", style: "destructive", onPress: async () => {
+                      try { await deleteAnnouncement(a.id); }
+                      catch (err) { Alert.alert("Delete Failed", (err as Error).message || "Could not delete."); }
+                    }},
+                  ])}
+                  style={{ padding: 6 }}
+                >
+                  <Feather name="trash-2" size={18} color={colors.destructive} />
+                </Pressable>
+              </View>
+              <Text style={[styles.annBody, { color: colors.mutedForeground }]}>{a.body}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
       {/* ══ Egg Modal ══ */}
       <Modal visible={eggModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -643,6 +713,49 @@ export default function MoreScreen() {
       </Modal>
 
       {/* ══ Inline numeric edit modal ══ */}
+      {/* ══ Announcement Modal ══ */}
+      <Modal visible={annModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Post Announcement</Text>
+              <Pressable onPress={() => setAnnModal(false)}><Feather name="x" size={22} color={colors.mutedForeground} /></Pressable>
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>TITLE</Text>
+              <TextInput
+                style={[styles.formInput, { color: colors.foreground }]}
+                value={annForm.title}
+                onChangeText={(v) => setAnnForm((f) => ({ ...f, title: v }))}
+                placeholder="e.g. Mess closed on Sunday"
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>MESSAGE</Text>
+              <TextInput
+                style={[styles.formInput, { color: colors.foreground, minHeight: 100, textAlignVertical: "top" }]}
+                value={annForm.body}
+                onChangeText={(v) => setAnnForm((f) => ({ ...f, body: v }))}
+                placeholder="Write your announcement here…"
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+            <Pressable
+              style={({ pressed }) => [{ opacity: (pressed || isSavingAnn) ? 0.7 : 1, marginTop: 4, marginBottom: 20 }]}
+              onPress={saveAnnouncement}
+              disabled={isSavingAnn}
+            >
+              <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>{isSavingAnn ? "Posting…" : "Post Announcement"}</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={editModal.visible} animationType="fade" transparent statusBarTranslucent>
         <KeyboardAvoidingView style={styles.editOverlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeEditModal} />
@@ -762,6 +875,17 @@ const styles = StyleSheet.create({
   settingVal: { fontSize: 20, fontWeight: "700" },
   smallBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   smallBtnText: { fontSize: 13, fontWeight: "700" },
+  // Announcement cards
+  annCard: {
+    borderRadius: 20, padding: 16, marginBottom: 12,
+    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+  },
+  annCardTop: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 10 },
+  annIconWrap: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  annTitle: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
+  annDate: { fontSize: 12 },
+  annBody: { fontSize: 14, lineHeight: 20 },
   // Modals
   modalOverlay: { flex: 1, backgroundColor: "#00000060", justifyContent: "flex-end" },
   modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "90%" },
@@ -795,3 +919,4 @@ const styles = StyleSheet.create({
   editSaveBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
   editSaveText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
+

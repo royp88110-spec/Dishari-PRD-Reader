@@ -2,6 +2,13 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { Platform } from "react-native";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -96,6 +103,7 @@ interface DataContextType {
   settings: Settings;
   payments: BillPayment[];
   paymentsError: string | null;
+  announcements: Announcement[];
   isLoaded: boolean;
   addMember: (m: Omit<Member, "id">) => Promise<void>;
   updateMember: (id: string, u: Partial<Member>) => Promise<void>;
@@ -112,6 +120,8 @@ interface DataContextType {
   deleteFine: (id: string) => Promise<void>;
   setEggEntry: (memberId: string, date: string, count: number) => Promise<void>;
   updateSettings: (s: Partial<Settings>) => Promise<void>;
+  addAnnouncement: (title: string, body: string) => Promise<void>;
+  deleteAnnouncement: (id: string) => Promise<void>;
   markPaid: (memberId: string, month: string, amount: number) => Promise<void>;
   markUnpaid: (memberId: string, month: string) => Promise<void>;
   calculateMonthlyBill: (memberId: string, month: string) => MonthlyBill;
@@ -173,6 +183,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>({ eggPrice: 12, cookSalary: 250 });
   const [fines, setFines] = useState<Fine[]>([]);
   const [payments, setPayments] = useState<BillPayment[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -312,6 +323,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchAnnouncements = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("announcements").select("*").order("created_at", { ascending: false });
+    if (data) {
+      setAnnouncements(
+        (data as Record<string, unknown>[]).map((a) => ({
+          id: a.id as string,
+          title: a.title as string,
+          body: a.body as string,
+          createdAt: a.created_at as string,
+        }))
+      );
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     await Promise.all([
       fetchMembers(),
@@ -322,9 +348,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       fetchSettings(),
       fetchPayments(),
       fetchFines(),
+      fetchAnnouncements(),
     ]);
     setIsLoaded(true);
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines, fetchAnnouncements]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -341,7 +368,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } else {
           setMembers([]); setMeals([]); setExpenses([]);
           setAdvances([]); setEggs([]); setPayments([]);
-          setFines([]);
+          setFines([]); setAnnouncements([]);
           setSettings({ eggPrice: 12, cookSalary: 250 });
           setIsLoaded(false);
         }
@@ -389,6 +416,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, safeAsync(fetchSettings, "fetchSettings"))
         .on("postgres_changes", { event: "*", schema: "public", table: "bill_payments" }, safeAsync(fetchPayments, "fetchPayments"))
         .on("postgres_changes", { event: "*", schema: "public", table: "fines" }, safeAsync(fetchFines, "fetchFines"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, safeAsync(fetchAnnouncements, "fetchAnnouncements"))
         .subscribe();
     }).catch((err: Error) => {
       console.error("[DataContext] realtime channel setup failed:", err.message);
@@ -403,7 +431,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.error("[DataContext] cleanup sb() failed:", err.message);
       });
     };
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines, fetchAnnouncements]);
 
   // ── Members ──────────────────────────────────────────────────────────────
   // addMember: server-first (API creates auth user + row, returns the row).
@@ -897,6 +925,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ── Announcements ─────────────────────────────────────────────────────────
+  const addAnnouncement = async (title: string, body: string) => {
+    const client = await sb();
+    const row = getData(
+      await client.from("announcements").insert({ title, body }).select().single()
+    ) as Record<string, unknown>;
+    setAnnouncements((prev) => [{
+      id: row.id as string,
+      title: row.title as string,
+      body: row.body as string,
+      createdAt: row.created_at as string,
+    }, ...prev]);
+  };
+
+  const deleteAnnouncement = async (id: string) => {
+    const prev = announcements.find((a) => a.id === id);
+    setAnnouncements((as) => as.filter((a) => a.id !== id));
+    try {
+      const client = await sb();
+      checkError(await client.from("announcements").delete().eq("id", id));
+    } catch (err) {
+      if (prev) setAnnouncements((as) => [prev, ...as]);
+      throw err;
+    }
+  };
+
   // ── Calculations ──────────────────────────────────────────────────────────
   const getMonthTotals = (month: string) => {
     const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
@@ -937,13 +991,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      members, meals, expenses, advances, eggs, fines, settings, payments, paymentsError, isLoaded,
+      members, meals, expenses, advances, eggs, fines, settings, payments, paymentsError, announcements, isLoaded,
       addMember, updateMember, deleteMember,
       setMeal, setMealsBatch,
       addExpense, updateExpense, deleteExpense,
       addAdvance, deleteAdvance,
       addFine, updateFine, deleteFine,
       setEggEntry, updateSettings,
+      addAnnouncement, deleteAnnouncement,
       markPaid, markUnpaid,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,
       refresh: loadAll,

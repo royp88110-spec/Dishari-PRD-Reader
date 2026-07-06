@@ -60,7 +60,7 @@ export default function MemberHome() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { calculateMonthlyBill, getMonthTotals, settings, payments } = useData();
+  const { calculateMonthlyBill, getMonthTotals, settings, payments, announcements } = useData();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
@@ -102,6 +102,25 @@ export default function MemberHome() {
             <Feather name="chevron-right" size={22} color="#D4500A" />
           </Pressable>
         </View>
+
+        {/* Announcements */}
+        {announcements.length > 0 && (
+          <View style={styles.annSection}>
+            <View style={styles.annHeadRow}>
+              <Feather name="bell" size={14} color="#D4500A" />
+              <Text style={[styles.annHeading, { color: colors.foreground }]}>Announcements</Text>
+            </View>
+            {announcements.slice(0, 5).map((a) => (
+              <View key={a.id} style={[styles.annCard, { backgroundColor: "#FFF4EE" }]}>
+                <Text style={styles.annTitle}>{a.title}</Text>
+                <Text style={[styles.annBody, { color: colors.mutedForeground }]}>{a.body}</Text>
+                <Text style={[styles.annDate, { color: "#D4500A" }]}>
+                  {new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Payment Status Card */}
         <View style={[
@@ -264,6 +283,16 @@ const styles = StyleSheet.create({
   billVal: { fontSize: 14 },
   divider: { height: 1, marginVertical: 2 },
   bigDivider: { height: 2, marginVertical: 6 },
+  annSection: { marginHorizontal: 20, marginBottom: 16 },
+  annHeadRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  annHeading: { fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  annCard: {
+    borderRadius: 16, padding: 14, marginBottom: 8,
+    borderLeftWidth: 3, borderLeftColor: "#D4500A",
+  },
+  annTitle: { fontSize: 14, fontWeight: "700", color: "#1a1a1a", marginBottom: 4 },
+  annBody: { fontSize: 13, lineHeight: 19, marginBottom: 6 },
+  annDate: { fontSize: 11, fontWeight: "600" },
   statsRow: { flexDirection: "row", marginHorizontal: 20, gap: 12, marginBottom: 20 },
   miniStat: {
     flex: 1, borderRadius: 16, padding: 14, alignItems: "center", gap: 6,
