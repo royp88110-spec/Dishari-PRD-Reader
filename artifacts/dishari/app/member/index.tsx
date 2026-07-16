@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Image,
+  Animated,
+  Easing,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,10 +14,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
-import { useData } from "@/context/DataContext";
+import { type Announcement, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useRefresh } from "@/hooks/useRefresh";
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getCurrentMonth() {
   const d = new Date();
@@ -37,18 +40,11 @@ function nextMonth(m: string) {
 
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
-  const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const names = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
   return `${names[parseInt(mo) - 1]} ${y}`;
-}
-
-function BillRow({ label, value, color, bold }: { label: string; value: string; color?: string; bold?: boolean }) {
-  const colors = useColors();
-  return (
-    <View style={styles.billRow}>
-      <Text style={[styles.billKey, { color: colors.mutedForeground }]}>{label}</Text>
-      <Text style={[styles.billVal, { color: color ?? colors.foreground, fontWeight: bold ? "700" : "500" }]}>{value}</Text>
-    </View>
-  );
 }
 
 function friendlyDate(iso: string | null): string {
@@ -57,6 +53,156 @@ function friendlyDate(iso: string | null): string {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+// ─── BillRow ──────────────────────────────────────────────────────────────────
+
+function BillRow({
+  label, value, color, bold,
+}: {
+  label: string; value: string; color?: string; bold?: boolean;
+}) {
+  const colors = useColors();
+  return (
+    <View style={styles.billRow}>
+      <Text style={[styles.billKey, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[styles.billVal, { color: color ?? colors.foreground, fontWeight: bold ? "700" : "500" }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+// ─── NotificationCard ────────────────────────────────────────────────────────
+// Defined at module level (not inside MemberHome) so hooks are valid.
+
+function NotificationCard({
+  ann,
+  index,
+  onDismiss,
+}: {
+  ann: Announcement;
+  index: number;
+  onDismiss: (id: string) => void;
+}) {
+  const translateY = useRef(new Animated.Value(-72)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  // Sonar-ping pulse: ring expands from 1× to 2.6× while fading out → repeats
+  const pulseScale = useRef(new Animated.Value(1)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.75)).current;
+
+  useEffect(() => {
+    // Entrance: slide down + fade in, staggered by card index
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 420,
+        delay: index * 90,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 380,
+        delay: index * 90,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Continuous sonar-ping on the unread dot
+    const ping = Animated.loop(
+      Animated.parallel([
+        Animated.timing(pulseScale, {
+          toValue: 2.6,
+          duration: 1300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseOpacity, {
+          toValue: 0,
+          duration: 1300,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    ping.start();
+    return () => ping.stop();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: -48,
+        duration: 220,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 190,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onDismiss(ann.id));
+  }, [ann.id, onDismiss, translateY, opacity]);
+
+  return (
+    <Animated.View style={{ transform: [{ translateY }], opacity, marginBottom: 10 }}>
+      <View style={nStyles.card}>
+        {/* Left orange accent bar */}
+        <View style={nStyles.accentBar} />
+
+        {/* Pulsing unread dot */}
+        <View style={nStyles.dotWrap}>
+          <Animated.View
+            style={[
+              nStyles.pulseRing,
+              { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+            ]}
+          />
+          <View style={nStyles.dot} />
+        </View>
+
+        {/* Content */}
+        <View style={nStyles.textWrap}>
+          <Text style={nStyles.title} numberOfLines={1}>{ann.title}</Text>
+          <Text style={nStyles.body} numberOfLines={2}>{ann.body}</Text>
+          <Text style={nStyles.date}>
+            {new Date(ann.createdAt).toLocaleDateString("en-IN", {
+              day: "numeric", month: "short", year: "numeric",
+            })}
+          </Text>
+        </View>
+
+        {/* Dismiss button */}
+        <Pressable
+          onPress={handleDismiss}
+          hitSlop={12}
+          style={({ pressed }) => [nStyles.dismissBtn, { opacity: pressed ? 0.6 : 1 }]}
+        >
+          <View style={nStyles.dismissCircle}>
+            <Feather name="x" size={11} color="#D4500A" />
+          </View>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
+// Notification section header (static — no animation needed)
+function NotificationHeader({ count }: { count: number }) {
+  return (
+    <View style={nStyles.sectionHeader}>
+      <View style={nStyles.bellWrap}>
+        <Feather name="bell" size={13} color="#D4500A" />
+      </View>
+      <Text style={nStyles.sectionTitle}>Notifications</Text>
+      <View style={nStyles.badge}>
+        <Text style={nStyles.badgeText}>{count}</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── MemberHome ───────────────────────────────────────────────────────────────
+
 export default function MemberHome() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -64,6 +210,7 @@ export default function MemberHome() {
   const { calculateMonthlyBill, getMonthTotals, settings, payments, announcements } = useData();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const memberId = user?.memberId ?? "";
   const bill = calculateMonthlyBill(memberId, month);
@@ -71,6 +218,13 @@ export default function MemberHome() {
 
   const payment = payments.find((p) => p.memberId === memberId && p.month === month);
   const isPaid = payment?.paid === true;
+
+  // Only show announcements that haven't been dismissed this session
+  const visibleAnnouncements = announcements.filter((a) => !dismissedIds.has(a.id));
+
+  const handleDismiss = useCallback((id: string) => {
+    setDismissedIds((prev) => new Set([...prev, id]));
+  }, []);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -91,9 +245,31 @@ export default function MemberHome() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#D4500A"]}
+            tintColor="#D4500A"
+          />
+        }
       >
-        {/* Month navigator */}
+        {/* ── Notifications (top) ─────────────────────────────────────────── */}
+        {visibleAnnouncements.length > 0 && (
+          <View style={nStyles.section}>
+            <NotificationHeader count={visibleAnnouncements.length} />
+            {visibleAnnouncements.slice(0, 5).map((ann, i) => (
+              <NotificationCard
+                key={ann.id}
+                ann={ann}
+                index={i}
+                onDismiss={handleDismiss}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* ── Month navigator ──────────────────────────────────────────────── */}
         <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
           <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
             <Feather name="chevron-left" size={22} color="#D4500A" />
@@ -104,34 +280,17 @@ export default function MemberHome() {
           </Pressable>
         </View>
 
-        {/* Announcements */}
-        {announcements.length > 0 && (
-          <View style={styles.annSection}>
-            <View style={styles.annHeadRow}>
-              <Feather name="bell" size={14} color="#D4500A" />
-              <Text style={[styles.annHeading, { color: colors.foreground }]}>Announcements</Text>
-            </View>
-            {announcements.slice(0, 5).map((a) => (
-              <View key={a.id} style={[styles.annCard, { backgroundColor: "#FFF4EE" }]}>
-                <Text style={styles.annTitle}>{a.title}</Text>
-                <Text style={[styles.annBody, { color: colors.mutedForeground }]}>{a.body}</Text>
-                <Text style={[styles.annDate, { color: "#D4500A" }]}>
-                  {new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Payment Status Card */}
-        <View style={[
-          styles.paymentCard,
-          {
-            backgroundColor: isPaid ? "#16A34A08" : "#DC262608",
-            borderColor: isPaid ? "#16A34A" : "#DC2626",
-            borderWidth: 2.5,
-          }
-        ]}>
+        {/* ── Payment Status Card ──────────────────────────────────────────── */}
+        <View
+          style={[
+            styles.paymentCard,
+            {
+              backgroundColor: isPaid ? "#16A34A08" : "#DC262608",
+              borderColor: isPaid ? "#16A34A" : "#DC2626",
+              borderWidth: 2.5,
+            },
+          ]}
+        >
           <View style={styles.paymentCardInner}>
             <Text style={styles.paymentEmoji}>{isPaid ? "✅" : "❌"}</Text>
             <View style={styles.paymentCardText}>
@@ -154,12 +313,17 @@ export default function MemberHome() {
           )}
         </View>
 
-        {/* Due / Credit card */}
-        <View style={[styles.dueCard, {
-          backgroundColor: bill.dueAmount > 0 ? "#DC262605" : "#16A34A05",
-          borderColor: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
-          borderWidth: 2.5,
-        }]}>
+        {/* ── Due / Credit card ────────────────────────────────────────────── */}
+        <View
+          style={[
+            styles.dueCard,
+            {
+              backgroundColor: bill.dueAmount > 0 ? "#DC262605" : "#16A34A05",
+              borderColor: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
+              borderWidth: 2.5,
+            },
+          ]}
+        >
           <Text style={[styles.dueLabel, { color: bill.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
             {bill.dueAmount > 0 ? "Amount Due" : "Credit Balance"}
           </Text>
@@ -171,6 +335,7 @@ export default function MemberHome() {
           </Text>
         </View>
 
+        {/* ── Bill Breakdown ───────────────────────────────────────────────── */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My Bill Breakdown</Text>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -204,6 +369,7 @@ export default function MemberHome() {
           />
         </View>
 
+        {/* ── Mess Summary ─────────────────────────────────────────────────── */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Mess Summary</Text>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -216,15 +382,16 @@ export default function MemberHome() {
           <BillRow label="Cook Salary" value={`₹${settings.cookSalary} / member`} />
         </View>
 
+        {/* ── Quick Stats ──────────────────────────────────────────────────── */}
         <View style={styles.statsRow}>
           {[
-            { label: "Meals", value: String(bill.mealCount), icon: "grid", color: "#D4500A" },
-            { label: "Eggs", value: String(bill.eggCount), icon: "circle", color: "#D97706" },
-            { label: "Advance", value: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card", color: "#16A34A" },
+            { label: "Meals", value: String(bill.mealCount), icon: "grid" as const, color: "#D4500A" },
+            { label: "Eggs", value: String(bill.eggCount), icon: "circle" as const, color: "#D97706" },
+            { label: "Advance", value: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card" as const, color: "#16A34A" },
           ].map(({ label, value, icon, color }) => (
             <View key={label} style={[styles.miniStat, { backgroundColor: colors.card }]}>
               <View style={[styles.miniStatIcon, { backgroundColor: color + "20" }]}>
-                <Feather name={icon as "grid"} size={16} color={color} />
+                <Feather name={icon} size={16} color={color} />
               </View>
               <Text style={[styles.miniStatVal, { color: colors.foreground }]}>{value}</Text>
               <Text style={[styles.miniStatLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -236,6 +403,140 @@ export default function MemberHome() {
   );
 }
 
+// ─── Notification styles ──────────────────────────────────────────────────────
+
+const nStyles = StyleSheet.create({
+  section: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  bellWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#FFF0E6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FDDCCA",
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1A0F0A",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    flex: 1,
+  },
+  badge: {
+    backgroundColor: "#D4500A",
+    borderRadius: 12,
+    minWidth: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    // Glowing badge effect (visible on iOS; Android shows elevation shadow)
+    shadowColor: "#D4500A",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    paddingVertical: 13,
+    paddingRight: 12,
+    // Orange-tinted shadow for premium feel
+    shadowColor: "#D4500A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#FAE0D0",
+  },
+  accentBar: {
+    width: 4,
+    alignSelf: "stretch",
+    backgroundColor: "#D4500A",
+    marginRight: 14,
+    borderRadius: 2,
+  },
+  dotWrap: {
+    width: 12,
+    height: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  pulseRing: {
+    position: "absolute",
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#D4500A",
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#D4500A",
+  },
+  textWrap: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1A0F0A",
+    marginBottom: 3,
+  },
+  body: {
+    fontSize: 12,
+    color: "#9B7B68",
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  date: {
+    fontSize: 10,
+    color: "#D4500A",
+    fontWeight: "600",
+  },
+  dismissBtn: {
+    marginLeft: 10,
+    padding: 4,
+  },
+  dismissCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFF0E6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FDDCCA",
+  },
+});
+
+// ─── Screen styles ────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   logoutBtn: {
@@ -246,18 +547,30 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.18)",
   },
   monthNav: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
+    borderRadius: 16,
     padding: 8,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    shadowColor: "#C04000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 4,
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
   paymentCard: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
     padding: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   paymentCardInner: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
   paymentEmoji: { fontSize: 28 },
@@ -267,16 +580,25 @@ const styles = StyleSheet.create({
   paidAmountBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 8 },
   paidAmountText: { fontSize: 15, fontWeight: "700" },
   dueCard: {
-    marginHorizontal: 20, marginBottom: 20, borderRadius: 20,
-    padding: 24, alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
   },
   dueLabel: { fontSize: 14, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
   dueAmount: { fontSize: 42, fontWeight: "700", marginVertical: 8 },
   dueSub: { fontSize: 13 },
   section: {
-    marginHorizontal: 20, marginBottom: 20, borderRadius: 20, padding: 20,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#C04000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 4,
   },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
   billRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 },
@@ -284,23 +606,27 @@ const styles = StyleSheet.create({
   billVal: { fontSize: 14 },
   divider: { height: 1, marginVertical: 2 },
   bigDivider: { height: 2, marginVertical: 6 },
-  annSection: { marginHorizontal: 20, marginBottom: 16 },
-  annHeadRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
-  annHeading: { fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
-  annCard: {
-    borderRadius: 16, padding: 14, marginBottom: 8,
-    borderLeftWidth: 3, borderLeftColor: "#D4500A",
-  },
-  annTitle: { fontSize: 14, fontWeight: "700", color: "#1a1a1a", marginBottom: 4 },
-  annBody: { fontSize: 13, lineHeight: 19, marginBottom: 6 },
-  annDate: { fontSize: 11, fontWeight: "600" },
   statsRow: { flexDirection: "row", marginHorizontal: 20, gap: 12, marginBottom: 20 },
   miniStat: {
-    flex: 1, borderRadius: 16, padding: 14, alignItems: "center", gap: 6,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    flex: 1,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: "center",
+    gap: 6,
+    shadowColor: "#C04000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 4,
   },
-  miniStatIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  miniStatIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
   miniStatVal: { fontSize: 16, fontWeight: "700" },
   miniStatLabel: { fontSize: 11 },
 });

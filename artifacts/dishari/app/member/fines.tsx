@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -61,12 +60,6 @@ export default function MemberFinesScreen() {
         avatarName={user?.name}
         avatarUrl={user?.photoUrl}
         subtitle="Fine history and monthly total"
-        rightElement={
-          <Image
-            source={require("../../assets/images/icon.png")}
-            style={{ width: 38, height: 38, borderRadius: 10 }}
-          />
-        }
         bottomElement={
           <View style={styles.headerMonthNav}>
             <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.headerNavBtn}>

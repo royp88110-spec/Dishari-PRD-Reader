@@ -10,35 +10,55 @@ export default function MemberLayout() {
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
+  // Tab bar height: give enough room for icon (22) + gap + label (~16) + padding
+  const TAB_HEIGHT = isWeb ? 84 : isIOS ? 83 : 68;
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#D4500A",
-        tabBarInactiveTintColor: "#C4A898",
+        tabBarInactiveTintColor: "#BFA99A",
         headerStyle: { backgroundColor: colors.card },
         headerTintColor: colors.foreground,
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: "700", fontSize: 18 },
         tabBarStyle: {
           position: "absolute",
+          // On iOS: transparent so BlurView shows through.
+          // On Android/web: solid white — no extra background component needed.
           backgroundColor: isIOS ? "transparent" : "#FFFFFF",
           borderTopWidth: 0,
-          elevation: 8,
-          shadowColor: "#C04000",
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          height: isWeb ? 84 : 64,
-          paddingBottom: isIOS ? 0 : 8,
+          elevation: 12,
+          shadowColor: "#8B2200",
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.10,
+          shadowRadius: 16,
+          height: TAB_HEIGHT,
+          paddingTop: 6,
+          paddingBottom: isIOS ? 0 : 10,
         },
-        tabBarItemStyle: { paddingTop: 8 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginBottom: isWeb ? 16 : 4 },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF" }]} />
-          ),
+        // tabBarItemStyle: vertical centering of icon+label within each cell
+        tabBarItemStyle: {
+          paddingVertical: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: "600",
+          marginTop: 2,
+          marginBottom: isWeb ? 14 : 0,
+        },
+        // Use BlurView only on iOS; skip the custom background on Android
+        // (a transparent backgroundColor + elevation is sufficient there and
+        // avoids any rendering-order issues that can hide icons).
+        tabBarBackground: isIOS
+          ? () => (
+              <BlurView
+                intensity={95}
+                tint="light"
+                style={StyleSheet.absoluteFill}
+              />
+            )
+          : undefined,
         headerShown: false,
       }}
     >
@@ -47,35 +67,49 @@ export default function MemberLayout() {
         options={{
           title: "My Bill",
           tabBarLabel: "Home",
-          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="home" size={size ?? 22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="meals"
         options={{
           title: "My Meals",
-          tabBarIcon: ({ color }) => <Feather name="calendar" size={22} color={color} />,
+          tabBarLabel: "Meals",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="calendar" size={size ?? 22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="expenses"
         options={{
           title: "Expenses",
-          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
+          tabBarLabel: "Expenses",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="bar-chart-2" size={size ?? 22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="advances"
         options={{
           title: "Advances",
-          tabBarIcon: ({ color }) => <Feather name="credit-card" size={22} color={color} />,
+          tabBarLabel: "Advances",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="credit-card" size={size ?? 22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="fines"
         options={{
           title: "Fines",
-          tabBarIcon: ({ color }) => <Feather name="alert-circle" size={22} color={color} />,
+          tabBarLabel: "Fines",
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="alert-circle" size={size ?? 22} color={color} />
+          ),
         }}
       />
     </Tabs>

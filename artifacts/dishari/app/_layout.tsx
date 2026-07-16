@@ -5,6 +5,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import { Feather } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -39,6 +40,10 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    // Pre-load the Feather icon font so tab-bar icons are never blank on
+    // first render — without this the font resolves asynchronously and
+    // icons flash as empty squares on Android / production APK builds.
+    ...Feather.font,
   });
 
   useEffect(() => {
