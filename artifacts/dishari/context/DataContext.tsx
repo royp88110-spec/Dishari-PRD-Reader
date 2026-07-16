@@ -132,8 +132,16 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const getApiBase = (): string =>
-  Platform.OS === "web" ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
+const getApiBase = (): string => {
+  if (Platform.OS === "web") return "";
+  // EXPO_PUBLIC_API_URL is the canonical override for EAS / production APK builds.
+  // Set it via: eas secret:create --name EXPO_PUBLIC_API_URL --value https://your-api.example.com
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl.replace(/\/$/, "");
+  // Fallback: EXPO_PUBLIC_DOMAIN is injected by the Replit dev script only.
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  return domain ? `https://${domain}` : "";
+};
 
 const apiCall = async (method: string, path: string, body?: unknown): Promise<unknown> => {
   const { getSupabase } = await import("@/lib/supabase");

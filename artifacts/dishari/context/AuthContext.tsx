@@ -23,8 +23,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const getApiBase = (): string =>
-  Platform.OS === "web" ? "" : `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
+export const getApiBase = (): string => {
+  if (Platform.OS === "web") return "";
+  // EXPO_PUBLIC_API_URL is the canonical override for EAS / production APK builds.
+  // Set it via: eas secret:create --name EXPO_PUBLIC_API_URL --value https://your-api.example.com
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl.replace(/\/$/, "");
+  // Fallback: EXPO_PUBLIC_DOMAIN is injected by the Replit dev script only.
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  return domain ? `https://${domain}` : "";
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
