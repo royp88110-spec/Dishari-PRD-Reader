@@ -1,0 +1,113 @@
+Act as a Senior React Native, Expo and UI/UX Engineer.
+
+Completely redesign the Admin and Member UI to look like a premium modern mobile application while keeping all existing functionality unchanged.
+
+Requirements:
+
+1. Add beautiful and smooth animations throughout the app.
+- Use Reanimated and Gesture Handler where appropriate.
+- Smooth fade, slide, scale and spring animations.
+- No lag or performance issues.
+
+2. Home Screen
+- Animate cards while loading.
+- Add staggered entrance animations.
+- Smooth page transitions.
+- Add skeleton loading instead of blank screens.
+
+3. Dashboard Cards
+- Premium glassmorphism style.
+- Soft shadows.
+- Rounded corners.
+- Scale animation on press.
+- Smooth elevation effect.
+
+4. Notifications
+- Display notifications at the top with slide-down animation.
+- Add pulse animation for unread notifications.
+- Add badge animation.
+- Smooth dismiss animation.
+
+5. Member Avatar
+- Circular premium avatar.
+- Fade-in image loading.
+- Beautiful default avatar if no image exists.
+- Smooth profile image transition.
+
+6. Meal Count
+- Replace the current interaction with a modern one-tap animated selection.
+- Add ripple effect.
+- Add spring animation when selecting.
+- Instantly update UI.
+- Prevent accidental double taps.
+- Add subtle success animation after saving.
+
+7. Bottom Navigation
+- Fix missing icons.
+- Add animated active indicator.
+- Scale active icon.
+- Smooth tab transitions.
+- Add haptic feedback if supported.
+
+8. Lists
+- Animated list appearance.
+- Pull-to-refresh animation.
+- Swipe animations where appropriate.
+
+9. Buttons
+- Ripple effect.
+- Scale on press.
+- Loading animation.
+- Disable while processing.
+
+10. Charts & Statistics
+- Animated counters.
+- Animated progress bars.
+- Animated graphs.
+- Smooth number transitions.
+
+11. Forms
+- Floating labels.
+- Animated validation.
+- Smooth keyboard handling.
+- Better focus effects.
+
+12. Theme
+- Premium modern color palette.
+- Consistent spacing.
+- Professional typography.
+- Beautiful gradients where appropriate.
+- Dark mode compatible.
+
+13. Performance
+- Maintain 60 FPS animations.
+- Remove unnecessary re-renders.
+- Optimize rendering performance.
+
+14. Admin Panel
+- Premium dashboard animations.
+- Animated statistics cards.
+- Smooth screen transitions.
+- Better visual hierarchy.
+
+15. Member Panel
+- Premium dashboard.
+- Beautiful welcome section.
+- Animated meal cards.
+- Animated expense cards.
+- Smooth profile screen.
+
+16. Keep everything responsive on Android, iOS and tablets.
+
+17. Do NOT change:
+- Supabase configuration
+- Authentication
+- Database
+- API logic
+- Business logic
+- Meal calculation
+- Expense calculation
+
+Only improve the UI, UX, animations and performance.
+
+Finally inspect the entire project, fix every UI inconsistency, remove outdated components, and make the application feel like a premium production-ready app similar to Google, Notion, or modern fintech applications.

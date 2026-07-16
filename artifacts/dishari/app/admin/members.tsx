@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import {
@@ -16,6 +16,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Member, useData } from "@/context/DataContext";
@@ -27,6 +33,88 @@ const EMPTY: Omit<Member, "id"> = {
   joinDate: new Date().toISOString().slice(0, 10),
   status: "active", password: "",
 };
+
+// ─── MemberCard ───────────────────────────────────────────────────────────────
+// Memoised + spring press scale. FadeInDown stagger is applied by the parent.
+
+const MemberCard = React.memo(function MemberCard({
+  member,
+  colors,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+}: {
+  member: Member;
+  colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
+  onEdit: (m: Member) => void;
+  onDelete: (m: Member) => void;
+  onToggleStatus: (m: Member) => void;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable
+        onPressIn={() => { scale.value = withSpring(0.97, { damping: 14, stiffness: 280 }); }}
+        onPressOut={() => { scale.value = withSpring(1,    { damping: 14, stiffness: 280 }); }}
+        onLongPress={() => onEdit(member)}
+      >
+        <View style={[styles.memberCard, { backgroundColor: colors.card }]}>
+          <MemberAvatar
+            name={member.name}
+            size={44}
+            bgColor={member.status === "active" ? "#D4500A20" : colors.muted}
+            textColor={member.status === "active" ? "#D4500A" : colors.mutedForeground}
+          />
+          <View style={styles.memberInfo}>
+            <View style={styles.memberNameRow}>
+              <Text style={[styles.memberName, { color: colors.foreground }]}>
+                {member.name}
+              </Text>
+              <View style={[
+                styles.statusBadge,
+                { backgroundColor: member.status === "active" ? "#16A34A18" : "#DC262618" },
+              ]}>
+                <Text style={[
+                  styles.statusText,
+                  { color: member.status === "active" ? "#16A34A" : "#DC2626" },
+                ]}>
+                  {member.status}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.memberPhone, { color: colors.mutedForeground }]}>
+              {member.phone}{member.roomNumber ? ` · Room ${member.roomNumber}` : ""}
+            </Text>
+            <Text style={[styles.memberJoin, { color: colors.mutedForeground }]}>
+              Joined: {member.joinDate}
+            </Text>
+          </View>
+          <View style={styles.actions}>
+            <Pressable onPress={() => onToggleStatus(member)} style={styles.actionBtn}>
+              <Feather
+                name={member.status === "active" ? "toggle-right" : "toggle-left"}
+                size={20}
+                color={colors.primary}
+              />
+            </Pressable>
+            <Pressable onPress={() => onEdit(member)} style={styles.actionBtn}>
+              <Feather name="edit-2" size={18} color={colors.primary} />
+            </Pressable>
+            <Pressable onPress={() => onDelete(member)} style={styles.actionBtn}>
+              <Feather name="trash-2" size={18} color={colors.destructive} />
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+});
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MembersScreen() {
   const colors = useColors();
@@ -42,20 +130,30 @@ export default function MembersScreen() {
   const filtered = members.filter(
     (m) =>
       m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.phone.includes(search)
+      m.phone.includes(search),
   );
 
-  const openAdd = () => {
+  // FAB spring animation
+  const fabScale = useSharedValue(1);
+  const fabStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: fabScale.value }],
+  }));
+
+  const openAdd = useCallback(() => {
     setEditing(null);
     setForm(EMPTY);
     setModalVisible(true);
-  };
+  }, []);
 
-  const openEdit = (m: Member) => {
+  const openEdit = useCallback((m: Member) => {
     setEditing(m);
-    setForm({ name: m.name, phone: m.phone, email: m.email ?? "", roomNumber: m.roomNumber ?? "", joinDate: m.joinDate, status: m.status, password: m.password });
+    setForm({
+      name: m.name, phone: m.phone, email: m.email ?? "",
+      roomNumber: m.roomNumber ?? "", joinDate: m.joinDate,
+      status: m.status, password: m.password,
+    });
     setModalVisible(true);
-  };
+  }, []);
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.phone.trim()) {
@@ -76,13 +174,13 @@ export default function MembersScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
     } catch (err) {
-      Alert.alert("Save Failed", (err as Error).message || "Something went wrong. Please try again.");
+      Alert.alert("Save Failed", (err as Error).message || "Something went wrong.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = (m: Member) => {
+  const handleDelete = useCallback((m: Member) => {
     Alert.alert("Delete Member", `Delete ${m.name}? This cannot be undone.`, [
       { text: "Cancel", style: "cancel" },
       {
@@ -97,98 +195,100 @@ export default function MembersScreen() {
         },
       },
     ]);
-  };
+  }, [deleteMember]);
 
-  const toggleStatus = async (m: Member) => {
+  const toggleStatus = useCallback(async (m: Member) => {
     try {
       await updateMember(m.id, { status: m.status === "active" ? "inactive" : "active" });
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (err) {
       Alert.alert("Error", (err as Error).message || "Could not update status.");
     }
-  };
+  }, [updateMember]);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title="Members"
         icon="users"
-        subtitle={`${members.length} total · ${members.filter(m => m.status === "active").length} active`}
+        subtitle={`${members.length} total · ${members.filter((m) => m.status === "active").length} active`}
       />
-      <View style={[styles.searchBar, { backgroundColor: colors.card }]}>
-        <Feather name="search" size={18} color={colors.mutedForeground} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Search members..."
-          placeholderTextColor={colors.mutedForeground}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+
+      <Animated.View entering={FadeInDown.delay(60).duration(350)}>
+        <View style={[styles.searchBar, { backgroundColor: colors.card }]}>
+          <Feather name="search" size={18} color={colors.mutedForeground} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.foreground }]}
+            placeholder="Search members..."
+            placeholderTextColor={colors.mutedForeground}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch("")} hitSlop={8}>
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+        </View>
+      </Animated.View>
 
       <FlatList
         data={filtered}
         keyExtractor={(m) => m.id}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#D4500A"]}
+            tintColor="#D4500A"
+          />
+        }
+        removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="users" size={40} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No members found</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              No members found
+            </Text>
           </View>
         }
-        renderItem={({ item: m }) => (
-          <View style={[styles.memberCard, { backgroundColor: colors.card }]}>
-            <MemberAvatar
-              name={m.name}
-              size={44}
-              bgColor={m.status === "active" ? "#D4500A20" : colors.muted}
-              textColor={m.status === "active" ? "#D4500A" : colors.mutedForeground}
+        renderItem={({ item: m, index }) => (
+          <Animated.View
+            entering={FadeInDown.delay(Math.min(index, 10) * 55).duration(350)}
+            style={{ marginBottom: 12 }}
+          >
+            <MemberCard
+              member={m}
+              colors={colors}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+              onToggleStatus={toggleStatus}
             />
-            <View style={styles.memberInfo}>
-              <View style={styles.memberNameRow}>
-                <Text style={[styles.memberName, { color: colors.foreground }]}>{m.name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: m.status === "active" ? "#16A34A18" : "#DC262618" }]}>
-                  <Text style={[styles.statusText, { color: m.status === "active" ? "#16A34A" : "#DC2626" }]}>
-                    {m.status}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.memberPhone, { color: colors.mutedForeground }]}>
-                {m.phone}{m.roomNumber ? ` · Room ${m.roomNumber}` : ""}
-              </Text>
-              <Text style={[styles.memberJoin, { color: colors.mutedForeground }]}>Joined: {m.joinDate}</Text>
-            </View>
-            <View style={styles.actions}>
-              <Pressable onPress={() => toggleStatus(m)} style={styles.actionBtn}>
-                <Feather name={m.status === "active" ? "toggle-right" : "toggle-left"} size={20} color={colors.primary} />
-              </Pressable>
-              <Pressable onPress={() => openEdit(m)} style={styles.actionBtn}>
-                <Feather name="edit-2" size={18} color={colors.primary} />
-              </Pressable>
-              <Pressable onPress={() => handleDelete(m)} style={styles.actionBtn}>
-                <Feather name="trash-2" size={18} color={colors.destructive} />
-              </Pressable>
-            </View>
-          </View>
+          </Animated.View>
         )}
       />
 
+      {/* Animated FAB */}
       <Pressable
-        style={({ pressed }) => [styles.fabWrapper, { opacity: pressed ? 0.85 : 1 }]}
+        onPressIn={() => { fabScale.value = withSpring(0.9, { damping: 11, stiffness: 220 }); }}
+        onPressOut={() => { fabScale.value = withSpring(1,   { damping: 11, stiffness: 220 }); }}
         onPress={openAdd}
       >
-        <LinearGradient
-          colors={["#E25C14", "#AD3806"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fab}
-        >
-          <Feather name="user-plus" size={24} color="#fff" />
-        </LinearGradient>
+        <Animated.View style={[styles.fabWrapper, fabStyle]}>
+          <LinearGradient
+            colors={["#E25C14", "#AD3806"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fab}
+          >
+            <Feather name="user-plus" size={24} color="#fff" />
+          </LinearGradient>
+        </Animated.View>
       </Pressable>
 
+      {/* ── Member Modal ── */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
@@ -196,19 +296,19 @@ export default function MembersScreen() {
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                 {editing ? "Edit Member" : "Add Member"}
               </Text>
-              <Pressable onPress={() => setModalVisible(false)}>
+              <Pressable onPress={() => setModalVisible(false)} hitSlop={8}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </Pressable>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {[
-                { label: "Full Name *", key: "name", placeholder: "e.g. Rahul Ahmed" },
-                { label: "Phone *", key: "phone", placeholder: "e.g. 01711111111", keyboard: "phone-pad" },
-                { label: "Email", key: "email", placeholder: "optional", keyboard: "email-address" },
-                { label: "Room Number", key: "roomNumber", placeholder: "e.g. 101" },
-                { label: "Joining Date *", key: "joinDate", placeholder: "YYYY-MM-DD" },
-                { label: "Password *", key: "password", placeholder: "Login password" },
+                { label: "Full Name *",    key: "name",       placeholder: "e.g. Rahul Ahmed" },
+                { label: "Phone *",        key: "phone",      placeholder: "e.g. 01711111111", keyboard: "phone-pad" },
+                { label: "Email",          key: "email",      placeholder: "optional",          keyboard: "email-address" },
+                { label: "Room Number",    key: "roomNumber", placeholder: "e.g. 101" },
+                { label: "Joining Date *", key: "joinDate",   placeholder: "YYYY-MM-DD" },
+                { label: "Password *",     key: "password",   placeholder: "Login password" },
               ].map(({ label, key, placeholder, keyboard }) => (
                 <View key={key} style={styles.formGroup}>
                   <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -230,10 +330,19 @@ export default function MembersScreen() {
                   {(["active", "inactive"] as const).map((s) => (
                     <Pressable
                       key={s}
-                      style={[styles.statusOpt, { borderColor: form.status === s ? "#D4500A" : colors.border, backgroundColor: form.status === s ? "#FFF4EE" : colors.muted }]}
+                      style={[
+                        styles.statusOpt,
+                        {
+                          borderColor: form.status === s ? "#D4500A" : colors.border,
+                          backgroundColor: form.status === s ? "#FFF4EE" : colors.muted,
+                        },
+                      ]}
                       onPress={() => setForm((f) => ({ ...f, status: s }))}
                     >
-                      <Text style={[styles.statusOptText, { color: form.status === s ? "#D4500A" : colors.mutedForeground }]}>
+                      <Text style={[
+                        styles.statusOptText,
+                        { color: form.status === s ? "#D4500A" : colors.mutedForeground },
+                      ]}>
                         {s.charAt(0).toUpperCase() + s.slice(1)}
                       </Text>
                     </Pressable>
@@ -246,8 +355,15 @@ export default function MembersScreen() {
                 onPress={handleSave}
                 disabled={isSaving}
               >
-                <LinearGradient colors={["#E25C14", "#AD3806"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                  <Text style={styles.saveBtnText}>{isSaving ? "Saving…" : editing ? "Update Member" : "Add Member"}</Text>
+                <LinearGradient
+                  colors={["#E25C14", "#AD3806"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.saveBtn}
+                >
+                  <Text style={styles.saveBtnText}>
+                    {isSaving ? "Saving…" : editing ? "Update Member" : "Add Member"}
+                  </Text>
                 </LinearGradient>
               </Pressable>
             </ScrollView>
@@ -257,6 +373,8 @@ export default function MembersScreen() {
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -270,12 +388,10 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 16 },
   memberCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    borderRadius: 16, padding: 14, marginBottom: 12,
+    borderRadius: 16, padding: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 18, fontWeight: "700" },
   memberInfo: { flex: 1 },
   memberNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   memberName: { fontSize: 15, fontWeight: "700" },
@@ -301,17 +417,25 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, maxHeight: "90%",
   },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  modalHeader: {
+    flexDirection: "row", justifyContent: "space-between",
+    alignItems: "center", marginBottom: 20,
+  },
   modalTitle: { fontSize: 20, fontWeight: "700" },
   formGroup: { marginBottom: 14 },
-  formLabel: { fontSize: 12, fontWeight: "600", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
+  formLabel: {
+    fontSize: 12, fontWeight: "600", marginBottom: 6,
+    textTransform: "uppercase", letterSpacing: 0.5,
+  },
   formInput: {
-    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8", 
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
-    fontSize: 16,
+    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8",
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16,
   },
   statusRow: { flexDirection: "row", gap: 10 },
-  statusOpt: { flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
+  statusOpt: {
+    flex: 1, borderWidth: 1.5, borderRadius: 12,
+    paddingVertical: 12, alignItems: "center",
+  },
   statusOptText: { fontSize: 14, fontWeight: "600" },
   saveBtn: { borderRadius: 16, paddingVertical: 16, alignItems: "center" },
   saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },

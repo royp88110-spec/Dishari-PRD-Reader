@@ -19,8 +19,11 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withDelay,
   interpolate,
   Extrapolation,
+  FadeInDown,
+  FadeInUp,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -57,19 +60,32 @@ function nextMonth(m: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function StatCard({ label, value, icon, color, sub }: {
-  label: string; value: string; icon: string; color: string; sub?: string;
+// ─── StatCard ─────────────────────────────────────────────────────────────────
+
+function StatCard({
+  label, value, icon, color, sub, enterDelay = 0,
+}: {
+  label: string; value: string; icon: string;
+  color: string; sub?: string; enterDelay?: number;
 }) {
   const colors = useColors();
+  const scale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
-    <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-      <View style={[styles.statIcon, { backgroundColor: color + "25" }]}>
+    <Animated.View
+      entering={FadeInDown.delay(enterDelay).duration(400)}
+      style={[styles.statCard, { backgroundColor: colors.card }, pressStyle]}
+    >
+      <View style={[styles.statIcon, { backgroundColor: color + "22" }]}>
         <Feather name={icon as "home"} size={22} color={color} />
       </View>
       <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
       {sub ? <Text style={[styles.statSub, { color: color }]}>{sub}</Text> : null}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -79,11 +95,16 @@ function shortDate(iso: string | null): string {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function AdminDashboard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
-  const { members, expenses, payments, paymentsError, announcements, deleteAnnouncement, getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid } = useData();
+  const {
+    members, expenses, payments, paymentsError, announcements, deleteAnnouncement,
+    getMonthTotals, calculateAllMonthlyBills, markPaid, markUnpaid,
+  } = useData();
   const [month, setMonth] = useState(getCurrentMonth());
   const [payingIds, setPayingIds] = useState<Set<string>>(new Set());
   const [payError, setPayError] = useState<string | null>(null);
@@ -91,7 +112,7 @@ export default function AdminDashboard() {
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { refreshing, onRefresh } = useRefresh();
 
-  // ── Announcement sidebar ──────────────────────────────────────────────────
+  // ── Sidebar ───────────────────────────────────────────────────────────────
   const sidebarX = useSharedValue(SIDEBAR_WIDTH);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
@@ -145,7 +166,6 @@ export default function AdminDashboard() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setPaySuccess("Payment recorded successfully.");
       }
-      // Auto-dismiss success banner after 3 seconds; cancel any prior timer first
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => setPaySuccess(null), 3000);
     } catch (err) {
@@ -170,7 +190,6 @@ export default function AdminDashboard() {
         subtitle={todayLabel}
         rightElement={
           <View style={{ flexDirection: "row", gap: 8 }}>
-            {/* Bell button — opens announcement sidebar */}
             <Pressable onPress={openSidebar} style={styles.headerBtn}>
               <Feather name="bell" size={18} color="rgba(255,255,255,0.9)" />
               {announcements.length > 0 && (
@@ -193,34 +212,61 @@ export default function AdminDashboard() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#D4500A"]}
+            tintColor="#D4500A"
+          />
+        }
       >
         {/* Month navigator */}
-        <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
-          <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-left" size={22} color="#D4500A" />
-          </Pressable>
-          <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
-          <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-right" size={22} color="#D4500A" />
-          </Pressable>
-        </View>
-
-        <View style={styles.statsGrid}>
-          <StatCard label="Active Members" value={String(activeMembers)} icon="users" color="#D4500A" />
-          <StatCard label="Total Meals" value={String(totalMeals)} icon="grid" color="#7C3AED" />
-          <StatCard label="Expenses" value={`₹${rawExpense.toFixed(0)}`} icon="dollar-sign" color="#0891B2" />
-          <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up" color="#16A34A" />
-        </View>
-
-        {paySuccess && (
-          <View style={[styles.errorBanner, { backgroundColor: "#16A34A15", borderColor: "#16A34A" }]}>
-            <Feather name="check-circle" size={16} color="#16A34A" />
-            <Text style={[styles.errorBannerText, { color: "#16A34A" }]}>{paySuccess}</Text>
-            <Pressable onPress={() => setPaySuccess(null)}>
-              <Feather name="x" size={16} color="#16A34A" />
+        <Animated.View entering={FadeInDown.delay(0).duration(350)}>
+          <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
+            <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
+              <Feather name="chevron-left" size={22} color="#D4500A" />
+            </Pressable>
+            <Text style={[styles.monthText, { color: colors.foreground }]}>
+              {monthLabel(month)}
+            </Text>
+            <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
+              <Feather name="chevron-right" size={22} color="#D4500A" />
             </Pressable>
           </View>
+        </Animated.View>
+
+        {/* Stat cards — staggered entrance */}
+        <View style={styles.statsGrid}>
+          <StatCard
+            label="Active Members" value={String(activeMembers)}
+            icon="users" color="#D4500A" enterDelay={80}
+          />
+          <StatCard
+            label="Total Meals" value={String(totalMeals)}
+            icon="grid" color="#7C3AED" enterDelay={150}
+          />
+          <StatCard
+            label="Expenses" value={`₹${rawExpense.toFixed(0)}`}
+            icon="dollar-sign" color="#0891B2" enterDelay={220}
+          />
+          <StatCard
+            label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`}
+            icon="trending-up" color="#16A34A" enterDelay={290}
+          />
+        </View>
+
+        {/* Status banners */}
+        {paySuccess && (
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <View style={[styles.errorBanner, { backgroundColor: "#16A34A15", borderColor: "#16A34A" }]}>
+              <Feather name="check-circle" size={16} color="#16A34A" />
+              <Text style={[styles.errorBannerText, { color: "#16A34A" }]}>{paySuccess}</Text>
+              <Pressable onPress={() => setPaySuccess(null)}>
+                <Feather name="x" size={16} color="#16A34A" />
+              </Pressable>
+            </View>
+          </Animated.View>
         )}
 
         {paymentsError && (
@@ -252,189 +298,221 @@ export default function AdminDashboard() {
           </View>
         )}
 
+        {/* Payment status banner */}
         {bills.length > 0 && (
-          <View style={[styles.paymentBanner, { backgroundColor: colors.card }]}>
-            <View style={styles.paymentBannerLeft}>
-              <Feather name="check-circle" size={20} color={paidCount === bills.length ? "#16A34A" : "#D97706"} />
-              <Text style={[styles.paymentBannerText, { color: colors.foreground }]}>
-                {paidCount} / {bills.length} members paid
-              </Text>
-            </View>
-            <View style={[
-              styles.paymentPill,
-              { backgroundColor: paidCount === bills.length ? "#16A34A20" : "#D9770620" }
-            ]}>
-              <Text style={[
-                styles.paymentPillText,
-                { color: paidCount === bills.length ? "#16A34A" : "#D97706" }
+          <Animated.View entering={FadeInDown.delay(320).duration(400)}>
+            <View style={[styles.paymentBanner, { backgroundColor: colors.card }]}>
+              <View style={styles.paymentBannerLeft}>
+                <Feather
+                  name="check-circle"
+                  size={20}
+                  color={paidCount === bills.length ? "#16A34A" : "#D97706"}
+                />
+                <Text style={[styles.paymentBannerText, { color: colors.foreground }]}>
+                  {paidCount} / {bills.length} members paid
+                </Text>
+              </View>
+              <View style={[
+                styles.paymentPill,
+                { backgroundColor: paidCount === bills.length ? "#16A34A20" : "#D9770620" },
               ]}>
-                {paidCount === bills.length ? "All Settled" : "Pending"}
-              </Text>
+                <Text style={[
+                  styles.paymentPillText,
+                  { color: paidCount === bills.length ? "#16A34A" : "#D97706" },
+                ]}>
+                  {paidCount === bills.length ? "All Settled" : "Pending"}
+                </Text>
+              </View>
             </View>
-          </View>
+          </Animated.View>
         )}
 
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monthly Summary</Text>
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Monthly Expense</Text>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>₹{totalExpense.toFixed(0)}</Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Meals Served</Text>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>{totalMeals}</Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Due from Members</Text>
-            <Text style={[styles.summaryVal, { color: "#DC2626" }]}>₹{totalDue.toFixed(0)}</Text>
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Credit Balance</Text>
-            <Text style={[styles.summaryVal, { color: "#16A34A" }]}>₹{totalCredit.toFixed(0)}</Text>
-          </View>
-        </View>
-
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
-          {bills.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active members</Text>
-          ) : bills.map((b) => {
-            const payment = getPayment(b.memberId);
-            const isPaid = payment?.paid === true;
-            const isProcessing = payingIds.has(b.memberId);
-
-            return (
-              <View key={b.memberId}>
-                <View style={styles.memberBillRow}>
-                  <MemberAvatar
-                    name={b.memberName}
-                    size={42}
-                    bgColor={isPaid ? "#16A34A20" : "#D4500A20"}
-                    textColor={isPaid ? "#16A34A" : "#D4500A"}
-                  />
-                  <View style={styles.memberBillInfo}>
-                    <Text style={[styles.memberBillName, { color: colors.foreground }]}>{b.memberName}</Text>
-                    <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
-                      {b.mealCount} meals · {b.eggCount} eggs
-                    </Text>
-                  </View>
-                  <View style={styles.memberBillRight}>
-                    <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
-                      ₹{b.dueAmount > 0 ? b.dueAmount.toFixed(0) : b.creditBalance.toFixed(0)}
-                    </Text>
-                    <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
-                      {b.dueAmount > 0 ? "Due" : "Credit"}
-                    </Text>
-                  </View>
+        {/* Monthly summary */}
+        <Animated.View entering={FadeInUp.delay(380).duration(400)}>
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monthly Summary</Text>
+            {[
+              ["Total Monthly Expense", `₹${totalExpense.toFixed(0)}`, colors.foreground],
+              ["Total Meals Served",    String(totalMeals),            colors.foreground],
+              ["Total Due from Members",`₹${totalDue.toFixed(0)}`,     "#DC2626"],
+              ["Total Credit Balance",  `₹${totalCredit.toFixed(0)}`,  "#16A34A"],
+            ].map(([key, val, clr], i) => (
+              <View key={key}>
+                {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>{key}</Text>
+                  <Text style={[styles.summaryVal, { color: clr }]}>{val}</Text>
                 </View>
+              </View>
+            ))}
+          </View>
+        </Animated.View>
 
-                <View style={styles.paymentRow}>
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: isPaid ? "#16A34A18" : "#DC262618" }
-                  ]}>
-                    <Text style={{ fontSize: 13 }}>{isPaid ? "✅" : "❌"}</Text>
-                    <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
-                      {isPaid
-                        ? `Paid${payment?.paidAt ? ` · ${shortDate(payment.paidAt)}` : ""}`
-                        : "Unpaid"}
-                    </Text>
+        {/* Member bills */}
+        <Animated.View entering={FadeInUp.delay(450).duration(400)}>
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
+            {bills.length === 0 ? (
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                No active members
+              </Text>
+            ) : bills.map((b) => {
+              const payment = getPayment(b.memberId);
+              const isPaid = payment?.paid === true;
+              const isProcessing = payingIds.has(b.memberId);
+
+              return (
+                <View key={b.memberId}>
+                  <View style={styles.memberBillRow}>
+                    <MemberAvatar
+                      name={b.memberName}
+                      size={42}
+                      bgColor={isPaid ? "#16A34A20" : "#D4500A20"}
+                      textColor={isPaid ? "#16A34A" : "#D4500A"}
+                    />
+                    <View style={styles.memberBillInfo}>
+                      <Text style={[styles.memberBillName, { color: colors.foreground }]}>
+                        {b.memberName}
+                      </Text>
+                      <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
+                        {b.mealCount} meals · {b.eggCount} eggs
+                      </Text>
+                    </View>
+                    <View style={styles.memberBillRight}>
+                      <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
+                        ₹{b.dueAmount > 0 ? b.dueAmount.toFixed(0) : b.creditBalance.toFixed(0)}
+                      </Text>
+                      <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
+                        {b.dueAmount > 0 ? "Due" : "Credit"}
+                      </Text>
+                    </View>
                   </View>
 
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.payToggleBtnWrapper,
-                      { opacity: pressed || isProcessing ? 0.75 : 1 }
-                    ]}
-                    onPress={() => handleTogglePayment(b.memberId, b.dueAmount)}
-                    disabled={isProcessing}
-                  >
-                    {isPaid ? (
-                      <View style={[styles.payToggleBtn, { backgroundColor: "#DC262618" }]}>
-                        {isProcessing ? (
-                          <ActivityIndicator size="small" color="#DC2626" />
-                        ) : (
-                          <>
-                            <Feather name="x-circle" size={14} color="#DC2626" />
-                            <Text style={[styles.payToggleBtnText, { color: "#DC2626" }]}>Mark Unpaid</Text>
-                          </>
-                        )}
-                      </View>
-                    ) : (
-                      <LinearGradient
-                        colors={["#16A34A", "#15803D"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.payToggleBtn}
-                      >
-                        {isProcessing ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <>
-                            <Feather name="check-circle" size={14} color="#fff" />
-                            <Text style={[styles.payToggleBtnText, { color: "#fff" }]}>Mark as Paid</Text>
-                          </>
-                        )}
-                      </LinearGradient>
-                    )}
-                  </Pressable>
-                </View>
+                  <View style={styles.paymentRow}>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: isPaid ? "#16A34A18" : "#DC262618" },
+                    ]}>
+                      <Text style={{ fontSize: 13 }}>{isPaid ? "✅" : "❌"}</Text>
+                      <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
+                        {isPaid
+                          ? `Paid${payment?.paidAt ? ` · ${shortDate(payment.paidAt)}` : ""}`
+                          : "Unpaid"}
+                      </Text>
+                    </View>
 
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.payToggleBtnWrapper,
+                        { opacity: pressed || isProcessing ? 0.75 : 1 },
+                      ]}
+                      onPress={() => handleTogglePayment(b.memberId, b.dueAmount)}
+                      disabled={isProcessing}
+                    >
+                      {isPaid ? (
+                        <View style={[styles.payToggleBtn, { backgroundColor: "#DC262618" }]}>
+                          {isProcessing ? (
+                            <ActivityIndicator size="small" color="#DC2626" />
+                          ) : (
+                            <>
+                              <Feather name="x-circle" size={14} color="#DC2626" />
+                              <Text style={[styles.payToggleBtnText, { color: "#DC2626" }]}>
+                                Mark Unpaid
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                      ) : (
+                        <LinearGradient
+                          colors={["#16A34A", "#15803D"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.payToggleBtn}
+                        >
+                          {isProcessing ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <>
+                              <Feather name="check-circle" size={14} color="#fff" />
+                              <Text style={[styles.payToggleBtnText, { color: "#fff" }]}>
+                                Mark as Paid
+                              </Text>
+                            </>
+                          )}
+                        </LinearGradient>
+                      )}
+                    </Pressable>
+                  </View>
+
+                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                </View>
+              );
+            })}
+          </View>
+        </Animated.View>
+
+        {/* Recent expenses */}
+        <Animated.View entering={FadeInUp.delay(500).duration(400)}>
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Recent Expenses
+            </Text>
+            {monthExpenses.length === 0 ? (
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                No expenses this month
+              </Text>
+            ) : monthExpenses.slice(-5).reverse().map((e) => (
+              <View key={e.id}>
+                <View style={styles.expenseRow}>
+                  <View style={[styles.expenseIcon, { backgroundColor: colors.muted }]}>
+                    <Feather name="shopping-bag" size={16} color={colors.primary} />
+                  </View>
+                  <View style={styles.expenseInfo}>
+                    <Text style={[styles.expenseName, { color: colors.foreground }]}>
+                      {e.type.charAt(0).toUpperCase() + e.type.slice(1)}
+                      {e.shopName ? ` · ${e.shopName}` : ""}
+                    </Text>
+                    <Text style={[styles.expenseDate, { color: colors.mutedForeground }]}>
+                      {e.date}
+                    </Text>
+                  </View>
+                  <Text style={[styles.expenseAmount, { color: colors.foreground }]}>
+                    ₹{e.amount}
+                  </Text>
+                </View>
                 <View style={[styles.divider, { backgroundColor: colors.border }]} />
               </View>
-            );
-          })}
-        </View>
-
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Expenses</Text>
-          {monthExpenses.slice(-5).reverse().map((e) => (
-            <View key={e.id}>
-              <View style={styles.expenseRow}>
-                <View style={[styles.expenseIcon, { backgroundColor: colors.muted }]}>
-                  <Feather name="shopping-bag" size={16} color={colors.primary} />
-                </View>
-                <View style={styles.expenseInfo}>
-                  <Text style={[styles.expenseName, { color: colors.foreground }]}>
-                    {e.type.charAt(0).toUpperCase() + e.type.slice(1)}
-                    {e.shopName ? ` · ${e.shopName}` : ""}
-                  </Text>
-                  <Text style={[styles.expenseDate, { color: colors.mutedForeground }]}>{e.date}</Text>
-                </View>
-                <Text style={[styles.expenseAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
-              </View>
-              <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            </View>
-          ))}
-          {monthExpenses.length === 0 && (
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No expenses this month</Text>
-          )}
-        </View>
+            ))}
+          </View>
+        </Animated.View>
       </ScrollView>
 
       {/* ── Announcement Sidebar ── */}
       {sidebarVisible && (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          {/* Backdrop */}
-          <Animated.View style={[styles.backdrop, backdropStyle]} pointerEvents="auto">
+          <Animated.View
+            style={[styles.backdrop, backdropStyle]}
+            pointerEvents="auto"
+          >
             <Pressable style={StyleSheet.absoluteFill} onPress={closeSidebar} />
           </Animated.View>
 
-          {/* Panel */}
           <Animated.View
-            style={[styles.sidebar, { backgroundColor: colors.card, paddingTop: insets.top }, sidebarStyle]}
+            style={[
+              styles.sidebar,
+              { backgroundColor: colors.card, paddingTop: insets.top },
+              sidebarStyle,
+            ]}
             pointerEvents="auto"
           >
-            {/* Sidebar header */}
             <View style={styles.sidebarHeader}>
               <View style={styles.sidebarTitleRow}>
                 <View style={[styles.sidebarIconWrap, { backgroundColor: "#D4500A20" }]}>
                   <Feather name="bell" size={18} color="#D4500A" />
                 </View>
-                <Text style={[styles.sidebarTitle, { color: colors.foreground }]}>Announcements</Text>
+                <Text style={[styles.sidebarTitle, { color: colors.foreground }]}>
+                  Announcements
+                </Text>
               </View>
               <Pressable onPress={closeSidebar} style={styles.sidebarClose}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
@@ -443,7 +521,6 @@ export default function AdminDashboard() {
 
             <View style={[styles.sidebarDivider, { backgroundColor: colors.border }]} />
 
-            {/* Announcements list */}
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
@@ -462,7 +539,10 @@ export default function AdminDashboard() {
               ) : announcements.map((a) => (
                 <View key={a.id} style={[styles.annCard, { backgroundColor: colors.background }]}>
                   <View style={styles.annCardHeader}>
-                    <Text style={[styles.annCardTitle, { color: colors.foreground }]} numberOfLines={2}>
+                    <Text
+                      style={[styles.annCardTitle, { color: colors.foreground }]}
+                      numberOfLines={2}
+                    >
                       {a.title}
                     </Text>
                     <Pressable
@@ -483,7 +563,9 @@ export default function AdminDashboard() {
                       <Feather name="trash-2" size={15} color="#DC2626" />
                     </Pressable>
                   </View>
-                  <Text style={[styles.annCardBody, { color: colors.mutedForeground }]}>{a.body}</Text>
+                  <Text style={[styles.annCardBody, { color: colors.mutedForeground }]}>
+                    {a.body}
+                  </Text>
                   <View style={styles.annCardFooter}>
                     <Feather name="clock" size={11} color="#D4500A" />
                     <Text style={styles.annCardDate}>
@@ -502,36 +584,28 @@ export default function AdminDashboard() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerBtn: {
-    padding: 10,
-    borderRadius: 12,
+    padding: 10, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
   },
   bellBadge: {
     position: "absolute", top: 4, right: 4,
     minWidth: 16, height: 16, borderRadius: 8,
     backgroundColor: "#DC2626",
-    alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 3,
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 3,
   },
   bellBadgeText: { fontSize: 9, fontWeight: "800", color: "#fff" },
-  // Sidebar
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)" },
   sidebar: {
     position: "absolute", right: 0, top: 0, bottom: 0,
     width: SIDEBAR_WIDTH,
-    shadowColor: "#000",
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 24,
+    shadowColor: "#000", shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.18, shadowRadius: 20, elevation: 24,
   },
   sidebarHeader: {
     flexDirection: "row", alignItems: "center",
@@ -539,7 +613,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18, paddingVertical: 16,
   },
   sidebarTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  sidebarIconWrap: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  sidebarIconWrap: {
+    width: 36, height: 36, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+  },
   sidebarTitle: { fontSize: 18, fontWeight: "800" },
   sidebarClose: {
     width: 36, height: 36, borderRadius: 10,
@@ -549,41 +626,44 @@ const styles = StyleSheet.create({
   sidebarEmpty: { alignItems: "center", paddingTop: 60, gap: 12 },
   sidebarEmptyText: { fontSize: 15, fontWeight: "600" },
   sidebarEmptyHint: { fontSize: 12 },
-  // Announcement cards inside sidebar
   annCard: {
     borderRadius: 16, padding: 14, marginBottom: 10,
     borderLeftWidth: 3, borderLeftColor: "#D4500A",
   },
-  annCardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 6 },
+  annCardHeader: {
+    flexDirection: "row", alignItems: "flex-start",
+    gap: 8, marginBottom: 6,
+  },
   annCardTitle: { flex: 1, fontSize: 14, fontWeight: "700", lineHeight: 20 },
   annCardBody: { fontSize: 13, lineHeight: 19, marginBottom: 8 },
   annCardFooter: { flexDirection: "row", alignItems: "center", gap: 4 },
   annCardDate: { fontSize: 11, fontWeight: "600", color: "#D4500A" },
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16,
-    padding: 8,
+    marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16, padding: 8,
     shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
   statsGrid: {
-    flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 20,
-    gap: 12, marginBottom: 16,
+    flexDirection: "row", flexWrap: "wrap",
+    paddingHorizontal: 20, gap: 12, marginBottom: 16,
   },
   statCard: {
     width: "47%", borderRadius: 20, padding: 18, gap: 6,
     shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
-  statIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  statIcon: {
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+  },
   statValue: { fontSize: 24, fontWeight: "700" },
   statLabel: { fontSize: 12 },
   statSub: { fontSize: 11, fontWeight: "600" },
   paymentBanner: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
-    padding: 18,
+    marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 18,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
@@ -593,8 +673,7 @@ const styles = StyleSheet.create({
   paymentPill: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   paymentPillText: { fontSize: 12, fontWeight: "700" },
   section: {
-    marginHorizontal: 20, marginBottom: 16, borderRadius: 20,
-    padding: 18,
+    marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 18,
     shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
@@ -604,8 +683,6 @@ const styles = StyleSheet.create({
   summaryVal: { fontSize: 14, fontWeight: "600" },
   divider: { height: 1, marginVertical: 2 },
   memberBillRow: { flexDirection: "row", alignItems: "center", paddingTop: 10, gap: 12 },
-  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 16, fontWeight: "700" },
   memberBillInfo: { flex: 1 },
   memberBillName: { fontSize: 15, fontWeight: "600" },
   memberBillSub: { fontSize: 12, marginTop: 2 },
@@ -613,7 +690,8 @@ const styles = StyleSheet.create({
   memberBillAmount: { fontSize: 16, fontWeight: "700" },
   memberBillStatus: { fontSize: 11 },
   paymentRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 8, gap: 8,
   },
   statusBadge: {
@@ -636,8 +714,7 @@ const styles = StyleSheet.create({
   expenseAmount: { fontSize: 15, fontWeight: "700" },
   emptyText: { fontSize: 14, textAlign: "center", paddingVertical: 8 },
   errorBanner: {
-    marginHorizontal: 20, marginBottom: 12, borderRadius: 12,
-    padding: 12, borderWidth: 1,
+    marginHorizontal: 20, marginBottom: 12, borderRadius: 12, padding: 12, borderWidth: 1,
     flexDirection: "row", alignItems: "center", gap: 8,
   },
   errorBannerText: { flex: 1, fontSize: 13, fontWeight: "600" },

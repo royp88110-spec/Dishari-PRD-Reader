@@ -23,6 +23,33 @@ const colors = {
     warning: "#D97706",
     warningForeground: "#FFFFFF",
   },
+
+  // Full dark-mode palette — warm charcoal, not cold grey
+  dark: {
+    text: "#F2E8E0",
+    tint: "#E8622A",
+    background: "#100804",
+    foreground: "#F2E8E0",
+    card: "#1C1008",
+    cardForeground: "#F2E8E0",
+    primary: "#E8622A",
+    primaryForeground: "#FFFFFF",
+    secondary: "#2E1A0E",
+    secondaryForeground: "#D4956A",
+    muted: "#2A1610",
+    mutedForeground: "#8A6A58",
+    accent: "#C47042",
+    accentForeground: "#F2E8E0",
+    destructive: "#F87171",
+    destructiveForeground: "#FFFFFF",
+    border: "#3A2015",
+    input: "#3A2015",
+    success: "#4ADE80",
+    successForeground: "#FFFFFF",
+    warning: "#FCD34D",
+    warningForeground: "#1A0F0A",
+  },
+
   radius: 12,
 };
 

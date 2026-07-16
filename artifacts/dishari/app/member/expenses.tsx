@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -17,32 +18,29 @@ import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
 
 const CATEGORIES = [
-  { key: "all", label: "All", icon: "list", color: "#374151" },
-  { key: "grocery", label: "Grocery", icon: "shopping-bag", color: "#D4500A" },
-  { key: "vegetable", label: "Veg", icon: "box", color: "#16A34A" },
-  { key: "fish", label: "Fish", icon: "droplet", color: "#0891B2" },
-  { key: "meat", label: "Meat", icon: "heart", color: "#DC2626" },
-  { key: "gas", label: "Gas", icon: "zap", color: "#D97706" },
-  { key: "other", label: "Other", icon: "more-horizontal", color: "#7C3AED" },
+  { key: "all",       label: "All",     icon: "list",            color: "#374151" },
+  { key: "grocery",   label: "Grocery", icon: "shopping-bag",    color: "#D4500A" },
+  { key: "vegetable", label: "Veg",     icon: "box",             color: "#16A34A" },
+  { key: "fish",      label: "Fish",    icon: "droplet",         color: "#0891B2" },
+  { key: "meat",      label: "Meat",    icon: "heart",           color: "#DC2626" },
+  { key: "gas",       label: "Gas",     icon: "zap",             color: "#D97706" },
+  { key: "other",     label: "Other",   icon: "more-horizontal", color: "#7C3AED" },
 ];
 
 function getCurrentMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function prevMonth(m: string) {
   const [y, mo] = m.split("-").map(Number);
   const d = new Date(y, mo - 2, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function nextMonth(m: string) {
   const [y, mo] = m.split("-").map(Number);
   const d = new Date(y, mo, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
   const names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -59,13 +57,15 @@ export default function MemberExpenses() {
   const [category, setCategory] = useState("all");
 
   const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
-  const filtered = category === "all" ? monthExpenses : monthExpenses.filter((e) => e.type === category);
-  const total = monthExpenses.reduce((s, e) => s + e.amount, 0);
+  const filtered =
+    category === "all" ? monthExpenses : monthExpenses.filter((e) => e.type === category);
+  const total      = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const activeCount = members.filter((m) => m.status === "active").length;
-  const cookTotal = settings.cookSalary * activeCount;
+  const cookTotal  = settings.cookSalary * activeCount;
   const grandTotal = total + cookTotal;
 
-  const getCat = (type: string) => CATEGORIES.find((c) => c.key === type) ?? CATEGORIES[CATEGORIES.length - 1];
+  const getCat = (type: string) =>
+    CATEGORIES.find((c) => c.key === type) ?? CATEGORIES[CATEGORIES.length - 1];
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -90,23 +90,39 @@ export default function MemberExpenses() {
         }
       />
 
-      <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryVal, { color: colors.foreground }]}>₹{total.toFixed(0)}</Text>
-          <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Market Exp.</Text>
+      {/* Summary — 3 metrics with staggered entrance */}
+      <Animated.View entering={FadeInDown.delay(60).duration(380)}>
+        <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>
+              ₹{total.toFixed(0)}
+            </Text>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>
+              Market Exp.
+            </Text>
+          </View>
+          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryVal, { color: colors.foreground }]}>
+              ₹{cookTotal.toFixed(0)}
+            </Text>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>
+              Cook Salary
+            </Text>
+          </View>
+          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryVal, { color: "#D4500A" }]}>
+              ₹{grandTotal.toFixed(0)}
+            </Text>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>
+              Grand Total
+            </Text>
+          </View>
         </View>
-        <View style={[styles.summaryDivider, { backgroundColor: "#F2E6DF" }]} />
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryVal, { color: colors.foreground }]}>₹{cookTotal.toFixed(0)}</Text>
-          <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Cook Salary</Text>
-        </View>
-        <View style={[styles.summaryDivider, { backgroundColor: "#F2E6DF" }]} />
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryVal, { color: "#D4500A" }]}>₹{grandTotal.toFixed(0)}</Text>
-          <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Grand Total</Text>
-        </View>
-      </View>
+      </Animated.View>
 
+      {/* Category filter chips */}
       <FlatList
         horizontal
         data={CATEGORIES}
@@ -116,42 +132,74 @@ export default function MemberExpenses() {
         showsHorizontalScrollIndicator={false}
         renderItem={({ item: c }) => (
           <Pressable
-            style={[styles.catChip, { backgroundColor: category === c.key ? c.color : colors.card }]}
+            style={[
+              styles.catChip,
+              { backgroundColor: category === c.key ? c.color : colors.card },
+            ]}
             onPress={() => setCategory(c.key)}
           >
-            <Text style={[styles.catText, { color: category === c.key ? "#fff" : colors.mutedForeground }]}>{c.label}</Text>
+            <Text style={[
+              styles.catText,
+              { color: category === c.key ? "#fff" : colors.mutedForeground },
+            ]}>
+              {c.label}
+            </Text>
           </Pressable>
         )}
       />
 
+      {/* Expense list */}
       <FlatList
         data={filtered.slice().reverse()}
         keyExtractor={(e) => e.id}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#D4500A"]}
+            tintColor="#D4500A"
+          />
+        }
+        removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="bar-chart-2" size={40} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No expenses this month</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              No expenses this month
+            </Text>
           </View>
         }
-        renderItem={({ item: e }) => {
+        renderItem={({ item: e, index }) => {
           const cat = getCat(e.type);
           return (
-            <View style={[styles.expenseRow, { backgroundColor: colors.card }]}>
-              <View style={[styles.expIcon, { backgroundColor: cat.color + "20" }]}>
-                <Feather name={cat.icon as "list"} size={20} color={cat.color} />
-              </View>
-              <View style={styles.expInfo}>
-                <Text style={[styles.expName, { color: colors.foreground }]}>
-                  {cat.label}{e.shopName ? ` · ${e.shopName}` : ""}
+            <Animated.View
+              entering={FadeInDown.delay(Math.min(index, 10) * 55).duration(350)}
+              style={{ marginBottom: 10 }}
+            >
+              <View style={[styles.expenseRow, { backgroundColor: colors.card }]}>
+                <View style={[styles.expIcon, { backgroundColor: cat.color + "20" }]}>
+                  <Feather name={cat.icon as "list"} size={20} color={cat.color} />
+                </View>
+                <View style={styles.expInfo}>
+                  <Text style={[styles.expName, { color: colors.foreground }]}>
+                    {cat.label}{e.shopName ? ` · ${e.shopName}` : ""}
+                  </Text>
+                  {e.items ? (
+                    <Text style={[styles.expMeta, { color: colors.mutedForeground }]}>
+                      {e.items}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.expDate, { color: colors.mutedForeground }]}>
+                    {e.date}
+                  </Text>
+                </View>
+                <Text style={[styles.expAmount, { color: colors.foreground }]}>
+                  ₹{e.amount}
                 </Text>
-                {e.items ? <Text style={[styles.expMeta, { color: colors.mutedForeground }]}>{e.items}</Text> : null}
-                <Text style={[styles.expDate, { color: colors.mutedForeground }]}>{e.date}</Text>
               </View>
-              <Text style={[styles.expAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
-            </View>
+            </Animated.View>
           );
         }}
       />
@@ -181,7 +229,7 @@ const styles = StyleSheet.create({
   catText: { fontSize: 13, fontWeight: "600" },
   expenseRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    borderRadius: 16, padding: 14, marginBottom: 10,
+    borderRadius: 16, padding: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },

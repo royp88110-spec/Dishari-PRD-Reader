@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -20,22 +21,22 @@ function getCurrentMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function prevMonth(m: string) {
   const [y, mo] = m.split("-").map(Number);
   const d = new Date(y, mo - 2, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function nextMonth(m: string) {
   const [y, mo] = m.split("-").map(Number);
   const d = new Date(y, mo, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
-  const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const names = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December",
+  ];
   return `${names[parseInt(mo) - 1]} ${y}`;
 }
 
@@ -48,8 +49,8 @@ export default function MemberFinesScreen() {
   const [month, setMonth] = useState(getCurrentMonth());
 
   const memberId = user?.memberId ?? "";
-  const myFines = fines.filter(
-    (f) => f.memberId === memberId && f.date.startsWith(month)
+  const myFines  = fines.filter(
+    (f) => f.memberId === memberId && f.date.startsWith(month),
   );
   const totalFine = myFines.reduce((s, f) => s + f.amount, 0);
 
@@ -75,93 +76,115 @@ export default function MemberFinesScreen() {
 
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D4500A"]} tintColor="#D4500A" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#D4500A"]}
+            tintColor="#D4500A"
+          />
+        }
       >
-        {/* Summary card */}
-        <View style={[styles.summaryCard, {
-          backgroundColor: totalFine > 0 ? "#DC262608" : "#16A34A08",
-          borderColor: totalFine > 0 ? "#DC262640" : "#16A34A40",
-        }]}>
-          <View style={[styles.summaryIconWrap, {
-            backgroundColor: totalFine > 0 ? "#DC262618" : "#16A34A18",
+        {/* Summary card — entrance animation */}
+        <Animated.View entering={FadeInDown.delay(60).duration(400)}>
+          <View style={[styles.summaryCard, {
+            backgroundColor: totalFine > 0 ? "#DC262608" : "#16A34A08",
+            borderColor: totalFine > 0 ? "#DC262640" : "#16A34A40",
           }]}>
-            <Feather
-              name={totalFine > 0 ? "alert-circle" : "check-circle"}
-              size={24}
-              color={totalFine > 0 ? "#DC2626" : "#16A34A"}
-            />
-          </View>
-          <View style={styles.summaryText}>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              {totalFine > 0 ? "Total Fine This Month" : "No Fines This Month"}
-            </Text>
-            <Text style={[styles.summaryAmount, {
-              color: totalFine > 0 ? "#DC2626" : "#16A34A",
+            <View style={[styles.summaryIconWrap, {
+              backgroundColor: totalFine > 0 ? "#DC262618" : "#16A34A18",
             }]}>
-              {totalFine > 0 ? `₹${totalFine.toFixed(2)}` : "₹0"}
-            </Text>
-            {totalFine > 0 && (
-              <Text style={[styles.summaryNote, { color: colors.mutedForeground }]}>
-                {myFines.length} fine{myFines.length !== 1 ? "s" : ""} · Added to your bill
+              <Feather
+                name={totalFine > 0 ? "alert-circle" : "check-circle"}
+                size={24}
+                color={totalFine > 0 ? "#DC2626" : "#16A34A"}
+              />
+            </View>
+            <View style={styles.summaryText}>
+              <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
+                {totalFine > 0 ? "Total Fine This Month" : "No Fines This Month"}
               </Text>
-            )}
+              <Text style={[styles.summaryAmount, {
+                color: totalFine > 0 ? "#DC2626" : "#16A34A",
+              }]}>
+                {totalFine > 0 ? `₹${totalFine.toFixed(2)}` : "₹0"}
+              </Text>
+              {totalFine > 0 && (
+                <Text style={[styles.summaryNote, { color: colors.mutedForeground }]}>
+                  {myFines.length} fine{myFines.length !== 1 ? "s" : ""} · Added to your bill
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        </Animated.View>
+
+        {/* Section heading */}
+        <Animated.View entering={FadeInDown.delay(140).duration(350)}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Fine Records — {monthLabel(month)}
+          </Text>
+        </Animated.View>
 
         {/* Fine list */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          Fine Records — {monthLabel(month)}
-        </Text>
-
         {myFines.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={[styles.emptyIcon, { backgroundColor: "#16A34A18" }]}>
-              <Feather name="check-circle" size={32} color="#16A34A" />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Fines</Text>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              You have no fines recorded for {monthLabel(month)}.
-            </Text>
-          </View>
-        ) : (
-          myFines.map((fine) => (
-            <View key={fine.id} style={[styles.fineCard, { backgroundColor: colors.card }]}>
-              <View style={styles.fineCardTop}>
-                <View style={[styles.fineIconWrap, { backgroundColor: "#DC262618" }]}>
-                  <Feather name="alert-circle" size={20} color="#DC2626" />
-                </View>
-                <View style={styles.fineInfo}>
-                  <Text style={[styles.fineReason, { color: colors.foreground }]}>
-                    {fine.reason || "Fine"}
-                  </Text>
-                  <Text style={[styles.fineDate, { color: colors.mutedForeground }]}>
-                    {fine.date}
-                  </Text>
-                </View>
-                <View style={[styles.fineAmountBadge, { backgroundColor: "#DC262618" }]}>
-                  <Text style={styles.fineAmount}>₹{fine.amount.toFixed(0)}</Text>
-                </View>
+          <Animated.View entering={FadeInUp.delay(200).duration(400)}>
+            <View style={styles.emptyState}>
+              <View style={[styles.emptyIcon, { backgroundColor: "#16A34A18" }]}>
+                <Feather name="check-circle" size={32} color="#16A34A" />
               </View>
-              {fine.notes ? (
-                <View style={[styles.fineNotes, { borderTopColor: "#F2E6DF" }]}>
-                  <Feather name="file-text" size={12} color={colors.mutedForeground} />
-                  <Text style={[styles.fineNotesText, { color: colors.mutedForeground }]}>
-                    {fine.notes}
-                  </Text>
-                </View>
-              ) : null}
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Fines</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                You have no fines recorded for {monthLabel(month)}.
+              </Text>
             </View>
+          </Animated.View>
+        ) : (
+          myFines.map((fine, index) => (
+            <Animated.View
+              key={fine.id}
+              entering={FadeInDown.delay(200 + Math.min(index, 8) * 65).duration(360)}
+              style={{ marginBottom: 12 }}
+            >
+              <View style={[styles.fineCard, { backgroundColor: colors.card }]}>
+                <View style={styles.fineCardTop}>
+                  <View style={[styles.fineIconWrap, { backgroundColor: "#DC262618" }]}>
+                    <Feather name="alert-circle" size={20} color="#DC2626" />
+                  </View>
+                  <View style={styles.fineInfo}>
+                    <Text style={[styles.fineReason, { color: colors.foreground }]}>
+                      {fine.reason || "Fine"}
+                    </Text>
+                    <Text style={[styles.fineDate, { color: colors.mutedForeground }]}>
+                      {fine.date}
+                    </Text>
+                  </View>
+                  <View style={[styles.fineAmountBadge, { backgroundColor: "#DC262618" }]}>
+                    <Text style={styles.fineAmount}>₹{fine.amount.toFixed(0)}</Text>
+                  </View>
+                </View>
+                {fine.notes ? (
+                  <View style={[styles.fineNotes, { borderTopColor: colors.border }]}>
+                    <Feather name="file-text" size={12} color={colors.mutedForeground} />
+                    <Text style={[styles.fineNotesText, { color: colors.mutedForeground }]}>
+                      {fine.notes}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </Animated.View>
           ))
         )}
 
         {/* Info note */}
         {totalFine > 0 && (
-          <View style={[styles.infoBox, { backgroundColor: "#FFF4EE", borderColor: "#F4C5A0" }]}>
-            <Feather name="info" size={14} color="#D4500A" />
-            <Text style={[styles.infoText, { color: "#7A3F1E" }]}>
-              Fines are applied when the minimum required meals are not consumed. Contact admin for details.
-            </Text>
-          </View>
+          <Animated.View entering={FadeInUp.delay(350).duration(350)}>
+            <View style={[styles.infoBox, { backgroundColor: "#FFF4EE", borderColor: "#F4C5A0" }]}>
+              <Feather name="info" size={14} color="#D4500A" />
+              <Text style={[styles.infoText, { color: "#7A3F1E" }]}>
+                Fines are applied when the minimum required meals are not consumed. Contact admin for details.
+              </Text>
+            </View>
+          </Animated.View>
         )}
       </ScrollView>
     </View>
@@ -194,13 +217,12 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: "center", paddingTop: 32, paddingBottom: 24, gap: 12 },
   emptyIcon: {
     width: 72, height: 72, borderRadius: 36,
-    alignItems: "center", justifyContent: "center",
-    marginBottom: 4,
+    alignItems: "center", justifyContent: "center", marginBottom: 4,
   },
   emptyTitle: { fontSize: 18, fontWeight: "700" },
   emptyText: { fontSize: 14, textAlign: "center", paddingHorizontal: 24 },
   fineCard: {
-    borderRadius: 18, marginBottom: 12,
+    borderRadius: 18,
     shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
     overflow: "hidden",
@@ -216,9 +238,7 @@ const styles = StyleSheet.create({
   fineInfo: { flex: 1 },
   fineReason: { fontSize: 15, fontWeight: "700" },
   fineDate: { fontSize: 12, marginTop: 3 },
-  fineAmountBadge: {
-    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
-  },
+  fineAmountBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   fineAmount: { fontSize: 15, fontWeight: "800", color: "#DC2626" },
   fineNotes: {
     flexDirection: "row", alignItems: "flex-start", gap: 6,
