@@ -15,8 +15,8 @@ export default function AdminLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#D4500A",
-        tabBarInactiveTintColor: "#BFA99A",
+        tabBarActiveTintColor: "#2563EB",
+        tabBarInactiveTintColor: "#94A3B8",
         headerStyle: { backgroundColor: colors.card },
         headerTintColor: colors.foreground,
         headerShadowVisible: false,
@@ -26,7 +26,7 @@ export default function AdminLayout() {
           backgroundColor: isIOS ? "transparent" : "#FFFFFF",
           borderTopWidth: 0,
           elevation: 12,
-          shadowColor: "#8B2200",
+          shadowColor: "#1E40AF",
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.10,
           shadowRadius: 16,

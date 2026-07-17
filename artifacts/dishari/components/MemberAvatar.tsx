@@ -20,9 +20,9 @@ interface Props {
   textColor?: string;
 }
 
-/** Seven warm palettes that span the visible spectrum. */
+/** Seven rich palettes spanning the visible spectrum. */
 const PALETTES: { bg: string; text: string }[] = [
-  { bg: "#D4500A", text: "#fff" }, // orange  (primary brand)
+  { bg: "#2563EB", text: "#fff" }, // royal blue (primary brand)
   { bg: "#7C3AED", text: "#fff" }, // purple
   { bg: "#0891B2", text: "#fff" }, // cyan
   { bg: "#16A34A", text: "#fff" }, // green

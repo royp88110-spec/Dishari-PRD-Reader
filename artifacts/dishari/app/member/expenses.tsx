@@ -19,11 +19,11 @@ import { useRefresh } from "@/hooks/useRefresh";
 
 const CATEGORIES = [
   { key: "all",       label: "All",     icon: "list",            color: "#374151" },
-  { key: "grocery",   label: "Grocery", icon: "shopping-bag",    color: "#D4500A" },
+  { key: "grocery",   label: "Grocery", icon: "shopping-bag",    color: "#2563EB" },
   { key: "vegetable", label: "Veg",     icon: "box",             color: "#16A34A" },
   { key: "fish",      label: "Fish",    icon: "droplet",         color: "#0891B2" },
-  { key: "meat",      label: "Meat",    icon: "heart",           color: "#DC2626" },
-  { key: "gas",       label: "Gas",     icon: "zap",             color: "#D97706" },
+  { key: "meat",      label: "Meat",    icon: "heart",           color: "#EF4444" },
+  { key: "gas",       label: "Gas",     icon: "zap",             color: "#F59E0B" },
   { key: "other",     label: "Other",   icon: "more-horizontal", color: "#7C3AED" },
 ];
 
@@ -97,27 +97,21 @@ export default function MemberExpenses() {
             <Text style={[styles.summaryVal, { color: colors.foreground }]}>
               ₹{total.toFixed(0)}
             </Text>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>
-              Market Exp.
-            </Text>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Market Exp.</Text>
           </View>
           <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryVal, { color: colors.foreground }]}>
               ₹{cookTotal.toFixed(0)}
             </Text>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>
-              Cook Salary
-            </Text>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Cook Salary</Text>
           </View>
           <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
           <View style={styles.summaryItem}>
-            <Text style={[styles.summaryVal, { color: "#D4500A" }]}>
+            <Text style={[styles.summaryVal, { color: "#2563EB" }]}>
               ₹{grandTotal.toFixed(0)}
             </Text>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>
-              Grand Total
-            </Text>
+            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Grand Total</Text>
           </View>
         </View>
       </Animated.View>
@@ -158,8 +152,8 @@ export default function MemberExpenses() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
         removeClippedSubviews={false}
@@ -179,7 +173,7 @@ export default function MemberExpenses() {
               style={{ marginBottom: 10 }}
             >
               <View style={[styles.expenseRow, { backgroundColor: colors.card }]}>
-                <View style={[styles.expIcon, { backgroundColor: cat.color + "20" }]}>
+                <View style={[styles.expIcon, { backgroundColor: cat.color + "18" }]}>
                   <Feather name={cat.icon as "list"} size={20} color={cat.color} />
                 </View>
                 <View style={styles.expInfo}>
@@ -187,17 +181,11 @@ export default function MemberExpenses() {
                     {cat.label}{e.shopName ? ` · ${e.shopName}` : ""}
                   </Text>
                   {e.items ? (
-                    <Text style={[styles.expMeta, { color: colors.mutedForeground }]}>
-                      {e.items}
-                    </Text>
+                    <Text style={[styles.expMeta, { color: colors.mutedForeground }]}>{e.items}</Text>
                   ) : null}
-                  <Text style={[styles.expDate, { color: colors.mutedForeground }]}>
-                    {e.date}
-                  </Text>
+                  <Text style={[styles.expDate, { color: colors.mutedForeground }]}>{e.date}</Text>
                 </View>
-                <Text style={[styles.expAmount, { color: colors.foreground }]}>
-                  ₹{e.amount}
-                </Text>
+                <Text style={[styles.expAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
               </View>
             </Animated.View>
           );
@@ -212,7 +200,7 @@ const styles = StyleSheet.create({
   summaryCard: {
     flexDirection: "row", marginHorizontal: 20, marginVertical: 16,
     borderRadius: 20, padding: 20,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   summaryItem: { flex: 1, alignItems: "center" },
@@ -230,7 +218,7 @@ const styles = StyleSheet.create({
   expenseRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
     borderRadius: 16, padding: 14,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   expIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },

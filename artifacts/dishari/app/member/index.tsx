@@ -25,28 +25,24 @@ function getCurrentMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function prevMonth(m: string) {
   const [y, mo] = m.split("-").map(Number);
   const d = new Date(y, mo - 2, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function nextMonth(m: string) {
   const [y, mo] = m.split("-").map(Number);
   const d = new Date(y, mo, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function monthLabel(m: string) {
   const [y, mo] = m.split("-");
   const names = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December",
   ];
   return `${names[parseInt(mo) - 1]} ${y}`;
 }
-
 function friendlyDate(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -55,9 +51,7 @@ function friendlyDate(iso: string | null): string {
 
 // ─── BillRow ──────────────────────────────────────────────────────────────────
 
-function BillRow({
-  label, value, color, bold,
-}: {
+function BillRow({ label, value, color, bold }: {
   label: string; value: string; color?: string; bold?: boolean;
 }) {
   const colors = useColors();
@@ -72,54 +66,30 @@ function BillRow({
 }
 
 // ─── NotificationCard ────────────────────────────────────────────────────────
-// Defined at module level (not inside MemberHome) so hooks are valid.
 
-function NotificationCard({
-  ann,
-  index,
-  onDismiss,
-}: {
-  ann: Announcement;
-  index: number;
-  onDismiss: (id: string) => void;
+function NotificationCard({ ann, index, onDismiss }: {
+  ann: Announcement; index: number; onDismiss: (id: string) => void;
 }) {
-  const translateY = useRef(new Animated.Value(-72)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  // Sonar-ping pulse: ring expands from 1× to 2.6× while fading out → repeats
-  const pulseScale = useRef(new Animated.Value(1)).current;
+  const translateY   = useRef(new Animated.Value(-72)).current;
+  const opacity      = useRef(new Animated.Value(0)).current;
+  const pulseScale   = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.75)).current;
 
   useEffect(() => {
-    // Entrance: slide down + fade in, staggered by card index
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: 0,
-        duration: 420,
-        delay: index * 90,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
+        toValue: 0, duration: 420, delay: index * 90,
+        easing: Easing.out(Easing.quad), useNativeDriver: true,
       }),
       Animated.timing(opacity, {
-        toValue: 1,
-        duration: 380,
-        delay: index * 90,
-        useNativeDriver: true,
+        toValue: 1, duration: 380, delay: index * 90, useNativeDriver: true,
       }),
     ]).start();
 
-    // Continuous sonar-ping on the unread dot
     const ping = Animated.loop(
       Animated.parallel([
-        Animated.timing(pulseScale, {
-          toValue: 2.6,
-          duration: 1300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseOpacity, {
-          toValue: 0,
-          duration: 1300,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseScale,   { toValue: 2.6, duration: 1300, useNativeDriver: true }),
+        Animated.timing(pulseOpacity, { toValue: 0,   duration: 1300, useNativeDriver: true }),
       ]),
     );
     ping.start();
@@ -130,55 +100,37 @@ function NotificationCard({
   const handleDismiss = useCallback(() => {
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: -48,
-        duration: 220,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
+        toValue: -48, duration: 220,
+        easing: Easing.in(Easing.quad), useNativeDriver: true,
       }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 190,
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacity, { toValue: 0, duration: 190, useNativeDriver: true }),
     ]).start(() => onDismiss(ann.id));
   }, [ann.id, onDismiss, translateY, opacity]);
 
   return (
     <Animated.View style={{ transform: [{ translateY }], opacity, marginBottom: 10 }}>
       <View style={nStyles.card}>
-        {/* Left orange accent bar */}
+        {/* Left blue accent bar */}
         <View style={nStyles.accentBar} />
-
         {/* Pulsing unread dot */}
         <View style={nStyles.dotWrap}>
-          <Animated.View
-            style={[
-              nStyles.pulseRing,
-              { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
-            ]}
-          />
+          <Animated.View style={[nStyles.pulseRing, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]} />
           <View style={nStyles.dot} />
         </View>
-
-        {/* Content */}
         <View style={nStyles.textWrap}>
           <Text style={nStyles.title} numberOfLines={1}>{ann.title}</Text>
           <Text style={nStyles.body} numberOfLines={2}>{ann.body}</Text>
           <Text style={nStyles.date}>
-            {new Date(ann.createdAt).toLocaleDateString("en-IN", {
-              day: "numeric", month: "short", year: "numeric",
-            })}
+            {new Date(ann.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </Text>
         </View>
-
-        {/* Dismiss button */}
         <Pressable
           onPress={handleDismiss}
           hitSlop={12}
           style={({ pressed }) => [nStyles.dismissBtn, { opacity: pressed ? 0.6 : 1 }]}
         >
           <View style={nStyles.dismissCircle}>
-            <Feather name="x" size={11} color="#D4500A" />
+            <Feather name="x" size={11} color="#2563EB" />
           </View>
         </Pressable>
       </View>
@@ -186,12 +138,11 @@ function NotificationCard({
   );
 }
 
-// Notification section header (static — no animation needed)
 function NotificationHeader({ count }: { count: number }) {
   return (
     <View style={nStyles.sectionHeader}>
       <View style={nStyles.bellWrap}>
-        <Feather name="bell" size={13} color="#D4500A" />
+        <Feather name="bell" size={13} color="#2563EB" />
       </View>
       <Text style={nStyles.sectionTitle}>Notifications</Text>
       <View style={nStyles.badge}>
@@ -219,9 +170,7 @@ export default function MemberHome() {
   const payment = payments.find((p) => p.memberId === memberId && p.month === month);
   const isPaid = payment?.paid === true;
 
-  // Only show announcements that haven't been dismissed this session
   const visibleAnnouncements = announcements.filter((a) => !dismissedIds.has(a.id));
-
   const handleDismiss = useCallback((id: string) => {
     setDismissedIds((prev) => new Set([...prev, id]));
   }, []);
@@ -249,52 +198,45 @@ export default function MemberHome() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
       >
-        {/* ── Notifications (top) ─────────────────────────────────────────── */}
+        {/* ── Notifications ─────────────────────────────────────────────── */}
         {visibleAnnouncements.length > 0 && (
           <View style={nStyles.section}>
             <NotificationHeader count={visibleAnnouncements.length} />
             {visibleAnnouncements.slice(0, 5).map((ann, i) => (
-              <NotificationCard
-                key={ann.id}
-                ann={ann}
-                index={i}
-                onDismiss={handleDismiss}
-              />
+              <NotificationCard key={ann.id} ann={ann} index={i} onDismiss={handleDismiss} />
             ))}
           </View>
         )}
 
-        {/* ── Month navigator ──────────────────────────────────────────────── */}
+        {/* ── Month navigator ───────────────────────────────────────────── */}
         <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
           <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-left" size={22} color="#D4500A" />
+            <Feather name="chevron-left" size={22} color="#2563EB" />
           </Pressable>
           <Text style={[styles.monthText, { color: colors.foreground }]}>{monthLabel(month)}</Text>
           <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-            <Feather name="chevron-right" size={22} color="#D4500A" />
+            <Feather name="chevron-right" size={22} color="#2563EB" />
           </Pressable>
         </View>
 
-        {/* ── Payment Status Card ──────────────────────────────────────────── */}
-        <View
-          style={[
-            styles.paymentCard,
-            {
-              backgroundColor: isPaid ? "#16A34A08" : "#DC262608",
-              borderColor: isPaid ? "#16A34A" : "#DC2626",
-              borderWidth: 2.5,
-            },
-          ]}
-        >
+        {/* ── Payment Status Card ───────────────────────────────────────── */}
+        <View style={[
+          styles.paymentCard,
+          {
+            backgroundColor: isPaid ? "#16A34A08" : "#EF444408",
+            borderColor: isPaid ? "#16A34A" : "#EF4444",
+            borderWidth: 2.5,
+          },
+        ]}>
           <View style={styles.paymentCardInner}>
             <Text style={styles.paymentEmoji}>{isPaid ? "✅" : "❌"}</Text>
             <View style={styles.paymentCardText}>
-              <Text style={[styles.paymentStatus, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
+              <Text style={[styles.paymentStatus, { color: isPaid ? "#16A34A" : "#EF4444" }]}>
                 {isPaid ? "Bill Paid" : "Bill Unpaid"}
               </Text>
               <Text style={[styles.paymentSub, { color: colors.mutedForeground }]}>
@@ -313,21 +255,19 @@ export default function MemberHome() {
           )}
         </View>
 
-        {/* ── Due / Credit card ────────────────────────────────────────────── */}
-        <View
-          style={[
-            styles.dueCard,
-            {
-              backgroundColor: bill.dueAmount > 0 ? "#DC262605" : "#16A34A05",
-              borderColor: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
-              borderWidth: 2.5,
-            },
-          ]}
-        >
-          <Text style={[styles.dueLabel, { color: bill.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
+        {/* ── Due / Credit card ─────────────────────────────────────────── */}
+        <View style={[
+          styles.dueCard,
+          {
+            backgroundColor: bill.dueAmount > 0 ? "#EF444405" : "#16A34A05",
+            borderColor: bill.dueAmount > 0 ? "#EF4444" : "#16A34A",
+            borderWidth: 2.5,
+          },
+        ]}>
+          <Text style={[styles.dueLabel, { color: bill.dueAmount > 0 ? "#EF4444" : "#16A34A" }]}>
             {bill.dueAmount > 0 ? "Amount Due" : "Credit Balance"}
           </Text>
-          <Text style={[styles.dueAmount, { color: bill.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
+          <Text style={[styles.dueAmount, { color: bill.dueAmount > 0 ? "#EF4444" : "#16A34A" }]}>
             ₹{(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance).toFixed(2)}
           </Text>
           <Text style={[styles.dueSub, { color: colors.mutedForeground }]}>
@@ -335,43 +275,53 @@ export default function MemberHome() {
           </Text>
         </View>
 
-        {/* ── Bill Breakdown ───────────────────────────────────────────────── */}
+        {/* ── Bill Breakdown ────────────────────────────────────────────── */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My Bill Breakdown</Text>
+          <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionIcon, { backgroundColor: "#EFF6FF" }]}>
+              <Feather name="file-text" size={16} color="#2563EB" />
+            </View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My Bill Breakdown</Text>
+          </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Meals Taken" value={`${bill.mealCount}`} />
+          <BillRow label="Meals Taken"     value={`${bill.mealCount}`} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Per Meal Rate" value={`₹${bill.perMealCost.toFixed(2)}`} />
+          <BillRow label="Per Meal Rate"   value={`₹${bill.perMealCost.toFixed(2)}`} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Meal Bill" value={`₹${bill.mealBill.toFixed(2)}`} />
+          <BillRow label="Meal Bill"       value={`₹${bill.mealBill.toFixed(2)}`} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Eggs Consumed" value={`${bill.eggCount} × ₹${settings.eggPrice}`} />
+          <BillRow label="Eggs Consumed"   value={`${bill.eggCount} × ₹${settings.eggPrice}`} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Egg Bill" value={`₹${bill.eggBill.toFixed(2)}`} />
+          <BillRow label="Egg Bill"        value={`₹${bill.eggBill.toFixed(2)}`} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Cook Salary" value={`₹${settings.cookSalary.toFixed(2)}`} />
+          <BillRow label="Cook Salary"     value={`₹${settings.cookSalary.toFixed(2)}`} />
           {bill.fineTotal > 0 && (
             <>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
-              <BillRow label="Fine" value={`₹${bill.fineTotal.toFixed(2)}`} color="#DC2626" />
+              <BillRow label="Fine" value={`₹${bill.fineTotal.toFixed(2)}`} color="#EF4444" />
             </>
           )}
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Gross Bill" value={`₹${bill.grossBill.toFixed(2)}`} bold />
+          <BillRow label="Gross Bill"      value={`₹${bill.grossBill.toFixed(2)}`} bold />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <BillRow label="Advance Paid" value={`- ₹${bill.totalAdvance.toFixed(2)}`} color="#16A34A" />
+          <BillRow label="Advance Paid"    value={`- ₹${bill.totalAdvance.toFixed(2)}`} color="#16A34A" />
           <View style={[styles.bigDivider, { backgroundColor: colors.border }]} />
           <BillRow
             label={bill.dueAmount > 0 ? "Amount Due" : "Credit Balance"}
             value={`₹${(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance).toFixed(2)}`}
-            color={bill.dueAmount > 0 ? "#DC2626" : "#16A34A"}
+            color={bill.dueAmount > 0 ? "#EF4444" : "#16A34A"}
             bold
           />
         </View>
 
-        {/* ── Mess Summary ─────────────────────────────────────────────────── */}
+        {/* ── Mess Summary ──────────────────────────────────────────────── */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Mess Summary</Text>
+          <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionIcon, { backgroundColor: "#EFF6FF" }]}>
+              <Feather name="bar-chart-2" size={16} color="#2563EB" />
+            </View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Mess Summary</Text>
+          </View>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <BillRow label="Total Monthly Expense" value={`₹${totalExpense.toFixed(0)}`} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -382,15 +332,15 @@ export default function MemberHome() {
           <BillRow label="Cook Salary" value={`₹${settings.cookSalary} / member`} />
         </View>
 
-        {/* ── Quick Stats ──────────────────────────────────────────────────── */}
+        {/* ── Quick Stats ───────────────────────────────────────────────── */}
         <View style={styles.statsRow}>
           {[
-            { label: "Meals", value: String(bill.mealCount), icon: "grid" as const, color: "#D4500A" },
-            { label: "Eggs", value: String(bill.eggCount), icon: "circle" as const, color: "#D97706" },
-            { label: "Advance", value: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card" as const, color: "#16A34A" },
+            { label: "Meals",   value: String(bill.mealCount),                 icon: "grid"        as const, color: "#2563EB" },
+            { label: "Eggs",    value: String(bill.eggCount),                  icon: "circle"      as const, color: "#F59E0B" },
+            { label: "Advance", value: `₹${bill.totalAdvance.toFixed(0)}`,     icon: "credit-card" as const, color: "#16A34A" },
           ].map(({ label, value, icon, color }) => (
             <View key={label} style={[styles.miniStat, { backgroundColor: colors.card }]}>
-              <View style={[styles.miniStatIcon, { backgroundColor: color + "20" }]}>
+              <View style={[styles.miniStatIcon, { backgroundColor: color + "18" }]}>
                 <Feather name={icon} size={16} color={color} />
               </View>
               <Text style={[styles.miniStatVal, { color: colors.foreground }]}>{value}</Text>
@@ -406,132 +356,48 @@ export default function MemberHome() {
 // ─── Notification styles ──────────────────────────────────────────────────────
 
 const nStyles = StyleSheet.create({
-  section: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 8,
-  },
+  section: { marginHorizontal: 20, marginTop: 16, marginBottom: 4 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 8 },
   bellWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#FFF0E6",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#FDDCCA",
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: "#EFF6FF", alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "#BFDBFE",
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#1A0F0A",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    flex: 1,
+    fontSize: 13, fontWeight: "700", color: "#0F172A",
+    textTransform: "uppercase", letterSpacing: 0.6, flex: 1,
   },
   badge: {
-    backgroundColor: "#D4500A",
-    borderRadius: 12,
-    minWidth: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "#2563EB", borderRadius: 12,
+    minWidth: 22, height: 22, alignItems: "center", justifyContent: "center",
     paddingHorizontal: 6,
-    // Glowing badge effect (visible on iOS; Android shows elevation shadow)
-    shadowColor: "#D4500A",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.65,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5, shadowRadius: 6, elevation: 4,
   },
-  badgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "800",
-  },
+  badgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
   card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    paddingVertical: 13,
-    paddingRight: 12,
-    // Orange-tinted shadow for premium feel
-    shadowColor: "#D4500A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.13,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "#FAE0D0",
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#FFFFFF", borderRadius: 16, overflow: "hidden",
+    paddingVertical: 13, paddingRight: 12,
+    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 12, elevation: 4,
+    borderWidth: 1, borderColor: "#BFDBFE",
   },
-  accentBar: {
-    width: 4,
-    alignSelf: "stretch",
-    backgroundColor: "#D4500A",
-    marginRight: 14,
-    borderRadius: 2,
-  },
-  dotWrap: {
-    width: 12,
-    height: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
+  accentBar: { width: 4, alignSelf: "stretch", backgroundColor: "#2563EB", marginRight: 14, borderRadius: 2 },
+  dotWrap: { width: 12, height: 12, alignItems: "center", justifyContent: "center", marginRight: 12 },
   pulseRing: {
-    position: "absolute",
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#D4500A",
+    position: "absolute", width: 12, height: 12, borderRadius: 6, backgroundColor: "#2563EB",
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#D4500A",
-  },
-  textWrap: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1A0F0A",
-    marginBottom: 3,
-  },
-  body: {
-    fontSize: 12,
-    color: "#9B7B68",
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  date: {
-    fontSize: 10,
-    color: "#D4500A",
-    fontWeight: "600",
-  },
-  dismissBtn: {
-    marginLeft: 10,
-    padding: 4,
-  },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#2563EB" },
+  textWrap: { flex: 1 },
+  title: { fontSize: 14, fontWeight: "700", color: "#0F172A", marginBottom: 3 },
+  body: { fontSize: 12, color: "#64748B", lineHeight: 18, marginBottom: 4 },
+  date: { fontSize: 10, color: "#2563EB", fontWeight: "600" },
+  dismissBtn: { marginLeft: 10, padding: 4 },
   dismissCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#FFF0E6",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#FDDCCA",
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: "#EFF6FF", alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "#BFDBFE",
   },
 });
 
@@ -540,37 +406,22 @@ const nStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   logoutBtn: {
-    padding: 10,
-    borderRadius: 12,
+    padding: 10, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
   },
   monthNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    padding: 8,
-    shadowColor: "#C04000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 4,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginHorizontal: 20, marginTop: 16, marginBottom: 16,
+    borderRadius: 16, padding: 8,
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
   paymentCard: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 20,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 20,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   paymentCardInner: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
   paymentEmoji: { fontSize: 28 },
@@ -580,27 +431,19 @@ const styles = StyleSheet.create({
   paidAmountBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 8 },
   paidAmountText: { fontSize: 15, fontWeight: "700" },
   dueCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
+    marginHorizontal: 20, marginBottom: 20, borderRadius: 20, padding: 24, alignItems: "center",
   },
   dueLabel: { fontSize: 14, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
-  dueAmount: { fontSize: 42, fontWeight: "700", marginVertical: 8 },
+  dueAmount: { fontSize: 42, fontWeight: "800", marginVertical: 8 },
   dueSub: { fontSize: 13 },
   section: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#C04000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 4,
+    marginHorizontal: 20, marginBottom: 20, borderRadius: 20, padding: 20,
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+  sectionIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  sectionTitle: { fontSize: 16, fontWeight: "700" },
   billRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 },
   billKey: { fontSize: 14 },
   billVal: { fontSize: 14 },
@@ -608,25 +451,11 @@ const styles = StyleSheet.create({
   bigDivider: { height: 2, marginVertical: 6 },
   statsRow: { flexDirection: "row", marginHorizontal: 20, gap: 12, marginBottom: 20 },
   miniStat: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 14,
-    alignItems: "center",
-    gap: 6,
-    shadowColor: "#C04000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 4,
+    flex: 1, borderRadius: 16, padding: 14, alignItems: "center", gap: 6,
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
   },
-  miniStatIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
+  miniStatIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   miniStatVal: { fontSize: 16, fontWeight: "700" },
   miniStatLabel: { fontSize: 11 },
 });

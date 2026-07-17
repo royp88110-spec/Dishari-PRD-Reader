@@ -80,24 +80,24 @@ export default function MemberFinesScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
       >
         {/* Summary card — entrance animation */}
         <Animated.View entering={FadeInDown.delay(60).duration(400)}>
           <View style={[styles.summaryCard, {
-            backgroundColor: totalFine > 0 ? "#DC262608" : "#16A34A08",
-            borderColor: totalFine > 0 ? "#DC262640" : "#16A34A40",
+            backgroundColor: totalFine > 0 ? "#EF444408" : "#16A34A08",
+            borderColor: totalFine > 0 ? "#EF444440" : "#16A34A40",
           }]}>
             <View style={[styles.summaryIconWrap, {
-              backgroundColor: totalFine > 0 ? "#DC262618" : "#16A34A18",
+              backgroundColor: totalFine > 0 ? "#EF444418" : "#16A34A18",
             }]}>
               <Feather
                 name={totalFine > 0 ? "alert-circle" : "check-circle"}
                 size={24}
-                color={totalFine > 0 ? "#DC2626" : "#16A34A"}
+                color={totalFine > 0 ? "#EF4444" : "#16A34A"}
               />
             </View>
             <View style={styles.summaryText}>
@@ -105,7 +105,7 @@ export default function MemberFinesScreen() {
                 {totalFine > 0 ? "Total Fine This Month" : "No Fines This Month"}
               </Text>
               <Text style={[styles.summaryAmount, {
-                color: totalFine > 0 ? "#DC2626" : "#16A34A",
+                color: totalFine > 0 ? "#EF4444" : "#16A34A",
               }]}>
                 {totalFine > 0 ? `₹${totalFine.toFixed(2)}` : "₹0"}
               </Text>
@@ -147,8 +147,8 @@ export default function MemberFinesScreen() {
             >
               <View style={[styles.fineCard, { backgroundColor: colors.card }]}>
                 <View style={styles.fineCardTop}>
-                  <View style={[styles.fineIconWrap, { backgroundColor: "#DC262618" }]}>
-                    <Feather name="alert-circle" size={20} color="#DC2626" />
+                  <View style={[styles.fineIconWrap, { backgroundColor: "#EF444418" }]}>
+                    <Feather name="alert-circle" size={20} color="#EF4444" />
                   </View>
                   <View style={styles.fineInfo}>
                     <Text style={[styles.fineReason, { color: colors.foreground }]}>
@@ -158,7 +158,7 @@ export default function MemberFinesScreen() {
                       {fine.date}
                     </Text>
                   </View>
-                  <View style={[styles.fineAmountBadge, { backgroundColor: "#DC262618" }]}>
+                  <View style={[styles.fineAmountBadge, { backgroundColor: "#EF444418" }]}>
                     <Text style={styles.fineAmount}>₹{fine.amount.toFixed(0)}</Text>
                   </View>
                 </View>
@@ -178,9 +178,9 @@ export default function MemberFinesScreen() {
         {/* Info note */}
         {totalFine > 0 && (
           <Animated.View entering={FadeInUp.delay(350).duration(350)}>
-            <View style={[styles.infoBox, { backgroundColor: "#FFF4EE", borderColor: "#F4C5A0" }]}>
-              <Feather name="info" size={14} color="#D4500A" />
-              <Text style={[styles.infoText, { color: "#7A3F1E" }]}>
+            <View style={[styles.infoBox, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
+              <Feather name="info" size={14} color="#2563EB" />
+              <Text style={[styles.infoText, { color: "#1E40AF" }]}>
                 Fines are applied when the minimum required meals are not consumed. Contact admin for details.
               </Text>
             </View>
@@ -223,13 +223,12 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, textAlign: "center", paddingHorizontal: 24 },
   fineCard: {
     borderRadius: 18,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
     overflow: "hidden",
   },
   fineCardTop: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    padding: 16,
+    flexDirection: "row", alignItems: "center", gap: 12, padding: 16,
   },
   fineIconWrap: {
     width: 44, height: 44, borderRadius: 12,
@@ -239,11 +238,10 @@ const styles = StyleSheet.create({
   fineReason: { fontSize: 15, fontWeight: "700" },
   fineDate: { fontSize: 12, marginTop: 3 },
   fineAmountBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  fineAmount: { fontSize: 15, fontWeight: "800", color: "#DC2626" },
+  fineAmount: { fontSize: 15, fontWeight: "800", color: "#EF4444" },
   fineNotes: {
     flexDirection: "row", alignItems: "flex-start", gap: 6,
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderTopWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1,
   },
   fineNotesText: { flex: 1, fontSize: 12, lineHeight: 17 },
   infoBox: {

@@ -35,7 +35,6 @@ const EMPTY: Omit<Member, "id"> = {
 };
 
 // ─── MemberCard ───────────────────────────────────────────────────────────────
-// Memoised + spring press scale. FadeInDown stagger is applied by the parent.
 
 const MemberCard = React.memo(function MemberCard({
   member,
@@ -66,8 +65,8 @@ const MemberCard = React.memo(function MemberCard({
           <MemberAvatar
             name={member.name}
             size={44}
-            bgColor={member.status === "active" ? "#D4500A20" : colors.muted}
-            textColor={member.status === "active" ? "#D4500A" : colors.mutedForeground}
+            bgColor={member.status === "active" ? "#2563EB20" : colors.muted}
+            textColor={member.status === "active" ? "#2563EB" : colors.mutedForeground}
           />
           <View style={styles.memberInfo}>
             <View style={styles.memberNameRow}>
@@ -76,11 +75,11 @@ const MemberCard = React.memo(function MemberCard({
               </Text>
               <View style={[
                 styles.statusBadge,
-                { backgroundColor: member.status === "active" ? "#16A34A18" : "#DC262618" },
+                { backgroundColor: member.status === "active" ? "#16A34A18" : "#EF444418" },
               ]}>
                 <Text style={[
                   styles.statusText,
-                  { color: member.status === "active" ? "#16A34A" : "#DC2626" },
+                  { color: member.status === "active" ? "#16A34A" : "#EF4444" },
                 ]}>
                   {member.status}
                 </Text>
@@ -216,10 +215,12 @@ export default function MembersScreen() {
 
       <Animated.View entering={FadeInDown.delay(60).duration(350)}>
         <View style={[styles.searchBar, { backgroundColor: colors.card }]}>
-          <Feather name="search" size={18} color={colors.mutedForeground} />
+          <View style={[styles.searchIcon, { backgroundColor: colors.muted }]}>
+            <Feather name="search" size={16} color={colors.mutedForeground} />
+          </View>
           <TextInput
             style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder="Search members..."
+            placeholder="Search members…"
             placeholderTextColor={colors.mutedForeground}
             value={search}
             onChangeText={setSearch}
@@ -241,14 +242,16 @@ export default function MembersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
         removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Feather name="users" size={40} color={colors.muted} />
+            <View style={[styles.emptyIcon, { backgroundColor: "#EFF6FF" }]}>
+              <Feather name="users" size={32} color="#2563EB" />
+            </View>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
               No members found
             </Text>
@@ -278,7 +281,7 @@ export default function MembersScreen() {
       >
         <Animated.View style={[styles.fabWrapper, fabStyle]}>
           <LinearGradient
-            colors={["#E25C14", "#AD3806"]}
+            colors={["#3B82F6", "#2563EB"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.fab}
@@ -293,6 +296,9 @@ export default function MembersScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
+              <View style={[styles.modalHeaderIcon, { backgroundColor: "#EFF6FF" }]}>
+                <Feather name={editing ? "edit-2" : "user-plus"} size={18} color="#2563EB" />
+              </View>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                 {editing ? "Edit Member" : "Add Member"}
               </Text>
@@ -300,6 +306,8 @@ export default function MembersScreen() {
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </Pressable>
             </View>
+
+            <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {[
@@ -313,7 +321,7 @@ export default function MembersScreen() {
                 <View key={key} style={styles.formGroup}>
                   <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   <TextInput
-                    style={[styles.formInput, { color: colors.foreground }]}
+                    style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
                     placeholder={placeholder}
                     placeholderTextColor={colors.mutedForeground}
                     value={String((form as Record<string, unknown>)[key] ?? "")}
@@ -333,15 +341,15 @@ export default function MembersScreen() {
                       style={[
                         styles.statusOpt,
                         {
-                          borderColor: form.status === s ? "#D4500A" : colors.border,
-                          backgroundColor: form.status === s ? "#FFF4EE" : colors.muted,
+                          borderColor: form.status === s ? "#2563EB" : colors.border,
+                          backgroundColor: form.status === s ? "#EFF6FF" : colors.muted,
                         },
                       ]}
                       onPress={() => setForm((f) => ({ ...f, status: s }))}
                     >
                       <Text style={[
                         styles.statusOptText,
-                        { color: form.status === s ? "#D4500A" : colors.mutedForeground },
+                        { color: form.status === s ? "#2563EB" : colors.mutedForeground },
                       ]}>
                         {s.charAt(0).toUpperCase() + s.slice(1)}
                       </Text>
@@ -356,7 +364,7 @@ export default function MembersScreen() {
                 disabled={isSaving}
               >
                 <LinearGradient
-                  colors={["#E25C14", "#AD3806"]}
+                  colors={["#3B82F6", "#2563EB"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.saveBtn}
@@ -381,54 +389,67 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: "row", alignItems: "center", gap: 10,
     marginHorizontal: 16, marginBottom: 16, marginTop: 12,
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10,
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
+  },
+  searchIcon: {
+    width: 34, height: 34, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
   },
   searchInput: { flex: 1, fontSize: 16 },
   memberCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    borderRadius: 16, padding: 14,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    borderRadius: 18, padding: 16,
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
   memberInfo: { flex: 1 },
-  memberNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  memberNameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   memberName: { fontSize: 15, fontWeight: "700" },
   statusBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: "700" },
-  memberPhone: { fontSize: 13, marginTop: 2 },
+  memberPhone: { fontSize: 13, marginTop: 3 },
   memberJoin: { fontSize: 11, marginTop: 2 },
-  actions: { flexDirection: "row", gap: 4 },
+  actions: { flexDirection: "row", gap: 2 },
   actionBtn: { padding: 8 },
   fabWrapper: {
     position: "absolute", right: 20, bottom: 100,
-    shadowColor: "#AD3806", shadowOffset: { width: 0, height: 6 },
+    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
   },
   fab: {
     width: 56, height: 56, borderRadius: 28,
     alignItems: "center", justifyContent: "center",
   },
-  empty: { alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 12 },
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36,
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
+  },
+  empty: { alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 15 },
-  modalOverlay: { flex: 1, backgroundColor: "#00000060", justifyContent: "flex-end" },
+  modalOverlay: { flex: 1, backgroundColor: "#00000055", justifyContent: "flex-end" },
   modalSheet: {
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, maxHeight: "90%",
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, maxHeight: "92%",
   },
   modalHeader: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 20,
+    flexDirection: "row", alignItems: "center",
+    gap: 12, marginBottom: 16,
   },
-  modalTitle: { fontSize: 20, fontWeight: "700" },
+  modalHeaderIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  modalTitle: { flex: 1, fontSize: 20, fontWeight: "700" },
+  modalDivider: { height: 1, marginBottom: 20 },
   formGroup: { marginBottom: 14 },
   formLabel: {
     fontSize: 12, fontWeight: "600", marginBottom: 6,
     textTransform: "uppercase", letterSpacing: 0.5,
   },
   formInput: {
-    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8",
+    borderWidth: 1.5,
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16,
   },
   statusRow: { flexDirection: "row", gap: 10 },

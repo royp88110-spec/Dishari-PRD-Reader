@@ -79,7 +79,7 @@ function StatCard({
       entering={FadeInDown.delay(enterDelay).duration(400)}
       style={[styles.statCard, { backgroundColor: colors.card }, pressStyle]}
     >
-      <View style={[styles.statIcon, { backgroundColor: color + "22" }]}>
+      <View style={[styles.statIcon, { backgroundColor: color + "18" }]}>
         <Feather name={icon as "home"} size={22} color={color} />
       </View>
       <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
@@ -216,8 +216,8 @@ export default function AdminDashboard() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
       >
@@ -225,13 +225,13 @@ export default function AdminDashboard() {
         <Animated.View entering={FadeInDown.delay(0).duration(350)}>
           <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
             <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-              <Feather name="chevron-left" size={22} color="#D4500A" />
+              <Feather name="chevron-left" size={22} color="#2563EB" />
             </Pressable>
             <Text style={[styles.monthText, { color: colors.foreground }]}>
               {monthLabel(month)}
             </Text>
             <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-              <Feather name="chevron-right" size={22} color="#D4500A" />
+              <Feather name="chevron-right" size={22} color="#2563EB" />
             </Pressable>
           </View>
         </Animated.View>
@@ -240,7 +240,7 @@ export default function AdminDashboard() {
         <View style={styles.statsGrid}>
           <StatCard
             label="Active Members" value={String(activeMembers)}
-            icon="users" color="#D4500A" enterDelay={80}
+            icon="users" color="#2563EB" enterDelay={80}
           />
           <StatCard
             label="Total Meals" value={String(totalMeals)}
@@ -270,16 +270,16 @@ export default function AdminDashboard() {
         )}
 
         {paymentsError && (
-          <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
-            <Feather name="alert-circle" size={16} color="#DC2626" />
+          <View style={[styles.errorBanner, { backgroundColor: "#EF444415", borderColor: "#EF4444" }]}>
+            <Feather name="alert-circle" size={16} color="#EF4444" />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.errorBannerText, { color: "#DC2626", fontWeight: "700" }]}>
+              <Text style={[styles.errorBannerText, { color: "#EF4444", fontWeight: "700" }]}>
                 bill_payments table not accessible
               </Text>
-              <Text style={[styles.errorBannerText, { color: "#DC2626", fontSize: 11, marginTop: 2 }]}>
+              <Text style={[styles.errorBannerText, { color: "#EF4444", fontSize: 11, marginTop: 2 }]}>
                 {paymentsError}
               </Text>
-              <Text style={[styles.errorBannerText, { color: "#DC262690", fontSize: 11, marginTop: 4 }]}>
+              <Text style={[styles.errorBannerText, { color: "#EF444490", fontSize: 11, marginTop: 4 }]}>
                 Go to Supabase → SQL Editor and re-run the bill_payments migration SQL.
               </Text>
             </View>
@@ -287,13 +287,13 @@ export default function AdminDashboard() {
         )}
 
         {payError && (
-          <View style={[styles.errorBanner, { backgroundColor: "#DC262615", borderColor: "#DC2626" }]}>
-            <Feather name="alert-circle" size={16} color="#DC2626" />
+          <View style={[styles.errorBanner, { backgroundColor: "#EF444415", borderColor: "#EF4444" }]}>
+            <Feather name="alert-circle" size={16} color="#EF4444" />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.errorBannerText, { color: "#DC2626", flex: 1 }]}>{payError}</Text>
+              <Text style={[styles.errorBannerText, { color: "#EF4444", flex: 1 }]}>{payError}</Text>
             </View>
             <Pressable onPress={() => setPayError(null)}>
-              <Feather name="x" size={16} color="#DC2626" />
+              <Feather name="x" size={16} color="#EF4444" />
             </Pressable>
           </View>
         )}
@@ -306,7 +306,7 @@ export default function AdminDashboard() {
                 <Feather
                   name="check-circle"
                   size={20}
-                  color={paidCount === bills.length ? "#16A34A" : "#D97706"}
+                  color={paidCount === bills.length ? "#16A34A" : "#F59E0B"}
                 />
                 <Text style={[styles.paymentBannerText, { color: colors.foreground }]}>
                   {paidCount} / {bills.length} members paid
@@ -314,11 +314,11 @@ export default function AdminDashboard() {
               </View>
               <View style={[
                 styles.paymentPill,
-                { backgroundColor: paidCount === bills.length ? "#16A34A20" : "#D9770620" },
+                { backgroundColor: paidCount === bills.length ? "#16A34A20" : "#F59E0B20" },
               ]}>
                 <Text style={[
                   styles.paymentPillText,
-                  { color: paidCount === bills.length ? "#16A34A" : "#D97706" },
+                  { color: paidCount === bills.length ? "#16A34A" : "#F59E0B" },
                 ]}>
                   {paidCount === bills.length ? "All Settled" : "Pending"}
                 </Text>
@@ -334,7 +334,7 @@ export default function AdminDashboard() {
             {[
               ["Total Monthly Expense", `₹${totalExpense.toFixed(0)}`, colors.foreground],
               ["Total Meals Served",    String(totalMeals),            colors.foreground],
-              ["Total Due from Members",`₹${totalDue.toFixed(0)}`,     "#DC2626"],
+              ["Total Due from Members",`₹${totalDue.toFixed(0)}`,     "#EF4444"],
               ["Total Credit Balance",  `₹${totalCredit.toFixed(0)}`,  "#16A34A"],
             ].map(([key, val, clr], i) => (
               <View key={key}>
@@ -367,8 +367,8 @@ export default function AdminDashboard() {
                     <MemberAvatar
                       name={b.memberName}
                       size={42}
-                      bgColor={isPaid ? "#16A34A20" : "#D4500A20"}
-                      textColor={isPaid ? "#16A34A" : "#D4500A"}
+                      bgColor={isPaid ? "#16A34A20" : "#2563EB20"}
+                      textColor={isPaid ? "#16A34A" : "#2563EB"}
                     />
                     <View style={styles.memberBillInfo}>
                       <Text style={[styles.memberBillName, { color: colors.foreground }]}>
@@ -379,7 +379,7 @@ export default function AdminDashboard() {
                       </Text>
                     </View>
                     <View style={styles.memberBillRight}>
-                      <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
+                      <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? "#EF4444" : "#16A34A" }]}>
                         ₹{b.dueAmount > 0 ? b.dueAmount.toFixed(0) : b.creditBalance.toFixed(0)}
                       </Text>
                       <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
@@ -391,10 +391,10 @@ export default function AdminDashboard() {
                   <View style={styles.paymentRow}>
                     <View style={[
                       styles.statusBadge,
-                      { backgroundColor: isPaid ? "#16A34A18" : "#DC262618" },
+                      { backgroundColor: isPaid ? "#16A34A18" : "#EF444418" },
                     ]}>
                       <Text style={{ fontSize: 13 }}>{isPaid ? "✅" : "❌"}</Text>
-                      <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
+                      <Text style={[styles.statusBadgeText, { color: isPaid ? "#16A34A" : "#EF4444" }]}>
                         {isPaid
                           ? `Paid${payment?.paidAt ? ` · ${shortDate(payment.paidAt)}` : ""}`
                           : "Unpaid"}
@@ -410,13 +410,13 @@ export default function AdminDashboard() {
                       disabled={isProcessing}
                     >
                       {isPaid ? (
-                        <View style={[styles.payToggleBtn, { backgroundColor: "#DC262618" }]}>
+                        <View style={[styles.payToggleBtn, { backgroundColor: "#EF444418" }]}>
                           {isProcessing ? (
-                            <ActivityIndicator size="small" color="#DC2626" />
+                            <ActivityIndicator size="small" color="#EF4444" />
                           ) : (
                             <>
-                              <Feather name="x-circle" size={14} color="#DC2626" />
-                              <Text style={[styles.payToggleBtnText, { color: "#DC2626" }]}>
+                              <Feather name="x-circle" size={14} color="#EF4444" />
+                              <Text style={[styles.payToggleBtnText, { color: "#EF4444" }]}>
                                 Mark Unpaid
                               </Text>
                             </>
@@ -464,8 +464,8 @@ export default function AdminDashboard() {
             ) : monthExpenses.slice(-5).reverse().map((e) => (
               <View key={e.id}>
                 <View style={styles.expenseRow}>
-                  <View style={[styles.expenseIcon, { backgroundColor: colors.muted }]}>
-                    <Feather name="shopping-bag" size={16} color={colors.primary} />
+                  <View style={[styles.expenseIcon, { backgroundColor: "#2563EB18" }]}>
+                    <Feather name="shopping-bag" size={16} color="#2563EB" />
                   </View>
                   <View style={styles.expenseInfo}>
                     <Text style={[styles.expenseName, { color: colors.foreground }]}>
@@ -507,8 +507,8 @@ export default function AdminDashboard() {
           >
             <View style={styles.sidebarHeader}>
               <View style={styles.sidebarTitleRow}>
-                <View style={[styles.sidebarIconWrap, { backgroundColor: "#D4500A20" }]}>
-                  <Feather name="bell" size={18} color="#D4500A" />
+                <View style={[styles.sidebarIconWrap, { backgroundColor: "#2563EB18" }]}>
+                  <Feather name="bell" size={18} color="#2563EB" />
                 </View>
                 <Text style={[styles.sidebarTitle, { color: colors.foreground }]}>
                   Announcements
@@ -560,14 +560,14 @@ export default function AdminDashboard() {
                       }
                       style={{ padding: 4 }}
                     >
-                      <Feather name="trash-2" size={15} color="#DC2626" />
+                      <Feather name="trash-2" size={15} color="#EF4444" />
                     </Pressable>
                   </View>
                   <Text style={[styles.annCardBody, { color: colors.mutedForeground }]}>
                     {a.body}
                   </Text>
                   <View style={styles.annCardFooter}>
-                    <Feather name="clock" size={11} color="#D4500A" />
+                    <Feather name="clock" size={11} color="#2563EB" />
                     <Text style={styles.annCardDate}>
                       {new Date(a.createdAt).toLocaleDateString("en-IN", {
                         day: "numeric", month: "short", year: "numeric",
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   bellBadge: {
     position: "absolute", top: 4, right: 4,
     minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: "#DC2626",
+    backgroundColor: "#EF4444",
     alignItems: "center", justifyContent: "center", paddingHorizontal: 3,
   },
   bellBadgeText: { fontSize: 9, fontWeight: "800", color: "#fff" },
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
   sidebarEmptyHint: { fontSize: 12 },
   annCard: {
     borderRadius: 16, padding: 14, marginBottom: 10,
-    borderLeftWidth: 3, borderLeftColor: "#D4500A",
+    borderLeftWidth: 3, borderLeftColor: "#2563EB",
   },
   annCardHeader: {
     flexDirection: "row", alignItems: "flex-start",
@@ -637,11 +637,11 @@ const styles = StyleSheet.create({
   annCardTitle: { flex: 1, fontSize: 14, fontWeight: "700", lineHeight: 20 },
   annCardBody: { fontSize: 13, lineHeight: 19, marginBottom: 8 },
   annCardFooter: { flexDirection: "row", alignItems: "center", gap: 4 },
-  annCardDate: { fontSize: 11, fontWeight: "600", color: "#D4500A" },
+  annCardDate: { fontSize: 11, fontWeight: "600", color: "#2563EB" },
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16, padding: 8,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   navArrow: { padding: 8 },
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: "47%", borderRadius: 20, padding: 18, gap: 6,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   statIcon: {
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   paymentBanner: {
     marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 18,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   paymentBannerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -674,8 +674,8 @@ const styles = StyleSheet.create({
   paymentPillText: { fontSize: 12, fontWeight: "700" },
   section: {
     marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 18,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
   },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },
@@ -688,34 +688,33 @@ const styles = StyleSheet.create({
   memberBillSub: { fontSize: 12, marginTop: 2 },
   memberBillRight: { alignItems: "flex-end" },
   memberBillAmount: { fontSize: 16, fontWeight: "700" },
-  memberBillStatus: { fontSize: 11 },
+  memberBillStatus: { fontSize: 11, marginTop: 2 },
   paymentRow: {
     flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8, gap: 8,
+    justifyContent: "space-between", paddingVertical: 8, gap: 8,
   },
   statusBadge: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6,
   },
-  statusBadgeText: { fontSize: 12, fontWeight: "700" },
-  payToggleBtnWrapper: { borderRadius: 20, overflow: "hidden" },
+  statusBadgeText: { fontSize: 12, fontWeight: "600" },
+  payToggleBtnWrapper: {},
   payToggleBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
-    minWidth: 110, justifyContent: "center",
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
   },
   payToggleBtnText: { fontSize: 12, fontWeight: "700" },
-  expenseRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 12 },
-  expenseIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  expenseRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, gap: 12 },
+  expenseIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   expenseInfo: { flex: 1 },
   expenseName: { fontSize: 14, fontWeight: "600" },
-  expenseDate: { fontSize: 12, marginTop: 2 },
+  expenseDate: { fontSize: 11, marginTop: 2 },
   expenseAmount: { fontSize: 15, fontWeight: "700" },
-  emptyText: { fontSize: 14, textAlign: "center", paddingVertical: 8 },
+  emptyText: { fontSize: 14, textAlign: "center", paddingVertical: 12 },
   errorBanner: {
-    marginHorizontal: 20, marginBottom: 12, borderRadius: 12, padding: 12, borderWidth: 1,
-    flexDirection: "row", alignItems: "center", gap: 8,
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    marginHorizontal: 20, marginBottom: 12,
+    borderRadius: 16, padding: 14, borderWidth: 1,
   },
-  errorBannerText: { flex: 1, fontSize: 13, fontWeight: "600" },
+  errorBannerText: { fontSize: 13, flex: 1 },
 });

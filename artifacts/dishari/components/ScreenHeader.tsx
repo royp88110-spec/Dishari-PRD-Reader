@@ -24,7 +24,7 @@ export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElemen
 
   return (
     <LinearGradient
-      colors={["#E25C14", "#AD3806"]}
+      colors={["#2563EB", "#1D4ED8"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.container, { paddingTop: insets.top + 14 }]}
@@ -65,13 +65,13 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingBottom: 20,
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
-    shadowColor: "#8B2200",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 10,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: "#1E40AF",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 12,
   },
   topRow: {
     flexDirection: "row",
@@ -92,14 +92,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderColor: "rgba(255,255,255,0.25)",
   },
   textGroup: {
     flex: 1,
   },
   subtitle: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.72)",
+    color: "rgba(255,255,255,0.75)",
     fontWeight: "500",
     marginBottom: 2,
   },

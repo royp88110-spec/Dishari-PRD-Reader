@@ -55,14 +55,14 @@ export default function MemberAdvances() {
   const bill = calculateMonthlyBill(memberId, month);
 
   const summaryItems = [
-    { label: "Total Paid",  value: `₹${totalAdvance.toFixed(0)}`, color: "#16A34A", borderColor: "#16A34A", bg: "#16A34A05" },
-    { label: "Gross Bill",  value: `₹${bill.grossBill.toFixed(0)}`, color: "#D4500A", borderColor: "#D4500A", bg: "#D4500A05" },
+    { label: "Total Paid",  value: `₹${totalAdvance.toFixed(0)}`, color: "#16A34A", borderColor: "#16A34A", bg: "#16A34A08" },
+    { label: "Gross Bill",  value: `₹${bill.grossBill.toFixed(0)}`, color: "#2563EB", borderColor: "#2563EB", bg: "#2563EB08" },
     {
       label: bill.dueAmount > 0 ? "Due" : "Credit",
       value: `₹${(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance).toFixed(0)}`,
-      color: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
-      borderColor: bill.dueAmount > 0 ? "#DC2626" : "#16A34A",
-      bg: bill.dueAmount > 0 ? "#DC262605" : "#16A34A05",
+      color: bill.dueAmount > 0 ? "#EF4444" : "#16A34A",
+      borderColor: bill.dueAmount > 0 ? "#EF4444" : "#16A34A",
+      bg: bill.dueAmount > 0 ? "#EF444408" : "#16A34A08",
     },
   ];
 
@@ -110,14 +110,16 @@ export default function MemberAdvances() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
         removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Feather name="credit-card" size={44} color={colors.muted} />
+            <View style={[styles.emptyIconWrap, { backgroundColor: "#EFF6FF" }]}>
+              <Feather name="credit-card" size={32} color="#2563EB" />
+            </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Advances</Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
               Contact admin to record advance payments
@@ -130,7 +132,7 @@ export default function MemberAdvances() {
             style={{ marginBottom: 12 }}
           >
             <View style={[styles.advCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.advIcon, { backgroundColor: "#16A34A20" }]}>
+              <View style={[styles.advIcon, { backgroundColor: "#16A34A18" }]}>
                 <Feather name="arrow-up-right" size={20} color="#16A34A" />
               </View>
               <View style={styles.advInfo}>
@@ -141,9 +143,7 @@ export default function MemberAdvances() {
                   {a.date} · {a.method}
                 </Text>
                 {a.notes ? (
-                  <Text style={[styles.advNotes, { color: colors.mutedForeground }]}>
-                    {a.notes}
-                  </Text>
+                  <Text style={[styles.advNotes, { color: colors.mutedForeground }]}>{a.notes}</Text>
                 ) : null}
               </View>
               <View style={[styles.paidBadge, { backgroundColor: "#16A34A18" }]}>
@@ -159,13 +159,10 @@ export default function MemberAdvances() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  summaryRow: {
-    flexDirection: "row", paddingHorizontal: 20,
-    gap: 12, marginVertical: 20,
-  },
+  summaryRow: { flexDirection: "row", paddingHorizontal: 20, gap: 12, marginVertical: 20 },
   summaryCard: {
     flex: 1, borderRadius: 20, padding: 18, alignItems: "center", borderWidth: 2,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   summaryLabel: {
@@ -176,7 +173,7 @@ const styles = StyleSheet.create({
   advCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
     borderRadius: 16, padding: 16,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   advIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
@@ -186,6 +183,7 @@ const styles = StyleSheet.create({
   advNotes: { fontSize: 12, marginTop: 2 },
   paidBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
   paidText: { fontSize: 12, fontWeight: "700" },
+  emptyIconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", paddingTop: 80, paddingHorizontal: 40, gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: "700" },
   emptyText: { fontSize: 14, textAlign: "center" },

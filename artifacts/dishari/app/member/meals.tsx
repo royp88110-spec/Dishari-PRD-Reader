@@ -78,7 +78,7 @@ export default function MemberMeals() {
       {/* Summary cards — staggered entrance */}
       <View style={styles.summaryRow}>
         {[
-          { label: "Morning", count: totalMorning, color: "#D4500A", delay: 60 },
+          { label: "Morning", count: totalMorning, color: "#2563EB", delay: 60 },
           { label: "Night",   count: totalNight,   color: "#7C3AED", delay: 130 },
           { label: "Total",   count: totalMeals,   color: "#0891B2", delay: 200 },
         ].map(({ label, count, color, delay }) => (
@@ -99,7 +99,7 @@ export default function MemberMeals() {
         style={[styles.tableHeader, { backgroundColor: colors.muted }]}
       >
         <Text style={[styles.colDate,  { color: colors.mutedForeground }]}>DATE</Text>
-        <Text style={[styles.colMeal,  { color: "#D4500A" }]}>MORNING</Text>
+        <Text style={[styles.colMeal,  { color: "#2563EB" }]}>MORNING</Text>
         <Text style={[styles.colMeal,  { color: "#7C3AED" }]}>NIGHT</Text>
         <Text style={[styles.colTotal, { color: colors.mutedForeground }]}>TOTAL</Text>
       </Animated.View>
@@ -113,8 +113,8 @@ export default function MemberMeals() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
         removeClippedSubviews={false}
@@ -134,9 +134,7 @@ export default function MemberMeals() {
           const dayName = new Date(m.date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short" });
           const dayNum  = m.date.split("-")[2];
           return (
-            <Animated.View
-              entering={FadeInDown.delay(Math.min(index, 12) * 45).duration(320)}
-            >
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 12) * 45).duration(320)}>
               <View style={styles.mealRow}>
                 <View style={styles.dateCol}>
                   <Text style={[styles.dayNum, { color: colors.foreground }]}>{dayNum}</Text>
@@ -145,30 +143,24 @@ export default function MemberMeals() {
                 <View style={styles.mealCol}>
                   <View style={[
                     styles.mealBadge,
-                    { backgroundColor: m.morning ? "#D4500A20" : colors.muted },
+                    { backgroundColor: m.morning ? "#2563EB18" : colors.muted },
                   ]}>
-                    <Feather
-                      name={m.morning ? "check" : "x"}
-                      size={16}
-                      color={m.morning ? "#D4500A" : colors.mutedForeground}
-                    />
+                    <Feather name={m.morning ? "check" : "x"} size={16}
+                      color={m.morning ? "#2563EB" : colors.mutedForeground} />
                   </View>
                 </View>
                 <View style={styles.mealCol}>
                   <View style={[
                     styles.mealBadge,
-                    { backgroundColor: m.night ? "#7C3AED20" : colors.muted },
+                    { backgroundColor: m.night ? "#7C3AED18" : colors.muted },
                   ]}>
-                    <Feather
-                      name={m.night ? "check" : "x"}
-                      size={16}
-                      color={m.night ? "#7C3AED" : colors.mutedForeground}
-                    />
+                    <Feather name={m.night ? "check" : "x"} size={16}
+                      color={m.night ? "#7C3AED" : colors.mutedForeground} />
                   </View>
                 </View>
                 <View style={[
                   styles.totalBadge,
-                  { backgroundColor: total > 0 ? "#0891B220" : colors.muted },
+                  { backgroundColor: total > 0 ? "#0891B218" : colors.muted },
                 ]}>
                   <Text style={[
                     styles.totalText,
@@ -191,7 +183,7 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 12, marginVertical: 16 },
   summaryCard: {
     flex: 1, borderRadius: 20, padding: 18, alignItems: "center",
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
   },
   summaryCount: { fontSize: 26, fontWeight: "700" },
@@ -211,14 +203,8 @@ const styles = StyleSheet.create({
   dayNum:  { fontSize: 16, fontWeight: "700" },
   dayName: { fontSize: 11 },
   mealCol: { flex: 1, alignItems: "center" },
-  mealBadge: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: "center", justifyContent: "center",
-  },
-  totalBadge: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: "center", justifyContent: "center",
-  },
+  mealBadge: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  totalBadge: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   totalText: { fontSize: 15, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },

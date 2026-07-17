@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 export default function MemberLayout() {
@@ -10,26 +10,23 @@ export default function MemberLayout() {
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
-  // Tab bar height: give enough room for icon (22) + gap + label (~16) + padding
   const TAB_HEIGHT = isWeb ? 84 : isIOS ? 83 : 68;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#D4500A",
-        tabBarInactiveTintColor: "#BFA99A",
+        tabBarActiveTintColor: "#2563EB",
+        tabBarInactiveTintColor: "#94A3B8",
         headerStyle: { backgroundColor: colors.card },
         headerTintColor: colors.foreground,
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: "700", fontSize: 18 },
         tabBarStyle: {
           position: "absolute",
-          // On iOS: transparent so BlurView shows through.
-          // On Android/web: solid white — no extra background component needed.
           backgroundColor: isIOS ? "transparent" : "#FFFFFF",
           borderTopWidth: 0,
           elevation: 12,
-          shadowColor: "#8B2200",
+          shadowColor: "#1E40AF",
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.10,
           shadowRadius: 16,
@@ -37,7 +34,6 @@ export default function MemberLayout() {
           paddingTop: 6,
           paddingBottom: isIOS ? 0 : 10,
         },
-        // tabBarItemStyle: vertical centering of icon+label within each cell
         tabBarItemStyle: {
           paddingVertical: 0,
         },
@@ -47,9 +43,6 @@ export default function MemberLayout() {
           marginTop: 2,
           marginBottom: isWeb ? 14 : 0,
         },
-        // Use BlurView only on iOS; skip the custom background on Android
-        // (a transparent backgroundColor + elevation is sufficient there and
-        // avoids any rendering-order issues that can hide icons).
         tabBarBackground: isIOS
           ? () => (
               <BlurView

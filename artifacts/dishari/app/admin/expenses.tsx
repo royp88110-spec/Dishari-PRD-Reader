@@ -28,12 +28,12 @@ import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
 
 const CATEGORIES = [
-  { key: "all",       label: "All",     icon: "list",           color: "#374151" },
-  { key: "grocery",   label: "Grocery", icon: "shopping-bag",   color: "#D4500A" },
-  { key: "vegetable", label: "Veg",     icon: "box",            color: "#16A34A" },
-  { key: "fish",      label: "Fish",    icon: "droplet",        color: "#0891B2" },
-  { key: "meat",      label: "Meat",    icon: "heart",          color: "#DC2626" },
-  { key: "gas",       label: "Gas",     icon: "zap",            color: "#D97706" },
+  { key: "all",       label: "All",     icon: "list",            color: "#374151" },
+  { key: "grocery",   label: "Grocery", icon: "shopping-bag",    color: "#2563EB" },
+  { key: "vegetable", label: "Veg",     icon: "box",             color: "#16A34A" },
+  { key: "fish",      label: "Fish",    icon: "droplet",         color: "#0891B2" },
+  { key: "meat",      label: "Meat",    icon: "heart",           color: "#EF4444" },
+  { key: "gas",       label: "Gas",     icon: "zap",             color: "#F59E0B" },
   { key: "other",     label: "Other",   icon: "more-horizontal", color: "#7C3AED" },
 ];
 
@@ -140,7 +140,6 @@ export default function ExpensesScreen() {
   const getCatInfo = (type: string) =>
     CATEGORIES.find((c) => c.key === type) ?? CATEGORIES[CATEGORIES.length - 1];
 
-  // FAB spring animation
   const fabScale = useSharedValue(1);
   const fabStyle = useAnimatedStyle(() => ({
     transform: [{ scale: fabScale.value }],
@@ -218,14 +217,16 @@ export default function ExpensesScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#D4500A"]}
-            tintColor="#D4500A"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
         removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Feather name="dollar-sign" size={40} color={colors.muted} />
+            <View style={[styles.emptyIcon, { backgroundColor: "#EFF6FF" }]}>
+              <Feather name="dollar-sign" size={32} color="#2563EB" />
+            </View>
             <Text style={{ color: colors.mutedForeground, fontSize: 15 }}>
               No expenses found
             </Text>
@@ -239,7 +240,7 @@ export default function ExpensesScreen() {
               style={{ marginBottom: 10 }}
             >
               <View style={[styles.expenseCard, { backgroundColor: colors.card }]}>
-                <View style={[styles.expenseIcon, { backgroundColor: cat.color + "20" }]}>
+                <View style={[styles.expenseIcon, { backgroundColor: cat.color + "18" }]}>
                   <Feather name={cat.icon as "list"} size={20} color={cat.color} />
                 </View>
                 <View style={styles.expenseInfo}>
@@ -280,7 +281,7 @@ export default function ExpensesScreen() {
       >
         <Animated.View style={[styles.fabWrapper, fabStyle]}>
           <LinearGradient
-            colors={["#E25C14", "#AD3806"]}
+            colors={["#3B82F6", "#2563EB"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.fab}
@@ -295,6 +296,9 @@ export default function ExpensesScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
+              <View style={[styles.modalHeaderIcon, { backgroundColor: "#EFF6FF" }]}>
+                <Feather name={editing ? "edit-2" : "plus"} size={18} color="#2563EB" />
+              </View>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                 {editing ? "Edit Expense" : "Add Expense"}
               </Text>
@@ -302,6 +306,7 @@ export default function ExpensesScreen() {
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </Pressable>
             </View>
+            <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>CATEGORY</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
@@ -335,7 +340,7 @@ export default function ExpensesScreen() {
                 <View key={key} style={styles.formGroup}>
                   <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   <TextInput
-                    style={[styles.formInput, { color: colors.foreground }]}
+                    style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
                     placeholder={placeholder}
                     placeholderTextColor={colors.mutedForeground}
                     value={String((form as Record<string, unknown>)[key] ?? "")}
@@ -347,7 +352,7 @@ export default function ExpensesScreen() {
               <View style={styles.formGroup}>
                 <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>AMOUNT (₹) *</Text>
                 <TextInput
-                  style={[styles.formInput, { color: colors.foreground }]}
+                  style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
                   placeholder="0"
                   placeholderTextColor={colors.mutedForeground}
                   value={form.amount ? String(form.amount) : ""}
@@ -362,7 +367,7 @@ export default function ExpensesScreen() {
                 disabled={isSaving}
               >
                 <LinearGradient
-                  colors={["#E25C14", "#AD3806"]}
+                  colors={["#3B82F6", "#2563EB"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.saveBtn}
@@ -396,13 +401,13 @@ const styles = StyleSheet.create({
   filterTotal: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     marginHorizontal: 16, marginBottom: 12, borderRadius: 20, padding: 18,
-    shadowColor: "#C04000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
   },
   expenseCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
     borderRadius: 16, padding: 14,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   expenseIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
@@ -414,28 +419,37 @@ const styles = StyleSheet.create({
   actionBtn: { padding: 6 },
   fabWrapper: {
     position: "absolute", right: 20, bottom: 100,
-    shadowColor: "#AD3806", shadowOffset: { width: 0, height: 6 },
+    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
   },
   fab: {
     width: 56, height: 56, borderRadius: 28,
     alignItems: "center", justifyContent: "center",
   },
-  empty: { alignItems: "center", paddingTop: 60, gap: 12 },
-  modalOverlay: { flex: 1, backgroundColor: "#00000060", justifyContent: "flex-end" },
-  modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "90%" },
-  modalHeader: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 20,
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36,
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
   },
-  modalTitle: { fontSize: 20, fontWeight: "700" },
+  empty: { alignItems: "center", paddingTop: 60, gap: 8 },
+  modalOverlay: { flex: 1, backgroundColor: "#00000055", justifyContent: "flex-end" },
+  modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: "92%" },
+  modalHeader: {
+    flexDirection: "row", alignItems: "center",
+    gap: 12, marginBottom: 16,
+  },
+  modalHeaderIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  modalTitle: { flex: 1, fontSize: 20, fontWeight: "700" },
+  modalDivider: { height: 1, marginBottom: 20 },
   formGroup: { marginBottom: 14 },
   formLabel: {
     fontSize: 11, fontWeight: "700", marginBottom: 6,
     textTransform: "uppercase", letterSpacing: 0.5,
   },
   formInput: {
-    backgroundColor: "#FFF4EE", borderWidth: 1.5, borderColor: "#EDE0D8",
+    borderWidth: 1.5,
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16,
   },
   saveBtn: { borderRadius: 16, paddingVertical: 16, alignItems: "center" },
