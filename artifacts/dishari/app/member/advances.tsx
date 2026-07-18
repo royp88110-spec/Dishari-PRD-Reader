@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { GradientBackground } from "@/components/GradientBackground";
 import {
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
@@ -50,9 +51,11 @@ export default function MemberAdvances() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { advances, calculateMonthlyBill } = useData();
+  const { advances, calculateMonthlyBill, refresh } = useData();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
+
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   const memberId   = user?.memberId ?? "";
   const myAdvances = advances
@@ -152,12 +155,14 @@ export default function MemberAdvances() {
 
 const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 12, marginVertical: 20 },
+  // overflow:"hidden" intentionally omitted — on Android/Expo Go it clips Animated.View children,
+  // hiding all text. borderRadius on the LinearGradient child is sufficient.
   summaryCardWrapper: {
-    flex: 1, borderRadius: 20, overflow: "hidden",
+    flex: 1, borderRadius: 20,
     shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18, shadowRadius: 12, elevation: 6,
   },
-  summaryCard: { flex: 1, borderRadius: 20, padding: 16, alignItems: "center" },
+  summaryCard: { borderRadius: 20, padding: 16, minHeight: 80, alignItems: "center", justifyContent: "center" },
   summaryLabel: { fontSize: 11, marginBottom: 6, fontWeight: "600", color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: 0.5 },
   summaryVal: { fontSize: 22, fontWeight: "800", color: "#fff" },
   advCard: {

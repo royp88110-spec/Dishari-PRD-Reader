@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -11,6 +11,7 @@ import {
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
@@ -47,9 +48,11 @@ export default function MemberFinesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { fines } = useData();
+  const { fines, refresh } = useData();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
+
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   const memberId = user?.memberId ?? "";
   const myFines  = fines.filter(

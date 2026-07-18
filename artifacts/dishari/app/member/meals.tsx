@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { GradientBackground } from "@/components/GradientBackground";
 import {
@@ -13,6 +13,7 @@ import {
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
@@ -50,9 +51,11 @@ export default function MemberMeals() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { meals } = useData();
+  const { meals, refresh } = useData();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
+
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
   const memberId = user?.memberId ?? "";
   const memberMeals = meals
@@ -163,8 +166,10 @@ export default function MemberMeals() {
 
 const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 12, marginVertical: 16 },
-  summaryCardWrapper: { flex: 1, borderRadius: 20, overflow: "hidden", shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
-  summaryCard: { flex: 1, borderRadius: 20, padding: 18, alignItems: "center" },
+  // overflow:"hidden" intentionally omitted — on Android/Expo Go it clips Animated.View children,
+  // hiding all text. borderRadius on the LinearGradient child is sufficient.
+  summaryCardWrapper: { flex: 1, borderRadius: 20, shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
+  summaryCard: { borderRadius: 20, padding: 18, minHeight: 80, alignItems: "center", justifyContent: "center" },
   summaryCount: { fontSize: 26, fontWeight: "800", color: "#fff" },
   summaryLabel: { fontSize: 12, marginTop: 4, color: "rgba(255,255,255,0.85)", fontWeight: "600" },
   tableHeader: {
