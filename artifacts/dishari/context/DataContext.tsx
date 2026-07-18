@@ -147,17 +147,40 @@ const apiCall = async (method: string, path: string, body?: unknown): Promise<un
   const { getSupabase } = await import("@/lib/supabase");
   const { data: { session } } = await getSupabase().auth.getSession();
   const token = session?.access_token;
-  const res = await fetch(`${getApiBase()}/api${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const url = `${getApiBase()}/api${path}`;
+  console.log(`[apiCall] ${method} ${url}`);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkErr) {
+    console.error(`[apiCall] Network error for ${method} ${url}:`, networkErr);
+    throw new Error("Cannot reach the server. Check your connection and try again.");
+  }
+  const contentType = res.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
   if (!res.ok) {
+    if (isJson) {
+      const json = await res.json() as { error?: string; message?: string };
+      const msg = json.error ?? json.message ?? `HTTP ${res.status}`;
+      console.error(`[apiCall] ${method} ${url} → ${res.status}:`, msg);
+      throw new Error(msg);
+    }
+    // HTML or other non-JSON error page — never expose raw markup to the user
     const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    console.error(`[apiCall] ${method} ${url} → ${res.status} (non-JSON):`, text.slice(0, 300));
+    throw new Error(`Server returned an unexpected response (HTTP ${res.status}). Please try again.`);
+  }
+  if (!isJson) {
+    const text = await res.text();
+    console.error(`[apiCall] ${method} ${url} returned non-JSON content-type "${contentType}":`, text.slice(0, 300));
+    throw new Error("Server returned an unexpected response format. Please try again.");
   }
   return res.json() as Promise<unknown>;
 };
