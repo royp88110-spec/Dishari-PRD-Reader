@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
@@ -112,7 +111,6 @@ export default function ExpensesScreen() {
       } else {
         await addExpense(form);
       }
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
     } catch (err) {
       Alert.alert("Save Failed", (err as Error).message || "Something went wrong.");
@@ -129,7 +127,6 @@ export default function ExpensesScreen() {
         onPress: async () => {
           try {
             await deleteExpense(e.id);
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch (err) {
             Alert.alert("Delete Failed", (err as Error).message || "Could not delete expense.");
           }

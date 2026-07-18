@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -170,7 +169,6 @@ export default function AdminDashboard() {
         setPaySuccess("Payment marked as unpaid.");
       } else {
         await markPaid(memberId, month, dueAmount);
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setPaySuccess("Payment recorded successfully.");
       }
       if (successTimerRef.current) clearTimeout(successTimerRef.current);

@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import React, { useCallback, useRef, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -216,7 +215,6 @@ export default function MealsScreen() {
       const existing = mealsRef.current.find((m) => m.memberId === memberId && m.date === date);
       const morning = existing?.morning ?? false;
       const night = existing?.night ?? false;
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       return setMealRef.current(
         memberId,
         date,
@@ -241,7 +239,6 @@ export default function MealsScreen() {
     setMealsBatchRef.current(entries).catch((err: Error) => {
       Alert.alert("Sync Failed", err.message || "Bulk meal update could not be saved. The display has been reverted.");
     });
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
 
   const changeDate = (offset: number) => {

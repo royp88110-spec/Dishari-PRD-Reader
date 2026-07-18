@@ -1,7 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -95,13 +93,12 @@ export default function LoginScreen() {
     setError("");
     const ok = await login(phone.trim(), password);
     setLoading(false);
-    if (ok) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/");
-    } else {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    if (!ok) {
       setError("Invalid credentials. Please try again.");
     }
+    // On success: AuthGuard detects the new user state and navigates to
+    // /admin or /member directly — no router.replace() here, which avoids
+    // the flash of the index loading screen.
   };
 
   return (

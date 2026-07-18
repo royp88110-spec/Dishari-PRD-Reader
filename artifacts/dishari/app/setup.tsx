@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -57,7 +56,6 @@ export default function SetupScreen() {
         setError(data.error ?? "Setup failed. Please try again.");
         return;
       }
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshSetupStatus();
       router.replace("/login");
     } catch {

@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -199,7 +198,6 @@ export default function MoreScreen() {
     setIsSavingEgg(true);
     try {
       await setEggEntry(eggForm.memberId, eggForm.date, parseInt(eggForm.count) || 0);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setEggModal(false);
     } catch (err) {
       Alert.alert("Save Failed", (err as Error).message || "Could not save egg entry.");
@@ -215,7 +213,6 @@ export default function MoreScreen() {
     setIsSavingAdv(true);
     try {
       await addAdvance({ memberId: advForm.memberId, amount: parseFloat(advForm.amount) || 0, date: advForm.date, method: advForm.method, notes: advForm.notes });
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setAdvModal(false);
       setAdvForm({ memberId: "", amount: "", date: TODAY, method: "Cash", notes: "" });
     } catch (err) {
@@ -258,7 +255,6 @@ export default function MoreScreen() {
       } else {
         await addFine(payload);
       }
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setFineModal(false);
       setEditingFine(null);
     } catch (err) {

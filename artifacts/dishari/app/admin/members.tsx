@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import React, { useCallback, useRef, useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -171,7 +170,6 @@ export default function MembersScreen() {
       } else {
         await addMember(form);
       }
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
     } catch (err) {
       Alert.alert("Save Failed", (err as Error).message || "Something went wrong.");
@@ -188,7 +186,6 @@ export default function MembersScreen() {
         onPress: async () => {
           try {
             await deleteMember(m.id);
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch (err) {
             Alert.alert("Delete Failed", (err as Error).message || "Could not delete member.");
           }
@@ -200,7 +197,6 @@ export default function MembersScreen() {
   const toggleStatus = useCallback(async (m: Member) => {
     try {
       await updateMember(m.id, { status: m.status === "active" ? "inactive" : "active" });
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (err) {
       Alert.alert("Error", (err as Error).message || "Could not update status.");
     }

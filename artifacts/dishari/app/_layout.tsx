@@ -27,6 +27,15 @@ function AuthGuard() {
   const { user, isLoading, needsSetup, schemaNotReady, supabaseReady } = useAuth();
   const segments = useSegments();
 
+  // Keep the splash screen visible until auth has fully resolved.
+  // Fonts are already loaded by the time this component mounts (RootLayout
+  // returns null until fonts are ready), so we only need to wait on auth.
+  useEffect(() => {
+    if (!isLoading) {
+      void SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
+
   useEffect(() => {
     // Wait until auth has fully initialised before making routing decisions.
     if (isLoading) return;
@@ -44,11 +53,10 @@ function AuthGuard() {
 
     if (!user) {
       // Signed out — push off any protected screen immediately
-      if (onProtected) {
-        router.replace("/login");
-      }
+      if (onProtected) router.replace("/login");
+      // If already on login or index, stay put — no navigation needed
     } else {
-      // Signed in — push off the login / splash screen
+      // Signed in — route to the correct home screen
       if (onLogin || onIndex) {
         router.replace(user.role === "admin" ? "/admin" : "/member");
       }
@@ -84,12 +92,8 @@ export default function RootLayout() {
     ...Feather.font,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
+  // Do NOT call SplashScreen.hideAsync() here — AuthGuard owns that once auth resolves.
+  // Returning null keeps the native splash visible while fonts are loading.
   if (!fontsLoaded && !fontError) return null;
 
   return (
