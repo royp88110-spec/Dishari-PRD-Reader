@@ -2,55 +2,88 @@ import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform, StyleSheet } from "react-native";
-import { useColors } from "@/hooks/useColors";
+import { Platform, StyleSheet, View } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PRIMARY } from "@/constants/colors";
+
+const INACTIVE = "#9CA3AF";
+
+function TabIcon({
+  name,
+  color,
+  focused,
+}: {
+  name: React.ComponentProps<typeof Feather>["name"];
+  color: string;
+  focused: boolean;
+}) {
+  const scale = useSharedValue(focused ? 1.08 : 1);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withSpring(focused ? 1.12 : 1, { damping: 14, stiffness: 200 }) }],
+  }));
+
+  return (
+    <Animated.View style={[styles.iconWrap, animStyle]}>
+      {focused && <View style={styles.activeDot} />}
+      <Feather name={name} size={22} color={color} />
+    </Animated.View>
+  );
+}
 
 export default function AdminLayout() {
-  const colors = useColors();
+  const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
-
-  const TAB_HEIGHT = isWeb ? 84 : isIOS ? 83 : 68;
+  const TAB_HEIGHT = 68;
+  const tabBottom = isIOS
+    ? Math.max(insets.bottom, 16)
+    : 16;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#2563EB",
-        tabBarInactiveTintColor: "#94A3B8",
-        headerStyle: { backgroundColor: colors.card },
-        headerTintColor: colors.foreground,
-        headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: "700", fontSize: 18 },
+        tabBarActiveTintColor: PRIMARY,
+        tabBarInactiveTintColor: INACTIVE,
+        headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : "#FFFFFF",
-          borderTopWidth: 0,
-          elevation: 12,
-          shadowColor: "#1E40AF",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.10,
-          shadowRadius: 16,
+          left: 12,
+          right: 12,
+          bottom: tabBottom,
           height: TAB_HEIGHT,
+          borderRadius: 28,
+          backgroundColor: isIOS ? "transparent" : "rgba(255,255,255,0.94)",
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: "rgba(255,255,255,0.65)",
+          elevation: 24,
+          shadowColor: "#4F46E5",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.18,
+          shadowRadius: 24,
           paddingTop: 6,
-          paddingBottom: isIOS ? 0 : 10,
+          paddingBottom: isWeb ? 14 : 8,
         },
         tabBarItemStyle: { paddingVertical: 0 },
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: "600",
+          fontWeight: "700",
           marginTop: 2,
-          marginBottom: isWeb ? 14 : 0,
         },
         tabBarBackground: isIOS
           ? () => (
               <BlurView
-                intensity={95}
+                intensity={90}
                 tint="light"
-                style={StyleSheet.absoluteFill}
+                style={[StyleSheet.absoluteFill, { borderRadius: 28 }]}
               />
             )
           : undefined,
-        headerShown: false,
       }}
     >
       <Tabs.Screen
@@ -58,8 +91,8 @@ export default function AdminLayout() {
         options={{
           title: "Dashboard",
           tabBarLabel: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={size ?? 22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="home" color={color} focused={focused} />
           ),
         }}
       />
@@ -68,8 +101,8 @@ export default function AdminLayout() {
         options={{
           title: "Members",
           tabBarLabel: "Members",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="users" size={size ?? 22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="users" color={color} focused={focused} />
           ),
         }}
       />
@@ -78,8 +111,8 @@ export default function AdminLayout() {
         options={{
           title: "Meals",
           tabBarLabel: "Meals",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="grid" size={size ?? 22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="grid" color={color} focused={focused} />
           ),
         }}
       />
@@ -88,8 +121,8 @@ export default function AdminLayout() {
         options={{
           title: "Expenses",
           tabBarLabel: "Expenses",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="dollar-sign" size={size ?? 22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="dollar-sign" color={color} focused={focused} />
           ),
         }}
       />
@@ -98,11 +131,27 @@ export default function AdminLayout() {
         options={{
           title: "More",
           tabBarLabel: "More",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="more-horizontal" size={size ?? 22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="more-horizontal" color={color} focused={focused} />
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  activeDot: {
+    position: "absolute",
+    top: -6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: PRIMARY,
+  },
+});

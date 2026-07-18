@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Expense, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
+import { BG_GRADIENT, PRIMARY } from "@/constants/colors";
 
 const CATEGORIES = [
   { key: "all",       label: "All",     icon: "list",            color: "#374151" },
@@ -146,7 +147,7 @@ export default function ExpensesScreen() {
   }));
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <LinearGradient colors={BG_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.screen}>
       <ScreenHeader
         title="Expenses"
         icon="dollar-sign"
@@ -217,15 +218,15 @@ export default function ExpensesScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#2563EB"]}
-            tintColor="#2563EB"
+            colors={[PRIMARY]}
+            tintColor={PRIMARY}
           />
         }
         removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={[styles.emptyIcon, { backgroundColor: "#EFF6FF" }]}>
-              <Feather name="dollar-sign" size={32} color="#2563EB" />
+            <View style={[styles.emptyIcon, { backgroundColor: "rgba(79,70,229,0.10)" }]}>
+              <Feather name="dollar-sign" size={32} color={PRIMARY} />
             </View>
             <Text style={{ color: colors.mutedForeground, fontSize: 15 }}>
               No expenses found
@@ -281,7 +282,7 @@ export default function ExpensesScreen() {
       >
         <Animated.View style={[styles.fabWrapper, fabStyle]}>
           <LinearGradient
-            colors={["#3B82F6", "#2563EB"]}
+            colors={[PRIMARY, "#7C3AED"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.fab}
@@ -296,8 +297,8 @@ export default function ExpensesScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <View style={[styles.modalHeaderIcon, { backgroundColor: "#EFF6FF" }]}>
-                <Feather name={editing ? "edit-2" : "plus"} size={18} color="#2563EB" />
+              <View style={[styles.modalHeaderIcon, { backgroundColor: "rgba(79,70,229,0.10)" }]}>
+                <Feather name={editing ? "edit-2" : "plus"} size={18} color={PRIMARY} />
               </View>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                 {editing ? "Edit Expense" : "Add Expense"}
@@ -367,7 +368,7 @@ export default function ExpensesScreen() {
                 disabled={isSaving}
               >
                 <LinearGradient
-                  colors={["#3B82F6", "#2563EB"]}
+                  colors={[PRIMARY, "#7C3AED"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.saveBtn}
@@ -381,7 +382,7 @@ export default function ExpensesScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -401,14 +402,16 @@ const styles = StyleSheet.create({
   filterTotal: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     marginHorizontal: 16, marginBottom: 12, borderRadius: 20, padding: 18,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   expenseCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
     borderRadius: 16, padding: 14,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
   expenseIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   expenseInfo: { flex: 1 },
@@ -419,7 +422,7 @@ const styles = StyleSheet.create({
   actionBtn: { padding: 6 },
   fabWrapper: {
     position: "absolute", right: 20, bottom: 100,
-    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 6 },
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
   },
   fab: {

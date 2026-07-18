@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Member, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
+import { BG_GRADIENT, PRIMARY } from "@/constants/colors";
 
 const EMPTY: Omit<Member, "id"> = {
   name: "", phone: "", email: "", roomNumber: "",
@@ -65,8 +66,8 @@ const MemberCard = React.memo(function MemberCard({
           <MemberAvatar
             name={member.name}
             size={44}
-            bgColor={member.status === "active" ? "#2563EB20" : colors.muted}
-            textColor={member.status === "active" ? "#2563EB" : colors.mutedForeground}
+            bgColor={member.status === "active" ? `${PRIMARY}20` : colors.muted}
+            textColor={member.status === "active" ? PRIMARY : colors.mutedForeground}
           />
           <View style={styles.memberInfo}>
             <View style={styles.memberNameRow}>
@@ -206,7 +207,7 @@ export default function MembersScreen() {
   }, [updateMember]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <LinearGradient colors={BG_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.screen}>
       <ScreenHeader
         title="Members"
         icon="users"
@@ -242,15 +243,15 @@ export default function MembersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#2563EB"]}
-            tintColor="#2563EB"
+            colors={[PRIMARY]}
+            tintColor={PRIMARY}
           />
         }
         removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={[styles.emptyIcon, { backgroundColor: "#EFF6FF" }]}>
-              <Feather name="users" size={32} color="#2563EB" />
+            <View style={[styles.emptyIcon, { backgroundColor: "rgba(79,70,229,0.10)" }]}>
+              <Feather name="users" size={32} color={PRIMARY} />
             </View>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
               No members found
@@ -281,7 +282,7 @@ export default function MembersScreen() {
       >
         <Animated.View style={[styles.fabWrapper, fabStyle]}>
           <LinearGradient
-            colors={["#3B82F6", "#2563EB"]}
+            colors={[PRIMARY, "#7C3AED"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.fab}
@@ -296,8 +297,8 @@ export default function MembersScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <View style={[styles.modalHeaderIcon, { backgroundColor: "#EFF6FF" }]}>
-                <Feather name={editing ? "edit-2" : "user-plus"} size={18} color="#2563EB" />
+              <View style={[styles.modalHeaderIcon, { backgroundColor: "rgba(79,70,229,0.10)" }]}>
+                <Feather name={editing ? "edit-2" : "user-plus"} size={18} color={PRIMARY} />
               </View>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                 {editing ? "Edit Member" : "Add Member"}
@@ -341,15 +342,15 @@ export default function MembersScreen() {
                       style={[
                         styles.statusOpt,
                         {
-                          borderColor: form.status === s ? "#2563EB" : colors.border,
-                          backgroundColor: form.status === s ? "#EFF6FF" : colors.muted,
+                          borderColor: form.status === s ? PRIMARY : colors.border,
+                          backgroundColor: form.status === s ? "rgba(79,70,229,0.08)" : colors.muted,
                         },
                       ]}
                       onPress={() => setForm((f) => ({ ...f, status: s }))}
                     >
                       <Text style={[
                         styles.statusOptText,
-                        { color: form.status === s ? "#2563EB" : colors.mutedForeground },
+                        { color: form.status === s ? PRIMARY : colors.mutedForeground },
                       ]}>
                         {s.charAt(0).toUpperCase() + s.slice(1)}
                       </Text>
@@ -364,7 +365,7 @@ export default function MembersScreen() {
                 disabled={isSaving}
               >
                 <LinearGradient
-                  colors={["#3B82F6", "#2563EB"]}
+                  colors={[PRIMARY, "#7C3AED"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.saveBtn}
@@ -378,7 +379,7 @@ export default function MembersScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -390,8 +391,10 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 10,
     marginHorizontal: 16, marginBottom: 16, marginTop: 12,
     borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 14, elevation: 4,
   },
   searchIcon: {
     width: 34, height: 34, borderRadius: 10,
@@ -401,8 +404,9 @@ const styles = StyleSheet.create({
   memberCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
     borderRadius: 18, padding: 16,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
   memberInfo: { flex: 1 },
   memberNameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
@@ -415,7 +419,7 @@ const styles = StyleSheet.create({
   actionBtn: { padding: 8 },
   fabWrapper: {
     position: "absolute", right: 20, bottom: 100,
-    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 6 },
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
   },
   fab: {

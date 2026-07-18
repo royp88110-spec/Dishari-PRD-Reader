@@ -33,6 +33,9 @@ import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { useRefresh } from "@/hooks/useRefresh";
+import { BG_GRADIENT, PRIMARY } from "@/constants/colors";
+
+const BG = BG_GRADIENT;
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SIDEBAR_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 340);
@@ -183,7 +186,7 @@ export default function AdminDashboard() {
   });
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <LinearGradient colors={BG} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.screen}>
       <ScreenHeader
         title="Dashboard"
         icon="home"
@@ -216,8 +219,8 @@ export default function AdminDashboard() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#2563EB"]}
-            tintColor="#2563EB"
+            colors={[PRIMARY]}
+            tintColor={PRIMARY}
           />
         }
       >
@@ -225,35 +228,27 @@ export default function AdminDashboard() {
         <Animated.View entering={FadeInDown.delay(0).duration(350)}>
           <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
             <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
-              <Feather name="chevron-left" size={22} color="#2563EB" />
+              <Feather name="chevron-left" size={22} color={PRIMARY} />
             </Pressable>
             <Text style={[styles.monthText, { color: colors.foreground }]}>
               {monthLabel(month)}
             </Text>
             <Pressable onPress={() => setMonth(nextMonth(month))} style={styles.navArrow}>
-              <Feather name="chevron-right" size={22} color="#2563EB" />
+              <Feather name="chevron-right" size={22} color={PRIMARY} />
             </Pressable>
           </View>
         </Animated.View>
 
         {/* Stat cards — staggered entrance */}
         <View style={styles.statsGrid}>
-          <StatCard
-            label="Active Members" value={String(activeMembers)}
-            icon="users" color="#2563EB" enterDelay={80}
-          />
-          <StatCard
-            label="Total Meals" value={String(totalMeals)}
-            icon="grid" color="#7C3AED" enterDelay={150}
-          />
-          <StatCard
-            label="Expenses" value={`₹${rawExpense.toFixed(0)}`}
-            icon="dollar-sign" color="#0891B2" enterDelay={220}
-          />
-          <StatCard
-            label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`}
-            icon="trending-up" color="#16A34A" enterDelay={290}
-          />
+          <StatCard label="Active Members" value={String(activeMembers)} icon="users"
+            gradient={["#4F46E5", "#7C3AED"]} enterDelay={80} />
+          <StatCard label="Total Meals" value={String(totalMeals)} icon="grid"
+            gradient={["#22D3EE", "#0EA5E9"]} enterDelay={150} />
+          <StatCard label="Expenses" value={`₹${rawExpense.toFixed(0)}`} icon="dollar-sign"
+            gradient={["#FB923C", "#F97316"]} enterDelay={220} />
+          <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up"
+            gradient={["#34D399", "#10B981"]} enterDelay={290} />
         </View>
 
         {/* Status banners */}
@@ -367,8 +362,8 @@ export default function AdminDashboard() {
                     <MemberAvatar
                       name={b.memberName}
                       size={42}
-                      bgColor={isPaid ? "#16A34A20" : "#2563EB20"}
-                      textColor={isPaid ? "#16A34A" : "#2563EB"}
+                      bgColor={isPaid ? "#16A34A20" : `${PRIMARY}20`}
+                      textColor={isPaid ? "#16A34A" : PRIMARY}
                     />
                     <View style={styles.memberBillInfo}>
                       <Text style={[styles.memberBillName, { color: colors.foreground }]}>
@@ -464,8 +459,8 @@ export default function AdminDashboard() {
             ) : monthExpenses.slice(-5).reverse().map((e) => (
               <View key={e.id}>
                 <View style={styles.expenseRow}>
-                  <View style={[styles.expenseIcon, { backgroundColor: "#2563EB18" }]}>
-                    <Feather name="shopping-bag" size={16} color="#2563EB" />
+                  <View style={[styles.expenseIcon, { backgroundColor: `${PRIMARY}18` }]}>
+                    <Feather name="shopping-bag" size={16} color={PRIMARY} />
                   </View>
                   <View style={styles.expenseInfo}>
                     <Text style={[styles.expenseName, { color: colors.foreground }]}>
@@ -507,8 +502,8 @@ export default function AdminDashboard() {
           >
             <View style={styles.sidebarHeader}>
               <View style={styles.sidebarTitleRow}>
-                <View style={[styles.sidebarIconWrap, { backgroundColor: "#2563EB18" }]}>
-                  <Feather name="bell" size={18} color="#2563EB" />
+                <View style={[styles.sidebarIconWrap, { backgroundColor: `${PRIMARY}18` }]}>
+                  <Feather name="bell" size={18} color={PRIMARY} />
                 </View>
                 <Text style={[styles.sidebarTitle, { color: colors.foreground }]}>
                   Announcements
@@ -567,7 +562,7 @@ export default function AdminDashboard() {
                     {a.body}
                   </Text>
                   <View style={styles.annCardFooter}>
-                    <Feather name="clock" size={11} color="#2563EB" />
+                    <Feather name="clock" size={11} color={PRIMARY} />
                     <Text style={styles.annCardDate}>
                       {new Date(a.createdAt).toLocaleDateString("en-IN", {
                         day: "numeric", month: "short", year: "numeric",
@@ -580,7 +575,7 @@ export default function AdminDashboard() {
           </Animated.View>
         </View>
       )}
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -628,7 +623,7 @@ const styles = StyleSheet.create({
   sidebarEmptyHint: { fontSize: 12 },
   annCard: {
     borderRadius: 16, padding: 14, marginBottom: 10,
-    borderLeftWidth: 3, borderLeftColor: "#2563EB",
+    borderLeftWidth: 3, borderLeftColor: PRIMARY,
   },
   annCardHeader: {
     flexDirection: "row", alignItems: "flex-start",
@@ -637,12 +632,14 @@ const styles = StyleSheet.create({
   annCardTitle: { flex: 1, fontSize: 14, fontWeight: "700", lineHeight: 20 },
   annCardBody: { fontSize: 13, lineHeight: 19, marginBottom: 8 },
   annCardFooter: { flexDirection: "row", alignItems: "center", gap: 4 },
-  annCardDate: { fontSize: 11, fontWeight: "600", color: "#2563EB" },
+  annCardDate: { fontSize: 11, fontWeight: "600", color: PRIMARY },
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     marginHorizontal: 20, marginTop: 16, marginBottom: 16, borderRadius: 16, padding: 8,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10, shadowRadius: 14, elevation: 4,
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
@@ -651,22 +648,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, gap: 12, marginBottom: 16,
   },
   statCard: {
-    width: "47%", borderRadius: 20, padding: 18, gap: 6,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    width: "47%", borderRadius: 20, overflow: "hidden",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22, shadowRadius: 12, elevation: 8,
   },
+  statCardInner: { padding: 18, gap: 6 },
   statIcon: {
     width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center", justifyContent: "center",
   },
-  statValue: { fontSize: 24, fontWeight: "700" },
-  statLabel: { fontSize: 12 },
-  statSub: { fontSize: 11, fontWeight: "600" },
+  statValue: { fontSize: 24, fontWeight: "700", color: "#fff" },
+  statLabel: { fontSize: 12, color: "rgba(255,255,255,0.85)" },
+  statSub: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.9)" },
   paymentBanner: {
     marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 18,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   paymentBannerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   paymentBannerText: { fontSize: 14, fontWeight: "600" },
@@ -674,8 +674,9 @@ const styles = StyleSheet.create({
   paymentPillText: { fontSize: 12, fontWeight: "700" },
   section: {
     marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 18,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },

@@ -4,27 +4,33 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { HEADER_GRADIENT } from "@/constants/colors";
 
 type Props = {
   title: string;
-  /** Feather icon shown in the badge when no avatar props are supplied */
   icon?: React.ComponentProps<typeof Feather>["name"];
   subtitle?: string;
   rightElement?: React.ReactNode;
-  /** Optional content rendered inside the gradient below the title row */
   bottomElement?: React.ReactNode;
-  /** When set, replaces the icon badge with a name-initials / photo avatar */
   avatarName?: string;
   avatarUrl?: string;
 };
 
-export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElement, avatarName, avatarUrl }: Props) {
+export function ScreenHeader({
+  title,
+  icon,
+  subtitle,
+  rightElement,
+  bottomElement,
+  avatarName,
+  avatarUrl,
+}: Props) {
   const insets = useSafeAreaInsets();
   const showAvatar = avatarName !== undefined || avatarUrl !== undefined;
 
   return (
     <LinearGradient
-      colors={["#2563EB", "#1D4ED8"]}
+      colors={HEADER_GRADIENT}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.container, { paddingTop: insets.top + 14 }]}
@@ -37,7 +43,7 @@ export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElemen
               photoUrl={avatarUrl}
               size={44}
               borderRadius={14}
-              bgColor="rgba(255,255,255,0.2)"
+              bgColor="rgba(255,255,255,0.22)"
               textColor="#fff"
             />
           ) : (
@@ -56,7 +62,9 @@ export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElemen
         </View>
         {rightElement ? <View>{rightElement}</View> : null}
       </View>
-      {bottomElement ? <View style={styles.bottomSlot}>{bottomElement}</View> : null}
+      {bottomElement ? (
+        <View style={styles.bottomSlot}>{bottomElement}</View>
+      ) : null}
     </LinearGradient>
   );
 }
@@ -64,14 +72,14 @@ export function ScreenHeader({ title, icon, subtitle, rightElement, bottomElemen
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 22,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    shadowColor: "#1E40AF",
+    shadowColor: "#4F46E5",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    elevation: 14,
   },
   topRow: {
     flexDirection: "row",
@@ -88,18 +96,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: "rgba(255,255,255,0.28)",
   },
-  textGroup: {
-    flex: 1,
-  },
+  textGroup: { flex: 1 },
   subtitle: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.75)",
+    color: "rgba(255,255,255,0.78)",
     fontWeight: "500",
     marginBottom: 2,
   },
@@ -109,7 +115,5 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     letterSpacing: -0.3,
   },
-  bottomSlot: {
-    marginTop: 14,
-  },
+  bottomSlot: { marginTop: 14 },
 });

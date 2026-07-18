@@ -10,12 +10,15 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { GradientBackground } from "@/components/GradientBackground";
 import { useRefresh } from "@/hooks/useRefresh";
+import { PRIMARY, PRIMARY2, EMERALD, RED } from "@/constants/colors";
 
 function getCurrentMonth() {
   const d = new Date();
@@ -55,7 +58,7 @@ export default function MemberFinesScreen() {
   const totalFine = myFines.reduce((s, f) => s + f.amount, 0);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <GradientBackground>
       <ScreenHeader
         title="My Fines"
         avatarName={user?.name}
@@ -75,47 +78,45 @@ export default function MemberFinesScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#2563EB"]}
-            tintColor="#2563EB"
-          />
-        }
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 108 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PRIMARY]} tintColor={PRIMARY} />}
       >
-        {/* Summary card — entrance animation */}
-        <Animated.View entering={FadeInDown.delay(60).duration(400)}>
-          <View style={[styles.summaryCard, {
-            backgroundColor: totalFine > 0 ? "#EF444408" : "#16A34A08",
-            borderColor: totalFine > 0 ? "#EF444440" : "#16A34A40",
-          }]}>
-            <View style={[styles.summaryIconWrap, {
-              backgroundColor: totalFine > 0 ? "#EF444418" : "#16A34A18",
-            }]}>
-              <Feather
-                name={totalFine > 0 ? "alert-circle" : "check-circle"}
-                size={24}
-                color={totalFine > 0 ? "#EF4444" : "#16A34A"}
-              />
-            </View>
-            <View style={styles.summaryText}>
-              <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-                {totalFine > 0 ? "Total Fine This Month" : "No Fines This Month"}
-              </Text>
-              <Text style={[styles.summaryAmount, {
-                color: totalFine > 0 ? "#EF4444" : "#16A34A",
-              }]}>
-                {totalFine > 0 ? `₹${totalFine.toFixed(2)}` : "₹0"}
-              </Text>
-              {totalFine > 0 && (
-                <Text style={[styles.summaryNote, { color: colors.mutedForeground }]}>
+        {/* Summary card */}
+        <Animated.View entering={FadeInDown.delay(60).duration(400)} style={{ marginTop: 16, marginBottom: 20 }}>
+          {totalFine > 0 ? (
+            <LinearGradient
+              colors={[RED, "#E11D48"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.summaryCard}
+            >
+              <View style={styles.summaryIconWrap}>
+                <Feather name="alert-circle" size={24} color="rgba(255,255,255,0.9)" />
+              </View>
+              <View style={styles.summaryText}>
+                <Text style={styles.summaryLabelWhite}>Total Fine This Month</Text>
+                <Text style={styles.summaryAmountWhite}>₹{totalFine.toFixed(2)}</Text>
+                <Text style={styles.summaryNoteWhite}>
                   {myFines.length} fine{myFines.length !== 1 ? "s" : ""} · Added to your bill
                 </Text>
-              )}
-            </View>
-          </View>
+              </View>
+            </LinearGradient>
+          ) : (
+            <LinearGradient
+              colors={[EMERALD, "#10B981"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.summaryCard}
+            >
+              <View style={styles.summaryIconWrap}>
+                <Feather name="check-circle" size={24} color="rgba(255,255,255,0.9)" />
+              </View>
+              <View style={styles.summaryText}>
+                <Text style={styles.summaryLabelWhite}>No Fines This Month</Text>
+                <Text style={styles.summaryAmountWhite}>₹0</Text>
+              </View>
+            </LinearGradient>
+          )}
         </Animated.View>
 
         {/* Section heading */}
@@ -129,8 +130,8 @@ export default function MemberFinesScreen() {
         {myFines.length === 0 ? (
           <Animated.View entering={FadeInUp.delay(200).duration(400)}>
             <View style={styles.emptyState}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#16A34A18" }]}>
-                <Feather name="check-circle" size={32} color="#16A34A" />
+              <View style={styles.emptyIcon}>
+                <Feather name="check-circle" size={32} color={EMERALD} />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Fines</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
@@ -145,29 +146,25 @@ export default function MemberFinesScreen() {
               entering={FadeInDown.delay(200 + Math.min(index, 8) * 65).duration(360)}
               style={{ marginBottom: 12 }}
             >
-              <View style={[styles.fineCard, { backgroundColor: colors.card }]}>
+              <View style={styles.fineCard}>
                 <View style={styles.fineCardTop}>
-                  <View style={[styles.fineIconWrap, { backgroundColor: "#EF444418" }]}>
-                    <Feather name="alert-circle" size={20} color="#EF4444" />
+                  <View style={styles.fineIconWrap}>
+                    <LinearGradient colors={[RED, "#E11D48"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fineIconGradient}>
+                      <Feather name="alert-circle" size={18} color="#fff" />
+                    </LinearGradient>
                   </View>
                   <View style={styles.fineInfo}>
-                    <Text style={[styles.fineReason, { color: colors.foreground }]}>
-                      {fine.reason || "Fine"}
-                    </Text>
-                    <Text style={[styles.fineDate, { color: colors.mutedForeground }]}>
-                      {fine.date}
-                    </Text>
+                    <Text style={[styles.fineReason, { color: colors.foreground }]}>{fine.reason || "Fine"}</Text>
+                    <Text style={[styles.fineDate, { color: colors.mutedForeground }]}>{fine.date}</Text>
                   </View>
-                  <View style={[styles.fineAmountBadge, { backgroundColor: "#EF444418" }]}>
+                  <View style={styles.fineAmountBadge}>
                     <Text style={styles.fineAmount}>₹{fine.amount.toFixed(0)}</Text>
                   </View>
                 </View>
                 {fine.notes ? (
                   <View style={[styles.fineNotes, { borderTopColor: colors.border }]}>
                     <Feather name="file-text" size={12} color={colors.mutedForeground} />
-                    <Text style={[styles.fineNotesText, { color: colors.mutedForeground }]}>
-                      {fine.notes}
-                    </Text>
+                    <Text style={[styles.fineNotesText, { color: colors.mutedForeground }]}>{fine.notes}</Text>
                   </View>
                 ) : null}
               </View>
@@ -175,70 +172,63 @@ export default function MemberFinesScreen() {
           ))
         )}
 
-        {/* Info note */}
         {totalFine > 0 && (
           <Animated.View entering={FadeInUp.delay(350).duration(350)}>
-            <View style={[styles.infoBox, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
-              <Feather name="info" size={14} color="#2563EB" />
-              <Text style={[styles.infoText, { color: "#1E40AF" }]}>
+            <View style={styles.infoBox}>
+              <Feather name="info" size={14} color={PRIMARY} />
+              <Text style={[styles.infoText, { color: colors.foreground }]}>
                 Fines are applied when the minimum required meals are not consumed. Contact admin for details.
               </Text>
             </View>
           </Animated.View>
         )}
       </ScrollView>
-    </View>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  headerMonthNav: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 12,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingVertical: 4,
-  },
-  headerNavBtn: { padding: 8 },
-  headerMonthText: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "700", color: "#fff" },
   summaryCard: {
     flexDirection: "row", alignItems: "center", gap: 16,
-    marginTop: 16, marginBottom: 20,
-    borderRadius: 20, padding: 20, borderWidth: 2,
+    borderRadius: 24, padding: 22,
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
   },
   summaryIconWrap: {
-    width: 52, height: 52, borderRadius: 26,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center", justifyContent: "center",
   },
   summaryText: { flex: 1 },
-  summaryLabel: { fontSize: 13, fontWeight: "600", marginBottom: 4 },
-  summaryAmount: { fontSize: 32, fontWeight: "800" },
-  summaryNote: { fontSize: 12, marginTop: 4 },
+  summaryLabelWhite: { fontSize: 13, fontWeight: "600", marginBottom: 4, color: "rgba(255,255,255,0.85)" },
+  summaryAmountWhite: { fontSize: 34, fontWeight: "800", color: "#fff" },
+  summaryNoteWhite: { fontSize: 12, marginTop: 4, color: "rgba(255,255,255,0.8)" },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
   emptyState: { alignItems: "center", paddingTop: 32, paddingBottom: 24, gap: 12 },
   emptyIcon: {
-    width: 72, height: 72, borderRadius: 36,
-    alignItems: "center", justifyContent: "center", marginBottom: 4,
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#34D399", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5,
   },
   emptyTitle: { fontSize: 18, fontWeight: "700" },
   emptyText: { fontSize: 14, textAlign: "center", paddingHorizontal: 24 },
   fineCard: {
     borderRadius: 18,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
     overflow: "hidden",
   },
-  fineCardTop: {
-    flexDirection: "row", alignItems: "center", gap: 12, padding: 16,
-  },
-  fineIconWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: "center", justifyContent: "center",
-  },
+  fineCardTop: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 },
+  fineIconWrap: { width: 44, height: 44, borderRadius: 12, overflow: "hidden" },
+  fineIconGradient: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   fineInfo: { flex: 1 },
   fineReason: { fontSize: 15, fontWeight: "700" },
   fineDate: { fontSize: 12, marginTop: 3 },
-  fineAmountBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  fineAmount: { fontSize: 15, fontWeight: "800", color: "#EF4444" },
+  fineAmountBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: `${RED}15` },
+  fineAmount: { fontSize: 15, fontWeight: "800", color: RED },
   fineNotes: {
     flexDirection: "row", alignItems: "flex-start", gap: 6,
     paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1,
@@ -246,7 +236,16 @@ const styles = StyleSheet.create({
   fineNotesText: { flex: 1, fontSize: 12, lineHeight: 17 },
   infoBox: {
     flexDirection: "row", alignItems: "flex-start", gap: 8,
-    borderRadius: 14, padding: 14, borderWidth: 1, marginTop: 8,
+    borderRadius: 16, padding: 14, marginTop: 8,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
   },
   infoText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  headerMonthNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", paddingVertical: 4,
+  },
+  headerNavBtn: { padding: 8 },
+  headerMonthText: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "700", color: "#fff" },
 });

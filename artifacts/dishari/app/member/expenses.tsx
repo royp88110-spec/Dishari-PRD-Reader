@@ -1,6 +1,8 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { GradientBackground } from "@/components/GradientBackground";
 import {
   FlatList,
   Pressable,
@@ -16,15 +18,16 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
+import { PRIMARY, PRIMARY2 } from "@/constants/colors";
 
 const CATEGORIES = [
-  { key: "all",       label: "All",     icon: "list",            color: "#374151" },
-  { key: "grocery",   label: "Grocery", icon: "shopping-bag",    color: "#2563EB" },
-  { key: "vegetable", label: "Veg",     icon: "box",             color: "#16A34A" },
-  { key: "fish",      label: "Fish",    icon: "droplet",         color: "#0891B2" },
-  { key: "meat",      label: "Meat",    icon: "heart",           color: "#EF4444" },
-  { key: "gas",       label: "Gas",     icon: "zap",             color: "#F59E0B" },
-  { key: "other",     label: "Other",   icon: "more-horizontal", color: "#7C3AED" },
+  { key: "all",       label: "All",     icon: "list",            color: "#4F46E5" },
+  { key: "grocery",   label: "Grocery", icon: "shopping-bag",    color: "#38BDF8" },
+  { key: "vegetable", label: "Veg",     icon: "box",             color: "#34D399" },
+  { key: "fish",      label: "Fish",    icon: "droplet",         color: "#22D3EE" },
+  { key: "meat",      label: "Meat",    icon: "heart",           color: "#EC4899" },
+  { key: "gas",       label: "Gas",     icon: "zap",             color: "#FACC15" },
+  { key: "other",     label: "Other",   icon: "more-horizontal", color: "#FB923C" },
 ];
 
 function getCurrentMonth() {
@@ -57,18 +60,17 @@ export default function MemberExpenses() {
   const [category, setCategory] = useState("all");
 
   const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
-  const filtered =
-    category === "all" ? monthExpenses : monthExpenses.filter((e) => e.type === category);
-  const total      = monthExpenses.reduce((s, e) => s + e.amount, 0);
+  const filtered = category === "all" ? monthExpenses : monthExpenses.filter((e) => e.type === category);
+  const total       = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const activeCount = members.filter((m) => m.status === "active").length;
-  const cookTotal  = settings.cookSalary * activeCount;
-  const grandTotal = total + cookTotal;
+  const cookTotal   = settings.cookSalary * activeCount;
+  const grandTotal  = total + cookTotal;
 
   const getCat = (type: string) =>
     CATEGORIES.find((c) => c.key === type) ?? CATEGORIES[CATEGORIES.length - 1];
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <GradientBackground>
       <ScreenHeader
         title="Expenses"
         avatarName={user?.name}
@@ -90,33 +92,24 @@ export default function MemberExpenses() {
         }
       />
 
-      {/* Summary — 3 metrics with staggered entrance */}
+      {/* Summary */}
       <Animated.View entering={FadeInDown.delay(60).duration(380)}>
-        <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>
-              ₹{total.toFixed(0)}
-            </Text>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Market Exp.</Text>
-          </View>
-          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryVal, { color: colors.foreground }]}>
-              ₹{cookTotal.toFixed(0)}
-            </Text>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Cook Salary</Text>
-          </View>
-          <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryVal, { color: "#2563EB" }]}>
-              ₹{grandTotal.toFixed(0)}
-            </Text>
-            <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Grand Total</Text>
-          </View>
+        <View style={styles.summaryCard}>
+          {[
+            { label: "Market Exp.", val: `₹${total.toFixed(0)}`, color: colors.foreground },
+            { label: "Cook Salary", val: `₹${cookTotal.toFixed(0)}`, color: colors.foreground },
+            { label: "Grand Total", val: `₹${grandTotal.toFixed(0)}`, color: PRIMARY },
+          ].map(({ label, val, color }, i, arr) => (
+            <View key={label} style={styles.summaryItem}>
+              <Text style={[styles.summaryVal, { color }]}>{val}</Text>
+              <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>{label}</Text>
+              {i < arr.length - 1 && <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />}
+            </View>
+          ))}
         </View>
       </Animated.View>
 
-      {/* Category filter chips */}
+      {/* Category chips */}
       <FlatList
         horizontal
         data={CATEGORIES}
@@ -126,63 +119,41 @@ export default function MemberExpenses() {
         showsHorizontalScrollIndicator={false}
         renderItem={({ item: c }) => (
           <Pressable
-            style={[
-              styles.catChip,
-              { backgroundColor: category === c.key ? c.color : colors.card },
-            ]}
+            style={[styles.catChip, { backgroundColor: category === c.key ? c.color : "rgba(255,255,255,0.7)" }]}
             onPress={() => setCategory(c.key)}
           >
-            <Text style={[
-              styles.catText,
-              { color: category === c.key ? "#fff" : colors.mutedForeground },
-            ]}>
-              {c.label}
-            </Text>
+            <Feather name={c.icon as "list"} size={13} color={category === c.key ? "#fff" : colors.mutedForeground} />
+            <Text style={[styles.catText, { color: category === c.key ? "#fff" : colors.mutedForeground }]}>{c.label}</Text>
           </Pressable>
         )}
       />
 
-      {/* Expense list */}
       <FlatList
         data={filtered.slice().reverse()}
         keyExtractor={(e) => e.id}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#2563EB"]}
-            tintColor="#2563EB"
-          />
-        }
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 108 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PRIMARY]} tintColor={PRIMARY} />}
         removeClippedSubviews={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Feather name="bar-chart-2" size={40} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              No expenses this month
-            </Text>
+            <View style={styles.emptyIcon}>
+              <Feather name="bar-chart-2" size={32} color={PRIMARY} />
+            </View>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No expenses this month</Text>
           </View>
         }
         renderItem={({ item: e, index }) => {
           const cat = getCat(e.type);
           return (
-            <Animated.View
-              entering={FadeInDown.delay(Math.min(index, 10) * 55).duration(350)}
-              style={{ marginBottom: 10 }}
-            >
-              <View style={[styles.expenseRow, { backgroundColor: colors.card }]}>
-                <View style={[styles.expIcon, { backgroundColor: cat.color + "18" }]}>
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 55).duration(350)} style={{ marginBottom: 10 }}>
+              <View style={styles.expenseRow}>
+                <View style={[styles.expIcon, { backgroundColor: cat.color + "20" }]}>
                   <Feather name={cat.icon as "list"} size={20} color={cat.color} />
                 </View>
                 <View style={styles.expInfo}>
-                  <Text style={[styles.expName, { color: colors.foreground }]}>
-                    {cat.label}{e.shopName ? ` · ${e.shopName}` : ""}
-                  </Text>
-                  {e.items ? (
-                    <Text style={[styles.expMeta, { color: colors.mutedForeground }]}>{e.items}</Text>
-                  ) : null}
+                  <Text style={[styles.expName, { color: colors.foreground }]}>{cat.label}{e.shopName ? ` · ${e.shopName}` : ""}</Text>
+                  {e.items ? <Text style={[styles.expMeta, { color: colors.mutedForeground }]}>{e.items}</Text> : null}
                   <Text style={[styles.expDate, { color: colors.mutedForeground }]}>{e.date}</Text>
                 </View>
                 <Text style={[styles.expAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
@@ -191,35 +162,40 @@ export default function MemberExpenses() {
           );
         }}
       />
-    </View>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
   summaryCard: {
-    flexDirection: "row", marginHorizontal: 20, marginVertical: 16,
+    flexDirection: "row", marginHorizontal: 16, marginVertical: 16,
     borderRadius: 20, padding: 20,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
-  summaryItem: { flex: 1, alignItems: "center" },
-  summaryVal: { fontSize: 20, fontWeight: "700" },
+  summaryItem: { flex: 1, alignItems: "center", position: "relative" },
+  summaryVal: { fontSize: 20, fontWeight: "800" },
   summaryKey: { fontSize: 12, marginTop: 4 },
-  summaryDivider: { width: 1, marginVertical: 4 },
+  summaryDivider: { position: "absolute", right: 0, top: "10%", bottom: "10%", width: 1 },
   catScroll: { flexGrow: 0 },
-  catContent: { paddingHorizontal: 20, paddingBottom: 16, gap: 10 },
+  catContent: { paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
   catChip: {
-    paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
   catText: { fontSize: 13, fontWeight: "600" },
   expenseRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    borderRadius: 16, padding: 14,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    borderRadius: 18, padding: 14,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
   },
   expIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   expInfo: { flex: 1 },
@@ -228,13 +204,14 @@ const styles = StyleSheet.create({
   expDate: { fontSize: 11, marginTop: 4 },
   expAmount: { fontSize: 17, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(255,255,255,0.8)", alignItems: "center", justifyContent: "center" },
   emptyText: { fontSize: 15 },
   headerMonthNav: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 12,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingVertical: 4,
+    backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", paddingVertical: 4,
   },
   headerNavBtn: { padding: 8 },
   headerMonthText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-  headerMonthSub: { fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  headerMonthSub: { fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 2 },
 });

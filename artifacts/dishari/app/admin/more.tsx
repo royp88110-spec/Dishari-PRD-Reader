@@ -56,7 +56,7 @@ function monthLabel(m: string) {
 // ─── Animated shortcut tab item ───────────────────────────────────────────────
 
 const TRANSITION_MS = 200;
-const PRIMARY = "#2563EB";
+const PRIMARY = "#4F46E5";
 const INACTIVE_FG = "#64748B";
 
 function ShortcutTab({
@@ -303,7 +303,7 @@ export default function MoreScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <LinearGradient colors={["#7DE7D8", "#B7F5E7", "#DDF5FF"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.screen}>
       <ScreenHeader
         title="More"
         icon="more-horizontal"
@@ -351,7 +351,7 @@ export default function MoreScreen() {
                 <Text style={{ fontSize: 14, fontWeight: "400", color: colors.mutedForeground }}>per egg</Text>
               </Text>
               <Pressable
-                style={[styles.smallBtn, { backgroundColor: "#2563EB18" }]}
+                style={[styles.smallBtn, { backgroundColor: "#4F46E518" }]}
                 onPress={() => openEditModal({
                   title: "Update Egg Price",
                   subtitle: "Enter new price per egg (₹)",
@@ -376,7 +376,7 @@ export default function MoreScreen() {
               setEggModal(true);
             }}
           >
-            <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
+            <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
               <Feather name="plus" size={18} color="#fff" />
               <Text style={styles.addBtnText}>Add Egg Entry</Text>
             </LinearGradient>
@@ -387,7 +387,7 @@ export default function MoreScreen() {
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No egg records this month</Text>
           ) : monthEggs.slice().reverse().map((e) => (
             <View key={e.id} style={[styles.listItem, { backgroundColor: colors.card }]}>
-              <View style={[styles.iconWrap, { backgroundColor: "#2563EB18" }]}>
+              <View style={[styles.iconWrap, { backgroundColor: "#4F46E518" }]}>
                 <Feather name="circle" size={18} color={PRIMARY} />
               </View>
               <View style={styles.itemInfo}>
@@ -420,7 +420,7 @@ export default function MoreScreen() {
           )}
 
           <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]} onPress={openAddFine}>
-            <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
+            <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
               <Feather name="plus" size={18} color="#fff" />
               <Text style={styles.addBtnText}>Add Fine</Text>
             </LinearGradient>
@@ -482,7 +482,7 @@ export default function MoreScreen() {
           refreshControl={REFRESH}
         >
           <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]} onPress={() => setAdvModal(true)}>
-            <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
+            <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
               <Feather name="plus" size={18} color="#fff" />
               <Text style={styles.addBtnText}>Add Advance</Text>
             </LinearGradient>
@@ -537,7 +537,7 @@ export default function MoreScreen() {
           renderItem={({ item: b }) => (
             <View style={[styles.reportCard, { backgroundColor: colors.card }]}>
               <View style={styles.reportHeader}>
-                <MemberAvatar name={b.memberName} size={44} bgColor="#2563EB18" textColor={PRIMARY} />
+                <MemberAvatar name={b.memberName} size={44} bgColor="#4F46E518" textColor={PRIMARY} />
                 <Text style={[styles.reportName, { color: colors.foreground }]}>{b.memberName}</Text>
                 <View style={[styles.dueBadge, { backgroundColor: b.dueAmount > 0 ? "#DC262618" : "#16A34A18" }]}>
                   <Text style={[styles.dueText, { color: b.dueAmount > 0 ? "#DC2626" : "#16A34A" }]}>
@@ -580,7 +580,7 @@ export default function MoreScreen() {
                 <Text style={{ fontSize: 14, fontWeight: "400", color: colors.mutedForeground }}>/ member</Text>
               </Text>
               <Pressable
-                style={[styles.smallBtn, { backgroundColor: "#2563EB18" }]}
+                style={[styles.smallBtn, { backgroundColor: "#4F46E518" }]}
                 onPress={() => openEditModal({
                   title: "Cook Salary",
                   subtitle: "Enter amount per member (₹)",
@@ -607,7 +607,7 @@ export default function MoreScreen() {
                 <Text style={{ fontSize: 14, fontWeight: "400", color: colors.mutedForeground }}>/ egg</Text>
               </Text>
               <Pressable
-                style={[styles.smallBtn, { backgroundColor: "#2563EB18" }]}
+                style={[styles.smallBtn, { backgroundColor: "#4F46E518" }]}
                 onPress={() => openEditModal({
                   title: "Egg Price",
                   subtitle: "Enter price per egg (₹)",
@@ -625,12 +625,12 @@ export default function MoreScreen() {
             </View>
           </View>
 
-          <View style={[styles.settingCard, { backgroundColor: "#EFF6FF", borderWidth: 1.5, borderColor: "#BFDBFE" }]}>
+          <View style={[styles.settingCard, { backgroundColor: "rgba(79,70,229,0.08)", borderWidth: 1.5, borderColor: "rgba(79,70,229,0.25)" }]}>
             <Text style={[styles.settingTitle, { color: PRIMARY }]}>Admin Login</Text>
-            <Text style={[styles.settingDesc, { color: "#1E40AF" }]}>
+            <Text style={[styles.settingDesc, { color: PRIMARY }]}>
               Login ID: <Text style={{ fontWeight: "700" }}>admin</Text>
             </Text>
-            <Text style={[styles.settingDesc, { color: "#3B82F6", marginTop: 4 }]}>
+            <Text style={[styles.settingDesc, { color: "#7C3AED", marginTop: 4 }]}>
               Members log in using their phone number and the password set for them.
             </Text>
           </View>
@@ -648,7 +648,7 @@ export default function MoreScreen() {
             style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]}
             onPress={() => { setAnnForm({ title: "", body: "" }); setAnnModal(true); }}
           >
-            <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
+            <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
               <Feather name="plus" size={18} color="#fff" />
               <Text style={styles.addBtnText}>Post Announcement</Text>
             </LinearGradient>
@@ -660,7 +660,7 @@ export default function MoreScreen() {
           ) : announcements.map((a) => (
             <View key={a.id} style={[styles.annCard, { backgroundColor: colors.card }]}>
               <View style={styles.annCardTop}>
-                <View style={[styles.annIconWrap, { backgroundColor: "#2563EB18" }]}>
+                <View style={[styles.annIconWrap, { backgroundColor: "#4F46E518" }]}>
                   <Feather name="bell" size={16} color={PRIMARY} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -745,7 +745,7 @@ export default function MoreScreen() {
               onPress={saveEgg}
               disabled={isSavingEgg}
             >
-              <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+              <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
                 <Text style={styles.saveBtnText}>{isSavingEgg ? "Saving…" : "Save Egg Entry"}</Text>
               </LinearGradient>
             </Pressable>
@@ -801,7 +801,7 @@ export default function MoreScreen() {
               onPress={saveAdv}
               disabled={isSavingAdv}
             >
-              <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+              <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
                 <Text style={styles.saveBtnText}>{isSavingAdv ? "Saving…" : "Add Advance"}</Text>
               </LinearGradient>
             </Pressable>
@@ -916,7 +916,7 @@ export default function MoreScreen() {
               onPress={saveAnnouncement}
               disabled={isSavingAnn}
             >
-              <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+              <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
                 <Text style={styles.saveBtnText}>{isSavingAnn ? "Posting…" : "Post Announcement"}</Text>
               </LinearGradient>
             </Pressable>
@@ -945,7 +945,7 @@ export default function MoreScreen() {
                 <Text style={[styles.editCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
               </Pressable>
               <Pressable style={({ pressed }) => [styles.editSaveBtnWrapper, { opacity: pressed ? 0.85 : 1 }]} onPress={confirmEdit}>
-                <LinearGradient colors={[PRIMARY, "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.editSaveBtn}>
+                <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.editSaveBtn}>
                   <Text style={styles.editSaveText}>Save</Text>
                 </LinearGradient>
               </Pressable>
@@ -953,7 +953,7 @@ export default function MoreScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -975,8 +975,10 @@ const styles = StyleSheet.create({
   monthNav: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     borderRadius: 16, padding: 8,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10, shadowRadius: 14, elevation: 4,
   },
   navArrow: { padding: 8 },
   monthText: { fontSize: 17, fontWeight: "700" },
@@ -984,8 +986,9 @@ const styles = StyleSheet.create({
   // ── Price / info cards ──
   priceCard: {
     borderRadius: 20, padding: 18, marginBottom: 20,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   priceLabel: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
   priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -999,8 +1002,9 @@ const styles = StyleSheet.create({
   listItem: {
     flexDirection: "row", alignItems: "center", gap: 12,
     borderRadius: 16, padding: 14, marginBottom: 10,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
   iconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   itemInfo: { flex: 1 },
@@ -1017,8 +1021,9 @@ const styles = StyleSheet.create({
   fineSummaryText: { fontSize: 13, fontWeight: "700" },
   fineCard: {
     borderRadius: 18, marginBottom: 12,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
     overflow: "hidden",
   },
   fineCardTop: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14 },
@@ -1035,8 +1040,9 @@ const styles = StyleSheet.create({
   // ── Report card ──
   reportCard: {
     borderRadius: 20, padding: 18, marginBottom: 16,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   reportHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   reportName: { flex: 1, fontSize: 16, fontWeight: "700" },
@@ -1050,8 +1056,9 @@ const styles = StyleSheet.create({
   // ── Setting card ──
   settingCard: {
     borderRadius: 20, padding: 18, marginBottom: 16,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   settingTitle: { fontSize: 16, fontWeight: "700", marginBottom: 6 },
   settingDesc: { fontSize: 13 },
@@ -1063,8 +1070,9 @@ const styles = StyleSheet.create({
   // ── Announcement cards ──
   annCard: {
     borderRadius: 20, padding: 16, marginBottom: 12,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   annCardTop: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 10 },
   annIconWrap: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },

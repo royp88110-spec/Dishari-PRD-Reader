@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Member, useData } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
+import { LinearGradient } from "expo-linear-gradient";
+import { BG_GRADIENT, PRIMARY } from "@/constants/colors";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -151,7 +153,7 @@ const MemberRow = React.memo(function MemberRow({
 
   return (
     <View style={styles.memberRow}>
-      <MemberAvatar name={member.name} size={36} bgColor="#2563EB20" textColor="#2563EB" />
+      <MemberAvatar name={member.name} size={36} bgColor={`${PRIMARY}20`} textColor={PRIMARY} />
       <View style={styles.colMemberInfo}>
         <Text style={[styles.memberName, { color: colors.foreground }]} numberOfLines={1}>
           {member.name}
@@ -167,7 +169,7 @@ const MemberRow = React.memo(function MemberRow({
       <MealToggleButton
         active={morning}
         loading={morningLoading}
-        color="#2563EB"
+        color={PRIMARY}
         onToggle={() => handleToggle("morning")}
       />
       <MealToggleButton
@@ -177,8 +179,8 @@ const MemberRow = React.memo(function MemberRow({
         onToggle={() => handleToggle("night")}
       />
 
-      <View style={[styles.totalBadge, { backgroundColor: total > 0 ? "#2563EB20" : colors.muted }]}>
-        <Text style={[styles.totalText, { color: total > 0 ? "#2563EB" : colors.mutedForeground }]}>
+      <View style={[styles.totalBadge, { backgroundColor: total > 0 ? `${PRIMARY}20` : colors.muted }]}>
+        <Text style={[styles.totalText, { color: total > 0 ? PRIMARY : colors.mutedForeground }]}>
           {total}
         </Text>
       </View>
@@ -253,7 +255,7 @@ export default function MealsScreen() {
   const totalNight = todayMeals.filter((m) => m.night).length;
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <LinearGradient colors={BG_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.screen}>
       <ScreenHeader
         title="Meal Entry"
         icon="grid"
@@ -276,14 +278,14 @@ export default function MealsScreen() {
         }
       />
 
-      <View style={[styles.bulkBar, { backgroundColor: colors.card }]}>
+      <View style={[styles.bulkBar, { backgroundColor: "rgba(255,255,255,0.92)" }]}>
         <Text style={[styles.bulkLabel, { color: colors.mutedForeground }]}>Bulk Mark</Text>
         <View style={styles.bulkBtns}>
           <Pressable
-            style={[styles.bulkBtn, { backgroundColor: "#2563EB18" }]}
+            style={[styles.bulkBtn, { backgroundColor: `${PRIMARY}18` }]}
             onPress={() => bulkMark("morning")}
           >
-            <Text style={[styles.bulkBtnText, { color: "#2563EB" }]}>All Morning</Text>
+            <Text style={[styles.bulkBtnText, { color: PRIMARY }]}>All Morning</Text>
           </Pressable>
           <Pressable
             style={[styles.bulkBtn, { backgroundColor: "#7C3AED18" }]}
@@ -302,7 +304,7 @@ export default function MealsScreen() {
 
       <View style={[styles.tableHeader, { backgroundColor: colors.muted }]}>
         <Text style={[styles.colMember, { color: colors.mutedForeground }]}>MEMBER</Text>
-        <Text style={[styles.colMeal, { color: "#2563EB" }]}>MORNING</Text>
+        <Text style={[styles.colMeal, { color: PRIMARY }]}>MORNING</Text>
         <Text style={[styles.colMeal, { color: "#7C3AED" }]}>NIGHT</Text>
         <Text style={[styles.colTotal, { color: colors.mutedForeground }]}>TOTAL</Text>
       </View>
@@ -310,18 +312,18 @@ export default function MealsScreen() {
       <FlatList
         data={activeMembers}
         keyExtractor={(m) => m.id}
-        style={{ flex: 1, backgroundColor: colors.card }}
+        style={{ flex: 1, backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#2563EB"]}
-            tintColor="#2563EB"
+            colors={[PRIMARY]}
+            tintColor={PRIMARY}
           />
         }
         ItemSeparatorComponent={() => (
-          <View style={{ height: 1, backgroundColor: "#E2E8F0" }} />
+          <View style={{ height: 1, backgroundColor: "rgba(148,163,184,0.18)" }} />
         )}
         removeClippedSubviews={false}
         ListEmptyComponent={
@@ -343,7 +345,7 @@ export default function MealsScreen() {
           );
         }}
       />
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -362,7 +364,7 @@ const styles = StyleSheet.create({
   bulkBar: {
     marginHorizontal: 16, marginTop: 14, marginBottom: 12, borderRadius: 16,
     padding: 18,
-    shadowColor: "#1E40AF", shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 14, elevation: 4,
   },
   bulkLabel: {
@@ -375,6 +377,7 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: "row", alignItems: "center",
     paddingVertical: 10, paddingHorizontal: 16,
+    backgroundColor: "rgba(255,255,255,0.55)",
   },
   colMember: { flex: 1, fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
   colMeal: { width: 74, textAlign: "center", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
