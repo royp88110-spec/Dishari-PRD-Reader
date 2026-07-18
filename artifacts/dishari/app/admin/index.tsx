@@ -82,12 +82,16 @@ function StatCard({
       entering={FadeInDown.delay(enterDelay).duration(400)}
       style={[styles.statCard, { backgroundColor: colors.card }, pressStyle]}
     >
-      <View style={[styles.statIcon, { backgroundColor: color + "18" }]}>
-        <Feather name={icon as "home"} size={22} color={color} />
+      <View style={styles.statCardInner}>
+        {/* Icon stays pinned top-left */}
+        <View style={[styles.statIcon, { backgroundColor: color + "18", alignSelf: "flex-start" }]}>
+          <Feather name={icon as "home"} size={22} color={color} />
+        </View>
+        {/* Value and label are center-aligned within the card width */}
+        <Text style={[styles.statValue, { color: colors.cardForeground }]}>{value}</Text>
+        <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
+        {sub ? <Text style={[styles.statSub, { color: color }]}>{sub}</Text> : null}
       </View>
-      <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
-      {sub ? <Text style={[styles.statSub, { color: color }]}>{sub}</Text> : null}
     </Animated.View>
   );
 }
@@ -655,12 +659,21 @@ const styles = StyleSheet.create({
   statCardInner: { padding: 18, gap: 6 },
   statIcon: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center", justifyContent: "center",
+    marginBottom: 4,
   },
-  statValue: { fontSize: 24, fontWeight: "700", color: "#fff" },
-  statLabel: { fontSize: 12, color: "rgba(255,255,255,0.85)" },
-  statSub: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.9)" },
+  statValue: {
+    fontSize: 24, fontWeight: "800",
+    textAlign: "center", width: "100%",
+  },
+  statLabel: {
+    fontSize: 12,
+    textAlign: "center", width: "100%",
+  },
+  statSub: {
+    fontSize: 11, fontWeight: "600",
+    textAlign: "center", width: "100%",
+  },
   paymentBanner: {
     marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 18,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

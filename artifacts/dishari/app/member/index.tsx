@@ -20,9 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { GradientBackground } from "@/components/GradientBackground";
 import { useRefresh } from "@/hooks/useRefresh";
-import { PRIMARY, PRIMARY2, EMERALD, RED, CYAN, ORANGE } from "@/constants/colors";
-
-const YELLOW = "#F59E0B";
+import { PRIMARY, EMERALD, RED, CYAN, ORANGE, YELLOW } from "@/constants/colors";
 
 // ── Month helpers ─────────────────────────────────────────────────────────────
 function getCurrentMonth() {
@@ -43,6 +41,11 @@ function monthLabel(m: string) {
   const [y, mo] = m.split("-");
   const names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${names[parseInt(mo) - 1]} ${y}`;
+}
+
+/** Safe toFixed: returns "0" for NaN / non-finite inputs. */
+function safeFix(n: number, digits = 0): string {
+  return Number.isFinite(n) ? n.toFixed(digits) : "0";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -78,13 +81,19 @@ export default function MemberHome() {
     ]);
 
   const miniStats = [
-    { label: "Meals",      val: bill.mealCount.toString(),          icon: "grid",          color: CYAN,    bg: `${CYAN}20`    },
-    { label: "Meal Cost",  val: `₹${bill.mealBill.toFixed(0)}`,     icon: "dollar-sign",   color: ORANGE,  bg: `${ORANGE}20` },
-    { label: "Egg Cost",   val: `₹${bill.eggBill.toFixed(0)}`,      icon: "sun",           color: YELLOW,  bg: `${YELLOW}20` },
-    { label: "Fine",       val: `₹${bill.fineTotal.toFixed(0)}`,    icon: "alert-circle",  color: RED,     bg: `${RED}20`    },
-    { label: "Advance",    val: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card",   color: EMERALD, bg: `${EMERALD}20` },
-    { label: "Amount Due", val: `₹${bill.dueAmount.toFixed(0)}`,    icon: "trending-up",   color: PRIMARY, bg: `${PRIMARY}20` },
+    { label: "Meals",      val: `${bill.mealCount}`,                icon: "grid",         color: CYAN,    bg: `${CYAN}20`    },
+    { label: "Meal Cost",  val: `₹${safeFix(bill.mealBill)}`,       icon: "dollar-sign",  color: ORANGE,  bg: `${ORANGE}20` },
+    { label: "Egg Cost",   val: `₹${safeFix(bill.eggBill)}`,        icon: "sun",          color: YELLOW,  bg: `${YELLOW}20` },
+    { label: "Fine",       val: `₹${safeFix(bill.fineTotal)}`,      icon: "alert-circle", color: RED,     bg: `${RED}20`    },
+    { label: "Advance",    val: `₹${safeFix(bill.totalAdvance)}`,   icon: "credit-card",  color: EMERALD, bg: `${EMERALD}20` },
+    { label: "Amount Due", val: `₹${safeFix(bill.dueAmount)}`,      icon: "trending-up",  color: PRIMARY, bg: `${PRIMARY}20` },
   ] as const;
+
+  // Card / text tokens that adapt to light ↔ dark
+  const card        = colors.card;         // rgba(255,255,255,0.92) light  |  #111827 dark
+  const cardText    = colors.cardForeground; // #1E1B4B light  |  #E2E8F0 dark
+  const muted       = colors.mutedForeground;
+  const borderColor = colors.border;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -135,12 +144,8 @@ export default function MemberHome() {
             style={styles.paymentBanner}
           >
             <View style={styles.paymentBannerLeft}>
-              <View style={[styles.paymentBannerBadge, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
-                <Feather
-                  name={isPaid ? "check-circle" : "clock"}
-                  size={20}
-                  color="#fff"
-                />
+              <View style={styles.paymentBannerBadge}>
+                <Feather name={isPaid ? "check-circle" : "clock"} size={20} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.paymentBannerTitle}>
@@ -148,8 +153,8 @@ export default function MemberHome() {
                 </Text>
                 <Text style={styles.paymentBannerSub}>
                   {isPaid
-                    ? `Paid ₹${(payment?.amount ?? 0).toFixed(0)} · ${payment?.paidAt?.slice(0, 10) ?? ""}`
-                    : `₹${bill.dueAmount.toFixed(0)} due for ${monthLabel(month)}`}
+                    ? `Paid ₹${safeFix(payment?.amount ?? 0)} · ${payment?.paidAt?.slice(0, 10) ?? ""}`
+                    : `₹${safeFix(bill.dueAmount)} due for ${monthLabel(month)}`}
                 </Text>
               </View>
             </View>
@@ -176,7 +181,7 @@ export default function MemberHome() {
                   {bill.dueAmount > 0 ? "Amount Due" : "Credit Balance"}
                 </Text>
                 <Text style={styles.dueCardAmount}>
-                  ₹{(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance).toFixed(2)}
+                  ₹{safeFix(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance, 2)}
                 </Text>
                 <Text style={styles.dueCardSub}>{monthLabel(month)}</Text>
               </View>
@@ -188,14 +193,14 @@ export default function MemberHome() {
                 />
               </View>
             </View>
-            {/* 5-column breakdown strip: Meals | Eggs | Cook | Fines | Paid */}
+            {/* 5-column breakdown strip */}
             <View style={styles.breakdownStrip}>
               {[
-                { key: "Meals", val: `₹${bill.mealBill.toFixed(0)}` },
-                { key: "Eggs",  val: `₹${bill.eggBill.toFixed(0)}`  },
-                { key: "Cook",  val: `₹${bill.cookShare.toFixed(0)}` },
-                { key: "Fines", val: `₹${bill.fineTotal.toFixed(0)}` },
-                { key: "Paid",  val: `₹${bill.totalAdvance.toFixed(0)}` },
+                { key: "Meals", val: `₹${safeFix(bill.mealBill)}` },
+                { key: "Eggs",  val: `₹${safeFix(bill.eggBill)}`  },
+                { key: "Cook",  val: `₹${safeFix(bill.cookShare)}` },
+                { key: "Fines", val: `₹${safeFix(bill.fineTotal)}` },
+                { key: "Paid",  val: `₹${safeFix(bill.totalAdvance)}` },
               ].map(({ key, val }, i) => (
                 <React.Fragment key={key}>
                   {i > 0 && <View style={styles.breakdownDivider} />}
@@ -213,12 +218,12 @@ export default function MemberHome() {
         <Animated.View entering={FadeInDown.delay(190).duration(400)}>
           <View style={styles.miniStatsRow}>
             {miniStats.map(({ label, val, icon, color, bg }) => (
-              <View key={label} style={styles.miniStatCard}>
+              <View key={label} style={[styles.miniStatCard, { backgroundColor: card }]}>
                 <View style={[styles.miniStatIcon, { backgroundColor: bg }]}>
                   <Feather name={icon as "grid"} size={18} color={color} />
                 </View>
-                <Text style={[styles.miniStatVal, { color: colors.foreground }]}>{val}</Text>
-                <Text style={[styles.miniStatLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                <Text style={[styles.miniStatVal, { color: cardText }]}>{val}</Text>
+                <Text style={[styles.miniStatLabel, { color: muted }]}>{label}</Text>
               </View>
             ))}
           </View>
@@ -226,116 +231,112 @@ export default function MemberHome() {
 
         {/* ── Full Monthly Bill Breakdown ───────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(260).duration(380)} style={styles.section}>
-          <View style={styles.sectionCard}>
+          <View style={[styles.sectionCard, { backgroundColor: card }]}>
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionCardIcon, { backgroundColor: `${PRIMARY}15` }]}>
                 <Feather name="file-text" size={18} color={PRIMARY} />
               </View>
-              <Text style={[styles.sectionCardTitle, { color: colors.foreground }]}>Monthly Bill</Text>
+              <Text style={[styles.sectionCardTitle, { color: cardText }]}>Monthly Bill</Text>
             </View>
 
-            {/* Rate info rows */}
+            {/* Rate info */}
             {[
-              { label: "Meal Rate",   val: `₹${bill.perMealCost.toFixed(2)} / meal` },
+              { label: "Meal Rate",   val: `₹${safeFix(bill.perMealCost, 2)} / meal` },
               { label: "Meals Eaten", val: `${bill.mealCount} meal${bill.mealCount !== 1 ? "s" : ""}` },
             ].map(({ label, val }) => (
-              <View key={label} style={[styles.billRow, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>{label}</Text>
-                <Text style={[styles.billVal, { color: colors.foreground }]}>{val}</Text>
+              <View key={label} style={[styles.billRow, { borderBottomColor: borderColor }]}>
+                <Text style={[styles.billLabel, { color: muted }]}>{label}</Text>
+                <Text style={[styles.billVal, { color: cardText }]}>{val}</Text>
               </View>
             ))}
 
             {/* Section divider */}
-            <View style={[styles.billSectionDivider, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.billSectionLabel, { color: colors.mutedForeground }]}>Components</Text>
+            <View style={[styles.billSectionDivider, { borderBottomColor: borderColor }]}>
+              <Text style={[styles.billSectionLabel, { color: muted }]}>Components</Text>
             </View>
 
-            {/* Line items */}
+            {/* Component line items */}
             {[
-              { label: "Meal Cost",    val: `₹${bill.mealBill.toFixed(2)}`,  icon: "dollar-sign",  color: ORANGE  },
+              { label: "Meal Cost",   val: `₹${safeFix(bill.mealBill, 2)}`,  icon: "dollar-sign",  color: ORANGE },
               { label: `Eggs (${bill.eggCount} × ₹${settings.eggPrice})`,
-                                       val: `₹${bill.eggBill.toFixed(2)}`,   icon: "sun",          color: YELLOW  },
-              { label: "Cook Salary",  val: `₹${bill.cookShare.toFixed(2)}`, icon: "users",        color: CYAN    },
-              { label: "Fine",         val: `₹${bill.fineTotal.toFixed(2)}`, icon: "alert-circle", color: RED     },
+                                      val: `₹${safeFix(bill.eggBill, 2)}`,   icon: "sun",          color: YELLOW },
+              { label: "Cook Salary", val: `₹${safeFix(bill.cookShare, 2)}`, icon: "users",        color: CYAN   },
+              { label: "Fine",        val: `₹${safeFix(bill.fineTotal, 2)}`, icon: "alert-circle", color: RED    },
             ].map(({ label, val, icon, color }) => (
-              <View key={label} style={[styles.billRow, { borderBottomColor: colors.border }]}>
+              <View key={label} style={[styles.billRow, { borderBottomColor: borderColor }]}>
                 <View style={styles.billLabelRow}>
                   <View style={[styles.billIconDot, { backgroundColor: `${color}18` }]}>
                     <Feather name={icon as "grid"} size={12} color={color} />
                   </View>
-                  <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  <Text style={[styles.billLabel, { color: muted }]}>{label}</Text>
                 </View>
-                <Text style={[styles.billVal, { color: colors.foreground }]}>{val}</Text>
+                <Text style={[styles.billVal, { color: cardText }]}>{val}</Text>
               </View>
             ))}
 
             {/* Gross Bill */}
-            <View style={[styles.billRow, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.billLabel, { color: colors.foreground, fontWeight: "700" }]}>Gross Bill</Text>
+            <View style={[styles.billRow, { borderBottomColor: borderColor }]}>
+              <Text style={[styles.billLabel, { color: cardText, fontWeight: "700" }]}>Gross Bill</Text>
               <Text style={[styles.billVal, { color: PRIMARY, fontWeight: "800", fontSize: 16 }]}>
-                ₹{bill.grossBill.toFixed(2)}
+                ₹{safeFix(bill.grossBill, 2)}
               </Text>
             </View>
 
             {/* Advance deduction */}
-            <View style={[styles.billRow, { borderBottomColor: colors.border }]}>
+            <View style={[styles.billRow, { borderBottomColor: borderColor }]}>
               <View style={styles.billLabelRow}>
                 <View style={[styles.billIconDot, { backgroundColor: `${EMERALD}18` }]}>
                   <Feather name="minus-circle" size={12} color={EMERALD} />
                 </View>
-                <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>Advance Deduction</Text>
+                <Text style={[styles.billLabel, { color: muted }]}>Advance Deduction</Text>
               </View>
               <Text style={[styles.billVal, { color: EMERALD, fontWeight: "600" }]}>
-                − ₹{bill.totalAdvance.toFixed(2)}
+                − ₹{safeFix(bill.totalAdvance, 2)}
               </Text>
             </View>
 
-            {/* Final Payable */}
-            <View style={[styles.billRowFinal, { borderTopColor: colors.border }]}>
-              <Text style={[styles.billLabel, { color: colors.foreground, fontWeight: "700", fontSize: 15 }]}>
+            {/* Final payable */}
+            <View style={[styles.billRowFinal, { borderTopColor: borderColor }]}>
+              <Text style={[styles.billLabel, { color: cardText, fontWeight: "700", fontSize: 15 }]}>
                 {bill.dueAmount > 0 ? "Final Payable" : "Credit Balance"}
               </Text>
               <Text style={[styles.billVal, {
                 color: bill.dueAmount > 0 ? RED : EMERALD,
-                fontWeight: "900",
-                fontSize: 20,
+                fontWeight: "900", fontSize: 20,
               }]}>
-                ₹{(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance).toFixed(2)}
+                ₹{safeFix(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance, 2)}
               </Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* ── Egg Bill Card (shown only when eggs recorded) ─────────────────── */}
-        {(bill.eggCount > 0 || true) && (
-          <Animated.View entering={FadeInDown.delay(310).duration(380)} style={styles.section}>
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionCardHeader}>
-                <View style={[styles.sectionCardIcon, { backgroundColor: `${YELLOW}20` }]}>
-                  <Feather name="sun" size={18} color={YELLOW} />
-                </View>
-                <Text style={[styles.sectionCardTitle, { color: colors.foreground }]}>Egg Bill</Text>
+        {/* ── Egg Bill Card ─────────────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(310).duration(380)} style={styles.section}>
+          <View style={[styles.sectionCard, { backgroundColor: card }]}>
+            <View style={styles.sectionCardHeader}>
+              <View style={[styles.sectionCardIcon, { backgroundColor: `${YELLOW}20` }]}>
+                <Feather name="sun" size={18} color={YELLOW} />
               </View>
-              {[
-                { label: "Total Eggs Consumed", val: `${bill.eggCount} egg${bill.eggCount !== 1 ? "s" : ""}` },
-                { label: "Egg Price",            val: `₹${settings.eggPrice} / egg` },
-                { label: "Egg Total Cost",        val: `₹${bill.eggBill.toFixed(2)}` },
-              ].map(({ label, val }) => (
-                <View key={label} style={[styles.billRow, { borderBottomColor: colors.border }]}>
-                  <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>{label}</Text>
-                  <Text style={[styles.billVal, { color: colors.foreground }]}>{val}</Text>
-                </View>
-              ))}
-              {/* Egg Cost inclusion note */}
-              <View style={[styles.eggNote, { backgroundColor: `${YELLOW}12`, borderColor: `${YELLOW}30` }]}>
-                <Feather name="info" size={13} color={YELLOW} />
-                <Text style={[styles.eggNoteText, { color: colors.mutedForeground }]}>
-                  Egg cost is included in your monthly gross bill.
-                </Text>
-              </View>
+              <Text style={[styles.sectionCardTitle, { color: cardText }]}>Egg Bill</Text>
             </View>
-          </Animated.View>
-        )}
+            {[
+              { label: "Total Eggs Consumed", val: `${bill.eggCount} egg${bill.eggCount !== 1 ? "s" : ""}` },
+              { label: "Egg Price",            val: `₹${settings.eggPrice} / egg` },
+              { label: "Egg Total Cost",        val: `₹${safeFix(bill.eggBill, 2)}` },
+            ].map(({ label, val }) => (
+              <View key={label} style={[styles.billRow, { borderBottomColor: borderColor }]}>
+                <Text style={[styles.billLabel, { color: muted }]}>{label}</Text>
+                <Text style={[styles.billVal, { color: cardText }]}>{val}</Text>
+              </View>
+            ))}
+            <View style={[styles.eggNote, { backgroundColor: `${YELLOW}12`, borderColor: `${YELLOW}30` }]}>
+              <Feather name="info" size={13} color={YELLOW} />
+              <Text style={[styles.eggNoteText, { color: muted }]}>
+                Egg cost is included in your monthly gross bill.
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
 
         {/* ── Announcements ─────────────────────────────────────────────────── */}
         {recentAnnouncements.length > 0 && (
@@ -343,22 +344,22 @@ export default function MemberHome() {
             entering={FadeInUp.delay(360).duration(380)}
             style={[styles.section, { marginBottom: 8 }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📣 Announcements</Text>
+            <Text style={[styles.sectionTitle, { color: cardText }]}>📣 Announcements</Text>
             {recentAnnouncements.map((a, i) => (
               <View
                 key={a.id}
                 style={[
                   styles.announcementCard,
-                  { marginTop: i === 0 ? 12 : 10, borderColor: `${PRIMARY}18` },
+                  { marginTop: i === 0 ? 12 : 10, backgroundColor: card, borderColor: `${PRIMARY}18` },
                 ]}
               >
                 <View style={[styles.announcementDot, { backgroundColor: PRIMARY }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.announcementTitle, { color: colors.foreground }]}>{a.title}</Text>
+                  <Text style={[styles.announcementTitle, { color: cardText }]}>{a.title}</Text>
                   {a.body ? (
-                    <Text style={[styles.announcementBody, { color: colors.mutedForeground }]}>{a.body}</Text>
+                    <Text style={[styles.announcementBody, { color: muted }]}>{a.body}</Text>
                   ) : null}
-                  <Text style={[styles.announcementDate, { color: colors.mutedForeground }]}>
+                  <Text style={[styles.announcementDate, { color: muted }]}>
                     {a.createdAt?.slice(0, 10) ?? ""}
                   </Text>
                 </View>
@@ -391,46 +392,32 @@ const styles = StyleSheet.create({
 
   // Payment banner
   paymentBanner: {
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 20, paddingHorizontal: 18, paddingVertical: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 8,
   },
   paymentBannerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   paymentBannerBadge: {
     width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.25)",
     alignItems: "center", justifyContent: "center",
   },
   paymentBannerTitle: { fontSize: 15, fontWeight: "800", color: "#fff" },
   paymentBannerSub: { fontSize: 12, color: "rgba(255,255,255,0.82)", marginTop: 2 },
   paymentBannerPill: {
     backgroundColor: "rgba(255,255,255,0.25)",
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
   },
   paymentBannerPillText: { fontSize: 11, fontWeight: "900", color: "#fff", letterSpacing: 1 },
 
   // Due card
   dueCard: {
-    borderRadius: 28,
-    overflow: "hidden",
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
-    elevation: 14,
+    borderRadius: 28, overflow: "hidden",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28, shadowRadius: 24, elevation: 14,
   },
-  dueCardInner: {
-    flexDirection: "row", alignItems: "center",
-    padding: 24, paddingBottom: 20,
-  },
+  dueCardInner: { flexDirection: "row", alignItems: "center", padding: 24, paddingBottom: 20 },
   dueCardLeft: { flex: 1 },
   dueCardLabel: { fontSize: 14, fontWeight: "600", color: "rgba(255,255,255,0.85)", marginBottom: 6 },
   dueCardAmount: { fontSize: 40, fontWeight: "900", color: "#fff", letterSpacing: -1 },
@@ -446,15 +433,14 @@ const styles = StyleSheet.create({
   breakdownKey: { fontSize: 9, color: "rgba(255,255,255,0.72)", marginTop: 2, fontWeight: "500" },
   breakdownDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 2 },
 
-  // Mini stats
+  // Mini stats — background supplied inline via colors.card
   miniStatsRow: {
     flexDirection: "row", flexWrap: "wrap", gap: 12,
     paddingHorizontal: 20, marginTop: 20, marginBottom: 4,
   },
   miniStatCard: {
     width: "47%", borderRadius: 18, padding: 16,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1, borderColor: "rgba(148,163,184,0.22)",
     shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08, shadowRadius: 10, elevation: 4,
     alignItems: "center",
@@ -463,16 +449,17 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 14,
     alignItems: "center", justifyContent: "center", marginBottom: 10,
   },
+  // color supplied inline
   miniStatVal: { fontSize: 20, fontWeight: "800" },
   miniStatLabel: { fontSize: 12, marginTop: 3 },
 
   // Sections
   section: { paddingHorizontal: 20, marginTop: 20 },
   sectionTitle: { fontSize: 17, fontWeight: "700" },
+  // background supplied inline via colors.card
   sectionCard: {
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1, borderColor: "rgba(148,163,184,0.22)",
     shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
     padding: 18,
@@ -481,7 +468,7 @@ const styles = StyleSheet.create({
   sectionCardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   sectionCardTitle: { fontSize: 16, fontWeight: "700" },
 
-  // Bill rows
+  // Bill rows — colors supplied inline
   billRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingVertical: 11, borderBottomWidth: 1,
@@ -490,15 +477,10 @@ const styles = StyleSheet.create({
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingVertical: 14, borderTopWidth: 1.5, marginTop: 4,
   },
-  billSectionDivider: {
-    paddingBottom: 6, borderBottomWidth: 1, marginTop: 6, marginBottom: 2,
-  },
+  billSectionDivider: { paddingBottom: 6, borderBottomWidth: 1, marginTop: 6, marginBottom: 2 },
   billSectionLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 0.8, textTransform: "uppercase" },
   billLabelRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
-  billIconDot: {
-    width: 24, height: 24, borderRadius: 8,
-    alignItems: "center", justifyContent: "center",
-  },
+  billIconDot: { width: 24, height: 24, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   billLabel: { fontSize: 14 },
   billVal: { fontSize: 15, fontWeight: "600" },
 
@@ -506,17 +488,14 @@ const styles = StyleSheet.create({
   eggNote: {
     flexDirection: "row", alignItems: "center", gap: 8,
     borderRadius: 10, borderWidth: 1,
-    paddingHorizontal: 12, paddingVertical: 8,
-    marginTop: 10,
+    paddingHorizontal: 12, paddingVertical: 8, marginTop: 10,
   },
   eggNoteText: { fontSize: 12, flex: 1, lineHeight: 17 },
 
-  // Announcements
+  // Announcements — background supplied inline via colors.card
   announcementCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
-    borderRadius: 16, padding: 14,
-    backgroundColor: "rgba(255,255,255,0.88)",
-    borderWidth: 1,
+    borderRadius: 16, padding: 14, borderWidth: 1,
   },
   announcementDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
   announcementTitle: { fontSize: 15, fontWeight: "700" },
