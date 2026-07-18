@@ -242,13 +242,13 @@ export default function AdminDashboard() {
         {/* Stat cards — staggered entrance */}
         <View style={styles.statsGrid}>
           <StatCard label="Active Members" value={String(activeMembers)} icon="users"
-            gradient={["#4F46E5", "#7C3AED"]} enterDelay={80} />
+            color="#4F46E5" enterDelay={80} />
           <StatCard label="Total Meals" value={String(totalMeals)} icon="grid"
-            gradient={["#22D3EE", "#0EA5E9"]} enterDelay={150} />
+            color="#22D3EE" enterDelay={150} />
           <StatCard label="Expenses" value={`₹${rawExpense.toFixed(0)}`} icon="dollar-sign"
-            gradient={["#FB923C", "#F97316"]} enterDelay={220} />
+            color="#FB923C" enterDelay={220} />
           <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up"
-            gradient={["#34D399", "#10B981"]} enterDelay={290} />
+            color="#34D399" enterDelay={290} />
         </View>
 
         {/* Status banners */}

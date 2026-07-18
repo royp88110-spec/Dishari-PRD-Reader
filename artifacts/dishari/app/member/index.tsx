@@ -53,9 +53,9 @@ export default function MemberHome() {
   const recentAnnouncements = announcements.slice(0, 3);
 
   const miniStats = [
-    { label: "Meals",    val: bill.totalMeals.toString(),    icon: "grid",      color: CYAN,   bg: `${CYAN}20`    },
-    { label: "Expenses", val: `₹${bill.expenseShare.toFixed(0)}`, icon: "dollar-sign", color: ORANGE, bg: `${ORANGE}20` },
-    { label: "Fines",    val: `₹${bill.totalFine.toFixed(0)}`, icon: "alert-circle", color: RED,    bg: `${RED}20`    },
+    { label: "Meals",    val: bill.mealCount.toString(),         icon: "grid",         color: CYAN,   bg: `${CYAN}20`    },
+    { label: "Meal Cost", val: `₹${bill.mealBill.toFixed(0)}`,  icon: "dollar-sign",  color: ORANGE, bg: `${ORANGE}20` },
+    { label: "Fines",    val: `₹${bill.fineTotal.toFixed(0)}`,  icon: "alert-circle", color: RED,    bg: `${RED}20`    },
     { label: "Advance",  val: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card", color: EMERALD, bg: `${EMERALD}20` },
   ];
 
@@ -112,17 +112,17 @@ export default function MemberHome() {
             {/* Bill breakdown strip */}
             <View style={styles.breakdownStrip}>
               <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownVal}>₹{bill.mealCost.toFixed(0)}</Text>
+                <Text style={styles.breakdownVal}>₹{bill.mealBill.toFixed(0)}</Text>
                 <Text style={styles.breakdownKey}>Meal Cost</Text>
               </View>
               <View style={styles.breakdownDivider} />
               <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownVal}>₹{bill.expenseShare.toFixed(0)}</Text>
-                <Text style={styles.breakdownKey}>Expenses</Text>
+                <Text style={styles.breakdownVal}>₹{bill.cookShare.toFixed(0)}</Text>
+                <Text style={styles.breakdownKey}>Cook</Text>
               </View>
               <View style={styles.breakdownDivider} />
               <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownVal}>₹{bill.totalFine.toFixed(0)}</Text>
+                <Text style={styles.breakdownVal}>₹{bill.fineTotal.toFixed(0)}</Text>
                 <Text style={styles.breakdownKey}>Fines</Text>
               </View>
               <View style={styles.breakdownDivider} />
@@ -159,11 +159,11 @@ export default function MemberHome() {
               <Text style={[styles.sectionCardTitle, { color: colors.foreground }]}>Bill Breakdown</Text>
             </View>
             {[
-              { label: "Meal Rate",     val: `₹${bill.mealRate.toFixed(2)} / meal` },
-              { label: "Meals Eaten",   val: `${bill.totalMeals} meals` },
-              { label: "Meal Cost",     val: `₹${bill.mealCost.toFixed(2)}` },
-              { label: "Expense Share", val: `₹${bill.expenseShare.toFixed(2)}` },
-              { label: "Fines",         val: `₹${bill.totalFine.toFixed(2)}` },
+              { label: "Meal Rate",   val: `₹${bill.perMealCost.toFixed(2)} / meal` },
+              { label: "Meals Eaten", val: `${bill.mealCount} meals` },
+              { label: "Meal Cost",   val: `₹${bill.mealBill.toFixed(2)}` },
+              { label: "Cook Share",  val: `₹${bill.cookShare.toFixed(2)}` },
+              { label: "Fines",       val: `₹${bill.fineTotal.toFixed(2)}` },
             ].map(({ label, val }) => (
               <View key={label} style={[styles.billRow, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -189,7 +189,7 @@ export default function MemberHome() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.announcementTitle, { color: colors.foreground }]}>{a.title}</Text>
                   {a.body ? <Text style={[styles.announcementBody, { color: colors.mutedForeground }]}>{a.body}</Text> : null}
-                  <Text style={[styles.announcementDate, { color: colors.mutedForeground }]}>{a.date}</Text>
+                  <Text style={[styles.announcementDate, { color: colors.mutedForeground }]}>{a.createdAt?.slice(0, 10) ?? ""}</Text>
                 </View>
               </View>
             ))}
