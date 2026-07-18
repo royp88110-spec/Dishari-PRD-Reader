@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,6 +22,9 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { useRefresh } from "@/hooks/useRefresh";
 import { PRIMARY, PRIMARY2, EMERALD, RED, CYAN, ORANGE } from "@/constants/colors";
 
+const YELLOW = "#F59E0B";
+
+// ── Month helpers ─────────────────────────────────────────────────────────────
 function getCurrentMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -41,16 +45,18 @@ function monthLabel(m: string) {
   return `${names[parseInt(mo) - 1]} ${y}`;
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function MemberHome() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const { calculateMonthlyBill, announcements, isLoaded } = useData();
+  const { user, logout } = useAuth();
+  const { calculateMonthlyBill, announcements, payments, settings, isLoaded } = useData();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
   const memberId = user?.memberId ?? "";
 
+  // ── Loading guard ─────────────────────────────────────────────────────────
   if (!isLoaded) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
@@ -59,16 +65,28 @@ export default function MemberHome() {
     );
   }
 
-  const bill     = calculateMonthlyBill(memberId, month);
+  // ── Derived data ──────────────────────────────────────────────────────────
+  const bill = calculateMonthlyBill(memberId, month);
+  const payment = payments.find((p) => p.memberId === memberId && p.month === month);
+  const isPaid = payment?.paid ?? false;
   const recentAnnouncements = announcements.slice(0, 3);
 
-  const miniStats = [
-    { label: "Meals",    val: bill.mealCount.toString(),         icon: "grid",         color: CYAN,   bg: `${CYAN}20`    },
-    { label: "Meal Cost", val: `₹${bill.mealBill.toFixed(0)}`,  icon: "dollar-sign",  color: ORANGE, bg: `${ORANGE}20` },
-    { label: "Fines",    val: `₹${bill.fineTotal.toFixed(0)}`,  icon: "alert-circle", color: RED,    bg: `${RED}20`    },
-    { label: "Advance",  val: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card", color: EMERALD, bg: `${EMERALD}20` },
-  ];
+  const handleLogout = () =>
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: () => { void logout(); } },
+    ]);
 
+  const miniStats = [
+    { label: "Meals",      val: bill.mealCount.toString(),          icon: "grid",          color: CYAN,    bg: `${CYAN}20`    },
+    { label: "Meal Cost",  val: `₹${bill.mealBill.toFixed(0)}`,     icon: "dollar-sign",   color: ORANGE,  bg: `${ORANGE}20` },
+    { label: "Egg Cost",   val: `₹${bill.eggBill.toFixed(0)}`,      icon: "sun",           color: YELLOW,  bg: `${YELLOW}20` },
+    { label: "Fine",       val: `₹${bill.fineTotal.toFixed(0)}`,    icon: "alert-circle",  color: RED,     bg: `${RED}20`    },
+    { label: "Advance",    val: `₹${bill.totalAdvance.toFixed(0)}`, icon: "credit-card",   color: EMERALD, bg: `${EMERALD}20` },
+    { label: "Amount Due", val: `₹${bill.dueAmount.toFixed(0)}`,    icon: "trending-up",   color: PRIMARY, bg: `${PRIMARY}20` },
+  ] as const;
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <GradientBackground>
       <ScreenHeader
@@ -76,6 +94,11 @@ export default function MemberHome() {
         subtitle="Your monthly overview"
         avatarName={user?.name}
         avatarUrl={user?.photoUrl}
+        rightElement={
+          <Pressable onPress={handleLogout} style={styles.logoutBtn} hitSlop={10}>
+            <Feather name="log-out" size={20} color="rgba(255,255,255,0.85)" />
+          </Pressable>
+        }
         bottomElement={
           <View style={styles.headerMonthNav}>
             <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.headerNavBtn}>
@@ -91,10 +114,56 @@ export default function MemberHome() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 108 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PRIMARY]} tintColor={PRIMARY} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[PRIMARY]}
+            tintColor={PRIMARY}
+          />
+        }
       >
-        {/* ── Due / Credit card ── */}
-        <Animated.View entering={FadeInDown.delay(80).duration(420)} style={{ paddingHorizontal: 20, marginTop: 24 }}>
+        {/* ── Payment Status Banner ─────────────────────────────────────────── */}
+        <Animated.View
+          entering={FadeInDown.delay(60).duration(400)}
+          style={{ paddingHorizontal: 20, marginTop: 20 }}
+        >
+          <LinearGradient
+            colors={isPaid ? [EMERALD, "#10B981"] : [ORANGE, "#EA580C"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.paymentBanner}
+          >
+            <View style={styles.paymentBannerLeft}>
+              <View style={[styles.paymentBannerBadge, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
+                <Feather
+                  name={isPaid ? "check-circle" : "clock"}
+                  size={20}
+                  color="#fff"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.paymentBannerTitle}>
+                  {isPaid ? "Payment Received ✓" : "Payment Pending"}
+                </Text>
+                <Text style={styles.paymentBannerSub}>
+                  {isPaid
+                    ? `Paid ₹${(payment?.amount ?? 0).toFixed(0)} · ${payment?.paidAt?.slice(0, 10) ?? ""}`
+                    : `₹${bill.dueAmount.toFixed(0)} due for ${monthLabel(month)}`}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.paymentBannerPill}>
+              <Text style={styles.paymentBannerPillText}>{isPaid ? "PAID" : "DUE"}</Text>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* ── Amount Due / Credit card ─────────────────────────────────────── */}
+        <Animated.View
+          entering={FadeInDown.delay(120).duration(420)}
+          style={{ paddingHorizontal: 20, marginTop: 14 }}
+        >
           <LinearGradient
             colors={bill.dueAmount > 0 ? [RED, "#E11D48"] : [EMERALD, "#10B981"]}
             start={{ x: 0, y: 0 }}
@@ -119,36 +188,32 @@ export default function MemberHome() {
                 />
               </View>
             </View>
-            {/* Bill breakdown strip */}
+            {/* 5-column breakdown strip: Meals | Eggs | Cook | Fines | Paid */}
             <View style={styles.breakdownStrip}>
-              <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownVal}>₹{bill.mealBill.toFixed(0)}</Text>
-                <Text style={styles.breakdownKey}>Meal Cost</Text>
-              </View>
-              <View style={styles.breakdownDivider} />
-              <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownVal}>₹{bill.cookShare.toFixed(0)}</Text>
-                <Text style={styles.breakdownKey}>Cook</Text>
-              </View>
-              <View style={styles.breakdownDivider} />
-              <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownVal}>₹{bill.fineTotal.toFixed(0)}</Text>
-                <Text style={styles.breakdownKey}>Fines</Text>
-              </View>
-              <View style={styles.breakdownDivider} />
-              <View style={styles.breakdownItem}>
-                <Text style={styles.breakdownVal}>₹{bill.totalAdvance.toFixed(0)}</Text>
-                <Text style={styles.breakdownKey}>Paid</Text>
-              </View>
+              {[
+                { key: "Meals", val: `₹${bill.mealBill.toFixed(0)}` },
+                { key: "Eggs",  val: `₹${bill.eggBill.toFixed(0)}`  },
+                { key: "Cook",  val: `₹${bill.cookShare.toFixed(0)}` },
+                { key: "Fines", val: `₹${bill.fineTotal.toFixed(0)}` },
+                { key: "Paid",  val: `₹${bill.totalAdvance.toFixed(0)}` },
+              ].map(({ key, val }, i) => (
+                <React.Fragment key={key}>
+                  {i > 0 && <View style={styles.breakdownDivider} />}
+                  <View style={styles.breakdownItem}>
+                    <Text style={styles.breakdownVal}>{val}</Text>
+                    <Text style={styles.breakdownKey}>{key}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
             </View>
           </LinearGradient>
         </Animated.View>
 
-        {/* ── Mini stats ── */}
-        <Animated.View entering={FadeInDown.delay(160).duration(400)}>
+        {/* ── Mini stats (6 cards, 2-per-row) ──────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(190).duration(400)}>
           <View style={styles.miniStatsRow}>
             {miniStats.map(({ label, val, icon, color, bg }) => (
-              <View key={label} style={[styles.miniStatCard]}>
+              <View key={label} style={styles.miniStatCard}>
                 <View style={[styles.miniStatIcon, { backgroundColor: bg }]}>
                   <Feather name={icon as "grid"} size={18} color={color} />
                 </View>
@@ -159,47 +224,143 @@ export default function MemberHome() {
           </View>
         </Animated.View>
 
-        {/* ── Gross bill detail ── */}
-        <Animated.View entering={FadeInDown.delay(230).duration(380)} style={styles.section}>
+        {/* ── Full Monthly Bill Breakdown ───────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(260).duration(380)} style={styles.section}>
           <View style={styles.sectionCard}>
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionCardIcon, { backgroundColor: `${PRIMARY}15` }]}>
                 <Feather name="file-text" size={18} color={PRIMARY} />
               </View>
-              <Text style={[styles.sectionCardTitle, { color: colors.foreground }]}>Bill Breakdown</Text>
+              <Text style={[styles.sectionCardTitle, { color: colors.foreground }]}>Monthly Bill</Text>
             </View>
+
+            {/* Rate info rows */}
             {[
               { label: "Meal Rate",   val: `₹${bill.perMealCost.toFixed(2)} / meal` },
-              { label: "Meals Eaten", val: `${bill.mealCount} meals` },
-              { label: "Meal Cost",   val: `₹${bill.mealBill.toFixed(2)}` },
-              { label: "Cook Share",  val: `₹${bill.cookShare.toFixed(2)}` },
-              { label: "Fines",       val: `₹${bill.fineTotal.toFixed(2)}` },
+              { label: "Meals Eaten", val: `${bill.mealCount} meal${bill.mealCount !== 1 ? "s" : ""}` },
             ].map(({ label, val }) => (
               <View key={label} style={[styles.billRow, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>{label}</Text>
                 <Text style={[styles.billVal, { color: colors.foreground }]}>{val}</Text>
               </View>
             ))}
-            <View style={[styles.billRow, styles.billRowTotal, { borderBottomColor: "transparent" }]}>
+
+            {/* Section divider */}
+            <View style={[styles.billSectionDivider, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.billSectionLabel, { color: colors.mutedForeground }]}>Components</Text>
+            </View>
+
+            {/* Line items */}
+            {[
+              { label: "Meal Cost",    val: `₹${bill.mealBill.toFixed(2)}`,  icon: "dollar-sign",  color: ORANGE  },
+              { label: `Eggs (${bill.eggCount} × ₹${settings.eggPrice})`,
+                                       val: `₹${bill.eggBill.toFixed(2)}`,   icon: "sun",          color: YELLOW  },
+              { label: "Cook Salary",  val: `₹${bill.cookShare.toFixed(2)}`, icon: "users",        color: CYAN    },
+              { label: "Fine",         val: `₹${bill.fineTotal.toFixed(2)}`, icon: "alert-circle", color: RED     },
+            ].map(({ label, val, icon, color }) => (
+              <View key={label} style={[styles.billRow, { borderBottomColor: colors.border }]}>
+                <View style={styles.billLabelRow}>
+                  <View style={[styles.billIconDot, { backgroundColor: `${color}18` }]}>
+                    <Feather name={icon as "grid"} size={12} color={color} />
+                  </View>
+                  <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                </View>
+                <Text style={[styles.billVal, { color: colors.foreground }]}>{val}</Text>
+              </View>
+            ))}
+
+            {/* Gross Bill */}
+            <View style={[styles.billRow, { borderBottomColor: colors.border }]}>
               <Text style={[styles.billLabel, { color: colors.foreground, fontWeight: "700" }]}>Gross Bill</Text>
-              <Text style={[styles.billVal, { color: PRIMARY, fontWeight: "800", fontSize: 18 }]}>
+              <Text style={[styles.billVal, { color: PRIMARY, fontWeight: "800", fontSize: 16 }]}>
                 ₹{bill.grossBill.toFixed(2)}
+              </Text>
+            </View>
+
+            {/* Advance deduction */}
+            <View style={[styles.billRow, { borderBottomColor: colors.border }]}>
+              <View style={styles.billLabelRow}>
+                <View style={[styles.billIconDot, { backgroundColor: `${EMERALD}18` }]}>
+                  <Feather name="minus-circle" size={12} color={EMERALD} />
+                </View>
+                <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>Advance Deduction</Text>
+              </View>
+              <Text style={[styles.billVal, { color: EMERALD, fontWeight: "600" }]}>
+                − ₹{bill.totalAdvance.toFixed(2)}
+              </Text>
+            </View>
+
+            {/* Final Payable */}
+            <View style={[styles.billRowFinal, { borderTopColor: colors.border }]}>
+              <Text style={[styles.billLabel, { color: colors.foreground, fontWeight: "700", fontSize: 15 }]}>
+                {bill.dueAmount > 0 ? "Final Payable" : "Credit Balance"}
+              </Text>
+              <Text style={[styles.billVal, {
+                color: bill.dueAmount > 0 ? RED : EMERALD,
+                fontWeight: "900",
+                fontSize: 20,
+              }]}>
+                ₹{(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance).toFixed(2)}
               </Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* ── Announcements ── */}
+        {/* ── Egg Bill Card (shown only when eggs recorded) ─────────────────── */}
+        {(bill.eggCount > 0 || true) && (
+          <Animated.View entering={FadeInDown.delay(310).duration(380)} style={styles.section}>
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionCardHeader}>
+                <View style={[styles.sectionCardIcon, { backgroundColor: `${YELLOW}20` }]}>
+                  <Feather name="sun" size={18} color={YELLOW} />
+                </View>
+                <Text style={[styles.sectionCardTitle, { color: colors.foreground }]}>Egg Bill</Text>
+              </View>
+              {[
+                { label: "Total Eggs Consumed", val: `${bill.eggCount} egg${bill.eggCount !== 1 ? "s" : ""}` },
+                { label: "Egg Price",            val: `₹${settings.eggPrice} / egg` },
+                { label: "Egg Total Cost",        val: `₹${bill.eggBill.toFixed(2)}` },
+              ].map(({ label, val }) => (
+                <View key={label} style={[styles.billRow, { borderBottomColor: colors.border }]}>
+                  <Text style={[styles.billLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  <Text style={[styles.billVal, { color: colors.foreground }]}>{val}</Text>
+                </View>
+              ))}
+              {/* Egg Cost inclusion note */}
+              <View style={[styles.eggNote, { backgroundColor: `${YELLOW}12`, borderColor: `${YELLOW}30` }]}>
+                <Feather name="info" size={13} color={YELLOW} />
+                <Text style={[styles.eggNoteText, { color: colors.mutedForeground }]}>
+                  Egg cost is included in your monthly gross bill.
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Announcements ─────────────────────────────────────────────────── */}
         {recentAnnouncements.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(300).duration(380)} style={[styles.section, { marginBottom: 8 }]}>
+          <Animated.View
+            entering={FadeInUp.delay(360).duration(380)}
+            style={[styles.section, { marginBottom: 8 }]}
+          >
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📣 Announcements</Text>
             {recentAnnouncements.map((a, i) => (
-              <View key={a.id} style={[styles.announcementCard, { marginTop: i === 0 ? 12 : 10 }]}>
+              <View
+                key={a.id}
+                style={[
+                  styles.announcementCard,
+                  { marginTop: i === 0 ? 12 : 10, borderColor: `${PRIMARY}18` },
+                ]}
+              >
                 <View style={[styles.announcementDot, { backgroundColor: PRIMARY }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.announcementTitle, { color: colors.foreground }]}>{a.title}</Text>
-                  {a.body ? <Text style={[styles.announcementBody, { color: colors.mutedForeground }]}>{a.body}</Text> : null}
-                  <Text style={[styles.announcementDate, { color: colors.mutedForeground }]}>{a.createdAt?.slice(0, 10) ?? ""}</Text>
+                  {a.body ? (
+                    <Text style={[styles.announcementBody, { color: colors.mutedForeground }]}>{a.body}</Text>
+                  ) : null}
+                  <Text style={[styles.announcementDate, { color: colors.mutedForeground }]}>
+                    {a.createdAt?.slice(0, 10) ?? ""}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -210,7 +371,53 @@ export default function MemberHome() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  // Header
+  logoutBtn: {
+    width: 38, height: 38,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+    alignItems: "center", justifyContent: "center",
+  },
+  headerMonthNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", paddingVertical: 4,
+  },
+  headerNavBtn: { padding: 8 },
+  headerMonthText: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "700", color: "#fff" },
+
+  // Payment banner
+  paymentBanner: {
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  paymentBannerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  paymentBannerBadge: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  paymentBannerTitle: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  paymentBannerSub: { fontSize: 12, color: "rgba(255,255,255,0.82)", marginTop: 2 },
+  paymentBannerPill: {
+    backgroundColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 20,
+  },
+  paymentBannerPillText: { fontSize: 11, fontWeight: "900", color: "#fff", letterSpacing: 1 },
+
+  // Due card
   dueCard: {
     borderRadius: 28,
     overflow: "hidden",
@@ -221,10 +428,8 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   dueCardInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 24,
-    paddingBottom: 20,
+    flexDirection: "row", alignItems: "center",
+    padding: 24, paddingBottom: 20,
   },
   dueCardLeft: { flex: 1 },
   dueCardLabel: { fontSize: 14, fontWeight: "600", color: "rgba(255,255,255,0.85)", marginBottom: 6 },
@@ -234,36 +439,34 @@ const styles = StyleSheet.create({
   breakdownStrip: {
     flexDirection: "row",
     backgroundColor: "rgba(0,0,0,0.15)",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: 12, paddingHorizontal: 16,
   },
   breakdownItem: { flex: 1, alignItems: "center" },
-  breakdownVal: { fontSize: 14, fontWeight: "700", color: "#fff" },
-  breakdownKey: { fontSize: 10, color: "rgba(255,255,255,0.75)", marginTop: 2, fontWeight: "500" },
-  breakdownDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 4 },
+  breakdownVal: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  breakdownKey: { fontSize: 9, color: "rgba(255,255,255,0.72)", marginTop: 2, fontWeight: "500" },
+  breakdownDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 2 },
 
+  // Mini stats
   miniStatsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 4,
+    flexDirection: "row", flexWrap: "wrap", gap: 12,
+    paddingHorizontal: 20, marginTop: 20, marginBottom: 4,
   },
   miniStatCard: {
-    width: "47%",
-    borderRadius: 18,
-    padding: 16,
+    width: "47%", borderRadius: 18, padding: 16,
     backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
     shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08, shadowRadius: 10, elevation: 4,
     alignItems: "center",
   },
-  miniStatIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 10 },
+  miniStatIcon: {
+    width: 44, height: 44, borderRadius: 14,
+    alignItems: "center", justifyContent: "center", marginBottom: 10,
+  },
   miniStatVal: { fontSize: 20, fontWeight: "800" },
   miniStatLabel: { fontSize: 12, marginTop: 3 },
 
+  // Sections
   section: { paddingHorizontal: 20, marginTop: 20 },
   sectionTitle: { fontSize: 17, fontWeight: "700" },
   sectionCard: {
@@ -272,32 +475,51 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
     shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
-    padding: 18, gap: 0,
+    padding: 18,
   },
   sectionCardHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   sectionCardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   sectionCardTitle: { fontSize: 16, fontWeight: "700" },
-  billRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 11, borderBottomWidth: 1 },
-  billRowTotal: { paddingTop: 14 },
+
+  // Bill rows
+  billRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 11, borderBottomWidth: 1,
+  },
+  billRowFinal: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 14, borderTopWidth: 1.5, marginTop: 4,
+  },
+  billSectionDivider: {
+    paddingBottom: 6, borderBottomWidth: 1, marginTop: 6, marginBottom: 2,
+  },
+  billSectionLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 0.8, textTransform: "uppercase" },
+  billLabelRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  billIconDot: {
+    width: 24, height: 24, borderRadius: 8,
+    alignItems: "center", justifyContent: "center",
+  },
   billLabel: { fontSize: 14 },
   billVal: { fontSize: 15, fontWeight: "600" },
 
+  // Egg note
+  eggNote: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderRadius: 10, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 8,
+    marginTop: 10,
+  },
+  eggNoteText: { fontSize: 12, flex: 1, lineHeight: 17 },
+
+  // Announcements
   announcementCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     borderRadius: 16, padding: 14,
     backgroundColor: "rgba(255,255,255,0.88)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
   },
   announcementDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
   announcementTitle: { fontSize: 15, fontWeight: "700" },
   announcementBody: { fontSize: 13, marginTop: 3, lineHeight: 18 },
   announcementDate: { fontSize: 11, marginTop: 5 },
-
-  headerMonthNav: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 12,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", paddingVertical: 4,
-  },
-  headerNavBtn: { padding: 8 },
-  headerMonthText: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "700", color: "#fff" },
 });
