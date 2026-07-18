@@ -145,10 +145,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    if (!supabaseReady) return;
-    const { getSupabase } = await import("@/lib/supabase");
-    await getSupabase().auth.signOut();
+    // 1. Sign out from Supabase — this invalidates the server-side session
+    //    and fires onAuthStateChange with SIGNED_OUT so the listener cleans up.
+    if (supabaseReady) {
+      try {
+        const { getSupabase } = await import("@/lib/supabase");
+        await getSupabase().auth.signOut();
+      } catch {
+        // Ignore network errors on sign-out — we still clear local state.
+      }
+    }
+
+    // 2. Eagerly clear local user state so the AuthGuard in _layout.tsx
+    //    immediately redirects to /login without waiting for the async
+    //    onAuthStateChange listener to fire.
     setUser(null);
+
+    // 3. Scrub every Supabase auth key from AsyncStorage so the session
+    //    is gone even if the app is force-closed and reopened.
+    try {
+      const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+      const allKeys = await AsyncStorage.getAllKeys();
+      const authKeys = allKeys.filter(
+        (k) => k.startsWith("sb-") || k.includes("supabase") || k.includes("auth"),
+      );
+      if (authKeys.length > 0) {
+        await AsyncStorage.multiRemove(authKeys);
+      }
+    } catch {
+      // AsyncStorage cleanup is best-effort; ignore failures.
+    }
   };
 
   return (
