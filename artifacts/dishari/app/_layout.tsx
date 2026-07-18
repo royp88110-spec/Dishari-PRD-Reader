@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -27,17 +28,9 @@ function AuthGuard() {
   const { user, isLoading, needsSetup, schemaNotReady, supabaseReady } = useAuth();
   const segments = useSegments();
 
-  // Keep the splash screen visible until auth has fully resolved.
-  // Fonts are already loaded by the time this component mounts (RootLayout
-  // returns null until fonts are ready), so we only need to wait on auth.
   useEffect(() => {
-    if (!isLoading) {
-      void SplashScreen.hideAsync();
-    }
-  }, [isLoading]);
-
-  useEffect(() => {
-    // Wait until auth has fully initialised before making routing decisions.
+    // While auth is still resolving, do nothing — the opaque cover below
+    // ensures no intermediate screen is visible.
     if (isLoading) return;
 
     const topSegment = segments[0] as string | undefined;
@@ -46,23 +39,40 @@ function AuthGuard() {
     const onIndex     = !topSegment; // root "/"
 
     if (!supabaseReady || schemaNotReady || needsSetup) {
-      // Let index.tsx handle these edge cases
       if (!onIndex) router.replace("/");
-      return;
-    }
-
-    if (!user) {
-      // Signed out — push off any protected screen immediately
+    } else if (!user) {
+      // Signed out — push off any protected screen
       if (onProtected) router.replace("/login");
-      // If already on login or index, stay put — no navigation needed
+      // Already on login/index — stay put, no navigation needed
     } else {
-      // Signed in — route to the correct home screen
+      // Signed in — route to the correct dashboard
       if (onLogin || onIndex) {
         router.replace(user.role === "admin" ? "/admin" : "/member");
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Hide the splash AFTER routing is queued. router.replace() is synchronous
+    // in terms of committing the navigation to Expo Router's stack, so by the
+    // time hideAsync resolves (fade-out ~300 ms) the destination screen is ready.
+    void SplashScreen.hideAsync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading, needsSetup, schemaNotReady, supabaseReady]);
+
+  // ── Opaque init cover ────────────────────────────────────────────────────────
+  // While auth is resolving, render a solid cover that matches the splash
+  // background so no half-rendered screen bleeds through during the native
+  // splash fade. This is rendered AFTER <Stack> so it layers on top.
+  if (isLoading) {
+    return (
+      <View
+        style={[
+          StyleSheet.absoluteFillObject,
+          styles.initCover,
+        ]}
+        pointerEvents="none"
+      />
+    );
+  }
 
   return null;
 }
@@ -70,7 +80,6 @@ function AuthGuard() {
 function RootLayoutNav() {
   return (
     <>
-      <AuthGuard />
       <Stack screenOptions={{ headerBackTitle: "Back" }}>
         <Stack.Screen name="index"  options={{ headerShown: false }} />
         <Stack.Screen name="login"  options={{ headerShown: false }} />
@@ -78,6 +87,8 @@ function RootLayoutNav() {
         <Stack.Screen name="admin"  options={{ headerShown: false }} />
         <Stack.Screen name="member" options={{ headerShown: false }} />
       </Stack>
+      {/* AuthGuard comes AFTER Stack so its cover View renders on top */}
+      <AuthGuard />
     </>
   );
 }
@@ -92,8 +103,9 @@ export default function RootLayout() {
     ...Feather.font,
   });
 
-  // Do NOT call SplashScreen.hideAsync() here — AuthGuard owns that once auth resolves.
   // Returning null keeps the native splash visible while fonts are loading.
+  // SplashScreen.hideAsync() is called by AuthGuard once auth also resolves —
+  // so the splash covers BOTH font loading and auth initialisation.
   if (!fontsLoaded && !fontError) return null;
 
   return (
@@ -114,3 +126,11 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  initCover: {
+    // Matches app.json splash.backgroundColor — user sees a seamless handoff
+    // from the native splash to this cover while auth resolves.
+    backgroundColor: "#FFF8F3",
+  },
+});

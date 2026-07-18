@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Platform } from "react-native";
 import { isSupabaseConfigured, toEmail } from "@/lib/supabase";
 
@@ -12,7 +19,8 @@ export interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (identifier: string, password: string) => Promise<boolean>;
+  /** Returns the resolved AuthUser on success, null on failure. */
+  login: (identifier: string, password: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   isLoading: boolean;
   needsSetup: boolean;
@@ -25,11 +33,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const getApiBase = (): string => {
   if (Platform.OS === "web") return "";
-  // EXPO_PUBLIC_API_URL is the canonical override for EAS / production APK builds.
-  // Set it via: eas secret:create --name EXPO_PUBLIC_API_URL --value https://your-api.example.com
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) return apiUrl.replace(/\/$/, "");
-  // Fallback: EXPO_PUBLIC_DOMAIN is injected by the Replit dev script only.
   const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
   return domain ? `https://${domain}` : "";
 };
@@ -40,6 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [schemaNotReady, setSchemaNotReady] = useState(false);
   const [supabaseReady] = useState(isSupabaseConfigured);
+
+  // Prevents onAuthStateChange from calling loadMemberForSession a second time
+  // when login() is already doing it explicitly.
+  const loggingIn = useRef(false);
 
   const refreshSetupStatus = useCallback(async () => {
     if (!supabaseReady) return;
@@ -58,13 +67,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabaseReady]);
 
+  /**
+   * Fetches the member row for a Supabase session user and updates user state.
+   * Returns the resolved AuthUser, or null if the member row is missing.
+   */
   const loadMemberForSession = useCallback(async (
     userId: string | undefined,
     userMeta?: Record<string, unknown>,
-  ) => {
+  ): Promise<AuthUser | null> => {
     if (!userId || !supabaseReady) {
       setUser(null);
-      return;
+      return null;
     }
     const { getSupabase } = await import("@/lib/supabase");
     const sb = getSupabase();
@@ -77,17 +90,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (member) {
       const rawPhoto = userMeta?.avatar_url ?? userMeta?.picture;
       const photoUrl = typeof rawPhoto === "string" && rawPhoto ? rawPhoto : undefined;
-      setUser({
+      const newUser: AuthUser = {
         id: userId,
         name: member.name as string,
         role: member.role as "admin" | "member",
         memberId: member.id as string,
         photoUrl: photoUrl || undefined,
-      });
+      };
+      setUser(newUser);
       setNeedsSetup(false);
+      return newUser;
     } else {
       setUser(null);
       await sb.auth.signOut();
+      return null;
     }
   }, [supabaseReady]);
 
@@ -112,13 +128,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void init();
 
+    // Register onAuthStateChange AFTER init so INITIAL_SESSION doesn't race
+    // with getSession(). The listener handles token refreshes and sign-outs
+    // that happen while the app is running; explicit login is handled by login().
     let unsubscribe: (() => void) | null = null;
     import("@/lib/supabase").then(({ getSupabase }) => {
       const sb = getSupabase();
       const { data: { subscription } } = sb.auth.onAuthStateChange(
         (_event, session) => {
+          // Skip if login() is currently executing — it calls loadMemberForSession
+          // directly and we don't want a duplicate fetch + extra setUser call.
+          if (loggingIn.current) return;
           void loadMemberForSession(session?.user.id, session?.user.user_metadata);
-        }
+        },
       );
       unsubscribe = () => subscription.unsubscribe();
     });
@@ -129,24 +151,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadMemberForSession, refreshSetupStatus, supabaseReady]);
 
-  const login = async (identifier: string, password: string): Promise<boolean> => {
-    if (!supabaseReady) return false;
+  /**
+   * Signs in with Supabase, loads the member profile, and returns the resolved
+   * AuthUser. Returns null on bad credentials or missing member row.
+   * The caller can navigate directly using the returned user.role without
+   * waiting for AuthGuard's useEffect to fire.
+   */
+  const login = async (identifier: string, password: string): Promise<AuthUser | null> => {
+    if (!supabaseReady) return null;
     const { getSupabase } = await import("@/lib/supabase");
     const { data, error } = await getSupabase().auth.signInWithPassword({
       email: toEmail(identifier),
       password,
     });
-    if (error || !data.session) return false;
-    // Eagerly load the member profile so user state is set before the
-    // caller navigates away — prevents the "press twice" issue caused by
-    // relying solely on the async onAuthStateChange listener.
-    await loadMemberForSession(data.session.user.id, data.session.user.user_metadata);
-    return true;
+    if (error || !data.session) return null;
+    // Flag so onAuthStateChange skips its duplicate loadMemberForSession call.
+    loggingIn.current = true;
+    const result = await loadMemberForSession(
+      data.session.user.id,
+      data.session.user.user_metadata,
+    );
+    loggingIn.current = false;
+    return result;
   };
 
   const logout = async () => {
-    // 1. Sign out from Supabase — this invalidates the server-side session
-    //    and fires onAuthStateChange with SIGNED_OUT so the listener cleans up.
     if (supabaseReady) {
       try {
         const { getSupabase } = await import("@/lib/supabase");
@@ -156,13 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // 2. Eagerly clear local user state so the AuthGuard in _layout.tsx
-    //    immediately redirects to /login without waiting for the async
-    //    onAuthStateChange listener to fire.
     setUser(null);
 
-    // 3. Scrub every Supabase auth key from AsyncStorage so the session
-    //    is gone even if the app is force-closed and reopened.
     try {
       const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
       const allKeys = await AsyncStorage.getAllKeys();
@@ -178,7 +202,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading, needsSetup, schemaNotReady, supabaseReady, refreshSetupStatus }}>
+    <AuthContext.Provider value={{
+      user, login, logout, isLoading, needsSetup, schemaNotReady, supabaseReady, refreshSetupStatus,
+    }}>
       {children}
     </AuthContext.Provider>
   );

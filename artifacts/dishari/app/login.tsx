@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -91,14 +92,15 @@ export default function LoginScreen() {
     }
     setLoading(true);
     setError("");
-    const ok = await login(phone.trim(), password);
+    const result = await login(phone.trim(), password);
     setLoading(false);
-    if (!ok) {
+    if (result) {
+      // Navigate directly in the same event handler — no useEffect delay,
+      // no intermediate screen flash. login() already set the user state.
+      router.replace(result.role === "admin" ? "/admin" : "/member");
+    } else {
       setError("Invalid credentials. Please try again.");
     }
-    // On success: AuthGuard detects the new user state and navigates to
-    // /admin or /member directly — no router.replace() here, which avoids
-    // the flash of the index loading screen.
   };
 
   return (
