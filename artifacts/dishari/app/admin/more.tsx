@@ -17,12 +17,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, {
-  interpolateColor,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useData } from "@/context/DataContext";
@@ -54,7 +48,6 @@ function monthLabel(m: string) {
 
 // ─── Animated shortcut tab item ───────────────────────────────────────────────
 
-const TRANSITION_MS = 200;
 const PRIMARY = "#4F46E5";
 const INACTIVE_FG = "#64748B";
 
@@ -69,43 +62,12 @@ function ShortcutTab({
   active: boolean;
   onPress: () => void;
 }) {
-  const progress = useSharedValue(active ? 1 : 0);
-
-  useEffect(() => {
-    progress.value = withTiming(active ? 1 : 0, { duration: TRANSITION_MS });
-  }, [active, progress]);
-
-  const containerStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      ["transparent", PRIMARY],
-    ),
-  }));
-
-  const fgStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(
-      progress.value,
-      [0, 1],
-      [INACTIVE_FG, "#ffffff"],
-    ),
-  }));
-
   return (
     <Pressable style={styles.tabTouchable} onPress={onPress}>
-      <Animated.View style={[styles.tabInner, containerStyle]}>
-        {/* Feather doesn't accept animated props directly, so we layer two icons */}
-        <View>
-          <Feather name={icon as "settings"} size={14} color={INACTIVE_FG} style={{ opacity: active ? 0 : 1 }} />
-          <Feather
-            name={icon as "settings"}
-            size={14}
-            color="#fff"
-            style={{ position: "absolute", top: 0, left: 0, opacity: active ? 1 : 0 }}
-          />
-        </View>
-        <Animated.Text style={[styles.tabLabel, fgStyle]}>{label}</Animated.Text>
-      </Animated.View>
+      <View style={[styles.tabInner, active && { backgroundColor: PRIMARY }]}>
+        <Feather name={icon as "settings"} size={14} color={active ? "#fff" : INACTIVE_FG} />
+        <Text style={[styles.tabLabel, active && { color: "#fff" }]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }

@@ -11,7 +11,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 
@@ -101,12 +100,12 @@ export default function MemberAdvances() {
       {/* Summary cards */}
       <View style={styles.summaryRow}>
         {summaryItems.map(({ label, value, gradient }, i) => (
-          <Animated.View key={label} entering={FadeInDown.delay(60 + i * 70).duration(380)} style={styles.summaryCardWrapper}>
+          <View key={label} style={styles.summaryCardWrapper}>
             <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>{label}</Text>
               <Text style={styles.summaryVal}>{value}</Text>
             </LinearGradient>
-          </Animated.View>
+          </View>
         ))}
       </View>
 
@@ -130,7 +129,7 @@ export default function MemberAdvances() {
           </View>
         }
         renderItem={({ item: a, index }) => (
-          <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 60).duration(350)} style={{ marginBottom: 12 }}>
+          <View style={{ marginBottom: 12 }}>
             <View style={styles.advCard}>
               <View style={styles.advIconWrap}>
                 <LinearGradient colors={[EMERALD, "#10B981"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.advIconGradient}>
@@ -146,7 +145,7 @@ export default function MemberAdvances() {
                 <Text style={styles.paidText}>Paid</Text>
               </View>
             </View>
-          </Animated.View>
+          </View>
         )}
       />
     </GradientBackground>
@@ -155,8 +154,6 @@ export default function MemberAdvances() {
 
 const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 12, marginVertical: 20 },
-  // overflow:"hidden" intentionally omitted — on Android/Expo Go it clips Animated.View children,
-  // hiding all text. borderRadius on the LinearGradient child is sufficient.
   summaryCardWrapper: {
     flex: 1, borderRadius: 20,
     shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },

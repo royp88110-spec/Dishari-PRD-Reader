@@ -5,7 +5,6 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   FlatList,
   Pressable,
   RefreshControl,
@@ -49,42 +48,21 @@ function MealToggleButton({
   color: string;
   onToggle: () => void;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
 
-  const onPressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.86,
-      useNativeDriver: true,
-      speed: 60,
-      bounciness: 0,
-    }).start();
-  };
-
-  const onPressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 22,
-      bounciness: 12,
-    }).start();
-  };
 
   return (
     <Pressable
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
       onPress={onToggle}
       disabled={loading}
       hitSlop={8}
       style={styles.toggleCell}
     >
-      <Animated.View
+      <View
         style={[
           styles.toggleBtn,
           active
             ? { backgroundColor: color + "18", borderColor: color }
             : { backgroundColor: "#F1F5F9", borderColor: "#E2E8F0" },
-          { transform: [{ scale }] },
           active && {
             shadowColor: color,
             shadowOffset: { width: 0, height: 3 },
@@ -101,7 +79,7 @@ function MealToggleButton({
             <Feather name={active ? "check" : "minus"} size={13} color="#fff" />
           </View>
         )}
-      </Animated.View>
+      </View>
     </Pressable>
   );
 }

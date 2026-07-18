@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,15 +12,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  withRepeat,
-  withSequence,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -40,51 +31,6 @@ export default function LoginScreen() {
   const [passFocused, setPassFocused] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
-  // ── Entrance animations ────────────────────────────────────────────────────
-  const logoScale   = useSharedValue(0.5);
-  const logoOpacity = useSharedValue(0);
-  const logoFloat   = useSharedValue(0);
-  const titleY      = useSharedValue(28);
-  const titleOpacity = useSharedValue(0);
-  const cardY       = useSharedValue(56);
-  const cardOpacity = useSharedValue(0);
-  const hintOpacity = useSharedValue(0);
-
-  useEffect(() => {
-    logoOpacity.value = withDelay(80,  withTiming(1, { duration: 300 }));
-    logoScale.value   = withDelay(80,  withSpring(1, { damping: 12, stiffness: 100 }));
-    logoFloat.value   = withDelay(700, withRepeat(
-      withSequence(
-        withTiming(-7, { duration: 1800 }),
-        withTiming(0,  { duration: 1800 }),
-      ),
-      -1, true,
-    ));
-    titleOpacity.value = withDelay(300, withTiming(1, { duration: 380 }));
-    titleY.value       = withDelay(300, withSpring(0, { damping: 15, stiffness: 120 }));
-    cardOpacity.value  = withDelay(460, withTiming(1, { duration: 400 }));
-    cardY.value        = withDelay(460, withSpring(0, { damping: 14, stiffness: 105 }));
-    hintOpacity.value  = withDelay(700, withTiming(1, { duration: 380 }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const logoStyle  = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ scale: logoScale.value }, { translateY: logoFloat.value }],
-  }));
-  const titleStyle = useAnimatedStyle(() => ({
-    opacity: titleOpacity.value,
-    transform: [{ translateY: titleY.value }],
-  }));
-  const cardStyle  = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ translateY: cardY.value }],
-  }));
-  const hintStyle  = useAnimatedStyle(() => ({ opacity: hintOpacity.value }));
-
-  const btnScale = useSharedValue(1);
-  const btnStyle = useAnimatedStyle(() => ({ transform: [{ scale: btnScale.value }] }));
-
   const handleLogin = async () => {
     if (!phone.trim() || !password) {
       setError("Please fill in all fields");
@@ -95,8 +41,6 @@ export default function LoginScreen() {
     const result = await login(phone.trim(), password);
     setLoading(false);
     if (result) {
-      // Navigate directly in the same event handler — no useEffect delay,
-      // no intermediate screen flash. login() already set the user state.
       router.replace(result.role === "admin" ? "/admin" : "/member");
     } else {
       setError("Invalid credentials. Please try again.");
@@ -110,154 +54,146 @@ export default function LoginScreen() {
 
           {/* ── Logo + Branding ── */}
           <View style={styles.header}>
-            <Animated.View style={logoStyle}>
-              <View style={styles.logoGlowOuter}>
-                <View style={styles.logoGlowInner}>
-                  <LinearGradient
-                    colors={[PRIMARY, PRIMARY2]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.logoCircle}
-                  >
-                    <Feather name="coffee" size={34} color="#fff" />
-                  </LinearGradient>
-                </View>
+            <View style={styles.logoGlowOuter}>
+              <View style={styles.logoGlowInner}>
+                <LinearGradient
+                  colors={[PRIMARY, PRIMARY2]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.logoCircle}
+                >
+                  <Feather name="coffee" size={34} color="#fff" />
+                </LinearGradient>
               </View>
-            </Animated.View>
+            </View>
 
-            <Animated.View style={[styles.titleBlock, titleStyle]}>
+            <View style={styles.titleBlock}>
               <Text style={styles.appName}>Dishari Mess</Text>
               <Text style={styles.appTagline}>Management System</Text>
               <View style={styles.taglinePill}>
                 <Feather name="shield" size={11} color={PRIMARY} />
                 <Text style={styles.taglinePillText}>Secure · Smart · Seamless</Text>
               </View>
-            </Animated.View>
+            </View>
           </View>
 
           {/* ── Login Card ── */}
-          <Animated.View style={cardStyle}>
-            <View style={styles.card}>
-
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.cardHeaderIcon}>
-                  <Feather name="log-in" size={18} color={PRIMARY} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Welcome Back</Text>
-                  <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>Sign in to your account</Text>
-                </View>
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.cardHeaderIcon}>
+                <Feather name="log-in" size={18} color={PRIMARY} />
               </View>
-
-              <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
-
-              {/* Phone */}
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Phone / User ID</Text>
-                <View style={[
-                  styles.inputWrap,
-                  {
-                    borderColor: phoneFocused ? PRIMARY : phone ? "#A5B4FC" : colors.input,
-                    backgroundColor: phoneFocused ? "rgba(79,70,229,0.06)" : colors.muted,
-                  },
-                ]}>
-                  <View style={[styles.inputIcon, { backgroundColor: phoneFocused ? "rgba(79,70,229,0.12)" : colors.border }]}>
-                    <Feather name="phone" size={16} color={phoneFocused ? PRIMARY : colors.mutedForeground} />
-                  </View>
-                  <TextInput
-                    style={[styles.input, { color: colors.foreground }]}
-                    placeholder="Enter your phone or ID"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="default"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="next"
-                    onFocus={() => setPhoneFocused(true)}
-                    onBlur={() => setPhoneFocused(false)}
-                    onSubmitEditing={() => passwordRef.current?.focus()}
-                  />
-                </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Welcome Back</Text>
+                <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>Sign in to your account</Text>
               </View>
-
-              {/* Password */}
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Password</Text>
-                <View style={[
-                  styles.inputWrap,
-                  {
-                    borderColor: passFocused ? PRIMARY : password ? "#A5B4FC" : colors.input,
-                    backgroundColor: passFocused ? "rgba(79,70,229,0.06)" : colors.muted,
-                  },
-                ]}>
-                  <View style={[styles.inputIcon, { backgroundColor: passFocused ? "rgba(79,70,229,0.12)" : colors.border }]}>
-                    <Feather name="lock" size={16} color={passFocused ? PRIMARY : colors.mutedForeground} />
-                  </View>
-                  <TextInput
-                    ref={passwordRef}
-                    style={[styles.input, { color: colors.foreground }]}
-                    placeholder="Enter your password"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="go"
-                    onFocus={() => setPassFocused(true)}
-                    onBlur={() => setPassFocused(false)}
-                    onSubmitEditing={handleLogin}
-                  />
-                  <Pressable onPress={() => setShowPass(!showPass)} hitSlop={8} style={styles.eyeBtn}>
-                    <Feather name={showPass ? "eye-off" : "eye"} size={16} color={passFocused ? PRIMARY : colors.mutedForeground} />
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* Error */}
-              {error ? (
-                <View style={styles.errorWrap}>
-                  <View style={styles.errorIconWrap}>
-                    <Feather name="alert-circle" size={14} color="#F43F5E" />
-                  </View>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
-
-              {/* Button */}
-              <Pressable
-                onPressIn={() => { btnScale.value = withSpring(0.96, { damping: 12, stiffness: 250 }); }}
-                onPressOut={() => { btnScale.value = withSpring(1, { damping: 12, stiffness: 250 }); }}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                <Animated.View style={btnStyle}>
-                  <LinearGradient
-                    colors={[PRIMARY, PRIMARY2]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.loginBtn, loading && { opacity: 0.85 }]}
-                  >
-                    {loading ? (
-                      <View style={styles.loadingRow}>
-                        <ActivityIndicator color="#fff" size="small" />
-                        <Text style={styles.loginBtnText}>Signing In…</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.loginBtnRow}>
-                        <Text style={styles.loginBtnText}>Sign In</Text>
-                        <Feather name="arrow-right" size={18} color="#fff" />
-                      </View>
-                    )}
-                  </LinearGradient>
-                </Animated.View>
-              </Pressable>
             </View>
-          </Animated.View>
+
+            <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
+
+            {/* Phone */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Phone / User ID</Text>
+              <View style={[
+                styles.inputWrap,
+                {
+                  borderColor: phoneFocused ? PRIMARY : phone ? "#A5B4FC" : colors.input,
+                  backgroundColor: phoneFocused ? "rgba(79,70,229,0.06)" : colors.muted,
+                },
+              ]}>
+                <View style={[styles.inputIcon, { backgroundColor: phoneFocused ? "rgba(79,70,229,0.12)" : colors.border }]}>
+                  <Feather name="phone" size={16} color={phoneFocused ? PRIMARY : colors.mutedForeground} />
+                </View>
+                <TextInput
+                  style={[styles.input, { color: colors.foreground }]}
+                  placeholder="Enter your phone or ID"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="default"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  onFocus={() => setPhoneFocused(true)}
+                  onBlur={() => setPhoneFocused(false)}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                />
+              </View>
+            </View>
+
+            {/* Password */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Password</Text>
+              <View style={[
+                styles.inputWrap,
+                {
+                  borderColor: passFocused ? PRIMARY : password ? "#A5B4FC" : colors.input,
+                  backgroundColor: passFocused ? "rgba(79,70,229,0.06)" : colors.muted,
+                },
+              ]}>
+                <View style={[styles.inputIcon, { backgroundColor: passFocused ? "rgba(79,70,229,0.12)" : colors.border }]}>
+                  <Feather name="lock" size={16} color={passFocused ? PRIMARY : colors.mutedForeground} />
+                </View>
+                <TextInput
+                  ref={passwordRef}
+                  style={[styles.input, { color: colors.foreground }]}
+                  placeholder="Enter your password"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPass}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="go"
+                  onFocus={() => setPassFocused(true)}
+                  onBlur={() => setPassFocused(false)}
+                  onSubmitEditing={handleLogin}
+                />
+                <Pressable onPress={() => setShowPass(!showPass)} hitSlop={8} style={styles.eyeBtn}>
+                  <Feather name={showPass ? "eye-off" : "eye"} size={16} color={passFocused ? PRIMARY : colors.mutedForeground} />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Error */}
+            {error ? (
+              <View style={styles.errorWrap}>
+                <View style={styles.errorIconWrap}>
+                  <Feather name="alert-circle" size={14} color="#F43F5E" />
+                </View>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Button */}
+            <Pressable
+              onPress={handleLogin}
+              disabled={loading}
+              style={({ pressed }) => [{ opacity: pressed || loading ? 0.85 : 1 }]}
+            >
+              <LinearGradient
+                colors={[PRIMARY, PRIMARY2]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginBtn}
+              >
+                {loading ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color="#fff" size="small" />
+                    <Text style={styles.loginBtnText}>Signing In…</Text>
+                  </View>
+                ) : (
+                  <View style={styles.loginBtnRow}>
+                    <Text style={styles.loginBtnText}>Sign In</Text>
+                    <Feather name="arrow-right" size={18} color="#fff" />
+                  </View>
+                )}
+              </LinearGradient>
+            </Pressable>
+          </View>
 
           {/* ── Hint ── */}
-          <Animated.View style={[styles.hint, hintStyle]}>
+          <View style={styles.hint}>
             <View style={styles.hintBox}>
               <Feather name="info" size={12} color={PRIMARY} />
               <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
@@ -265,7 +201,7 @@ export default function LoginScreen() {
                 {"  ·  "}Members: use phone number
               </Text>
             </View>
-          </Animated.View>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </LinearGradient>

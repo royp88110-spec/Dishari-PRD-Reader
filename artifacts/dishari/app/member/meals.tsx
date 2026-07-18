@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
@@ -94,22 +93,22 @@ export default function MemberMeals() {
           { label: "Night",   count: totalNight,   delay: 130, gradient: SUMMARY_GRADIENTS[1] },
           { label: "Total",   count: totalMeals,   delay: 200, gradient: SUMMARY_GRADIENTS[2] },
         ].map(({ label, count, delay, gradient }) => (
-          <Animated.View key={label} entering={FadeInDown.delay(delay).duration(380)} style={styles.summaryCardWrapper}>
+          <View key={label} style={styles.summaryCardWrapper}>
             <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summaryCard}>
               <Text style={styles.summaryCount}>{count}</Text>
               <Text style={styles.summaryLabel}>{label}</Text>
             </LinearGradient>
-          </Animated.View>
+          </View>
         ))}
       </View>
 
       {/* Table header */}
-      <Animated.View entering={FadeInUp.delay(240).duration(300)} style={[styles.tableHeader, { backgroundColor: "rgba(255,255,255,0.55)" }]}>
+      <View style={[styles.tableHeader, { backgroundColor: "rgba(255,255,255,0.55)" }]}>
         <Text style={[styles.colDate,  { color: colors.mutedForeground }]}>DATE</Text>
         <Text style={[styles.colMeal,  { color: PRIMARY }]}>MORNING</Text>
         <Text style={[styles.colMeal,  { color: PRIMARY2 }]}>NIGHT</Text>
         <Text style={[styles.colTotal, { color: colors.mutedForeground }]}>TOTAL</Text>
-      </Animated.View>
+      </View>
 
       <FlatList
         data={memberMeals}
@@ -136,7 +135,7 @@ export default function MemberMeals() {
           const dayName = new Date(m.date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short" });
           const dayNum  = m.date.split("-")[2];
           return (
-            <Animated.View entering={FadeInDown.delay(Math.min(index, 12) * 45).duration(320)}>
+            <View>
               <View style={[styles.mealRow, { backgroundColor: "rgba(255,255,255,0.75)" }]}>
                 <View style={styles.dateCol}>
                   <Text style={[styles.dayNum, { color: colors.foreground }]}>{dayNum}</Text>
@@ -156,7 +155,7 @@ export default function MemberMeals() {
                   <Text style={[styles.totalText, { color: total > 0 ? "#22D3EE" : colors.mutedForeground }]}>{total}</Text>
                 </View>
               </View>
-            </Animated.View>
+            </View>
           );
         }}
       />
@@ -166,8 +165,6 @@ export default function MemberMeals() {
 
 const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", paddingHorizontal: 16, gap: 12, marginVertical: 16 },
-  // overflow:"hidden" intentionally omitted — on Android/Expo Go it clips Animated.View children,
-  // hiding all text. borderRadius on the LinearGradient child is sufficient.
   summaryCardWrapper: { flex: 1, borderRadius: 20, shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
   summaryCard: { borderRadius: 20, padding: 18, minHeight: 80, alignItems: "center", justifyContent: "center" },
   summaryCount: { fontSize: 26, fontWeight: "800", color: "#fff" },

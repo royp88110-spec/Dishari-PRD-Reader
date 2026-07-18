@@ -13,17 +13,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  interpolate,
-  Extrapolation,
-  FadeInDown,
-  FadeInUp,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -65,21 +54,16 @@ function nextMonth(m: string) {
 // ─── StatCard ─────────────────────────────────────────────────────────────────
 
 function StatCard({
-  label, value, icon, color, sub, enterDelay = 0,
+  label, value, icon, color, sub,
 }: {
   label: string; value: string; icon: string;
-  color: string; sub?: string; enterDelay?: number;
+  color: string; sub?: string;
 }) {
   const colors = useColors();
-  const scale = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(enterDelay).duration(400)}
-      style={[styles.statCard, { backgroundColor: colors.card }, pressStyle]}
+    <View
+      style={[styles.statCard, { backgroundColor: colors.card }]}
     >
       <View style={styles.statCardInner}>
         {/* Icon stays pinned top-left */}
@@ -91,7 +75,7 @@ function StatCard({
         <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
         {sub ? <Text style={[styles.statSub, { color: color }]}>{sub}</Text> : null}
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -119,24 +103,10 @@ export default function AdminDashboard() {
   const { refreshing, onRefresh } = useRefresh();
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
-  const sidebarX = useSharedValue(SIDEBAR_WIDTH);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  const openSidebar = () => {
-    setSidebarVisible(true);
-    sidebarX.value = withSpring(0, { damping: 22, stiffness: 200, mass: 0.8 });
-  };
-  const closeSidebar = () => {
-    sidebarX.value = withSpring(SIDEBAR_WIDTH, { damping: 22, stiffness: 200, mass: 0.8 });
-    setTimeout(() => setSidebarVisible(false), 320);
-  };
-
-  const sidebarStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: sidebarX.value }],
-  }));
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(sidebarX.value, [0, SIDEBAR_WIDTH], [1, 0], Extrapolation.CLAMP),
-  }));
+  const openSidebar = () => setSidebarVisible(true);
+  const closeSidebar = () => setSidebarVisible(false);
 
   const setMemberPaying = (id: string, paying: boolean) =>
     setPayingIds((prev) => {
@@ -227,7 +197,7 @@ export default function AdminDashboard() {
         }
       >
         {/* Month navigator */}
-        <Animated.View entering={FadeInDown.delay(0).duration(350)}>
+        <View>
           <View style={[styles.monthNav, { backgroundColor: colors.card }]}>
             <Pressable onPress={() => setMonth(prevMonth(month))} style={styles.navArrow}>
               <Feather name="chevron-left" size={22} color={PRIMARY} />
@@ -239,23 +209,23 @@ export default function AdminDashboard() {
               <Feather name="chevron-right" size={22} color={PRIMARY} />
             </Pressable>
           </View>
-        </Animated.View>
+        </View>
 
         {/* Stat cards — staggered entrance */}
         <View style={styles.statsGrid}>
           <StatCard label="Active Members" value={String(activeMembers)} icon="users"
-            color="#4F46E5" enterDelay={80} />
+            color="#4F46E5" />
           <StatCard label="Total Meals" value={String(totalMeals)} icon="grid"
-            color="#22D3EE" enterDelay={150} />
+            color="#22D3EE" />
           <StatCard label="Expenses" value={`₹${rawExpense.toFixed(0)}`} icon="dollar-sign"
-            color="#FB923C" enterDelay={220} />
+            color="#FB923C" />
           <StatCard label="Per Meal Rate" value={`₹${perMealCost.toFixed(1)}`} icon="trending-up"
-            color="#34D399" enterDelay={290} />
+            color="#34D399" />
         </View>
 
         {/* Status banners */}
         {paySuccess && (
-          <Animated.View entering={FadeInDown.duration(300)}>
+          <View>
             <View style={[styles.errorBanner, { backgroundColor: "#16A34A15", borderColor: "#16A34A" }]}>
               <Feather name="check-circle" size={16} color="#16A34A" />
               <Text style={[styles.errorBannerText, { color: "#16A34A" }]}>{paySuccess}</Text>
@@ -263,7 +233,7 @@ export default function AdminDashboard() {
                 <Feather name="x" size={16} color="#16A34A" />
               </Pressable>
             </View>
-          </Animated.View>
+          </View>
         )}
 
         {paymentsError && (
@@ -297,7 +267,7 @@ export default function AdminDashboard() {
 
         {/* Payment status banner */}
         {bills.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(320).duration(400)}>
+          <View>
             <View style={[styles.paymentBanner, { backgroundColor: colors.card }]}>
               <View style={styles.paymentBannerLeft}>
                 <Feather
@@ -321,11 +291,11 @@ export default function AdminDashboard() {
                 </Text>
               </View>
             </View>
-          </Animated.View>
+          </View>
         )}
 
         {/* Monthly summary */}
-        <Animated.View entering={FadeInUp.delay(380).duration(400)}>
+        <View>
           <View style={[styles.section, { backgroundColor: colors.card }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Monthly Summary</Text>
             {[
@@ -343,10 +313,10 @@ export default function AdminDashboard() {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
         {/* Member bills */}
-        <Animated.View entering={FadeInUp.delay(450).duration(400)}>
+        <View>
           <View style={[styles.section, { backgroundColor: colors.card }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
             {bills.length === 0 ? (
@@ -446,10 +416,10 @@ export default function AdminDashboard() {
               );
             })}
           </View>
-        </Animated.View>
+        </View>
 
         {/* Recent expenses */}
-        <Animated.View entering={FadeInUp.delay(500).duration(400)}>
+        <View>
           <View style={[styles.section, { backgroundColor: colors.card }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
               Recent Expenses
@@ -481,24 +451,23 @@ export default function AdminDashboard() {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
       </ScrollView>
 
       {/* ── Announcement Sidebar ── */}
       {sidebarVisible && (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          <Animated.View
-            style={[styles.backdrop, backdropStyle]}
+          <View
+            style={styles.backdrop}
             pointerEvents="auto"
           >
             <Pressable style={StyleSheet.absoluteFill} onPress={closeSidebar} />
-          </Animated.View>
+          </View>
 
-          <Animated.View
+          <View
             style={[
               styles.sidebar,
               { backgroundColor: colors.card, paddingTop: insets.top },
-              sidebarStyle,
             ]}
             pointerEvents="auto"
           >
@@ -574,7 +543,7 @@ export default function AdminDashboard() {
                 </View>
               ))}
             </ScrollView>
-          </Animated.View>
+          </View>
         </View>
       )}
     </LinearGradient>

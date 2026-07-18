@@ -8,7 +8,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
@@ -85,7 +84,7 @@ export default function MemberFinesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PRIMARY]} tintColor={PRIMARY} />}
       >
         {/* Summary card */}
-        <Animated.View entering={FadeInDown.delay(60).duration(400)} style={{ marginTop: 16, marginBottom: 20 }}>
+        <View style={{ marginTop: 16, marginBottom: 20 }}>
           {totalFine > 0 ? (
             <LinearGradient
               colors={[RED, "#E11D48"]}
@@ -120,18 +119,18 @@ export default function MemberFinesScreen() {
               </View>
             </LinearGradient>
           )}
-        </Animated.View>
+        </View>
 
         {/* Section heading */}
-        <Animated.View entering={FadeInDown.delay(140).duration(350)}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Fine Records — {monthLabel(month)}
           </Text>
-        </Animated.View>
+        </View>
 
         {/* Fine list */}
         {myFines.length === 0 ? (
-          <Animated.View entering={FadeInUp.delay(200).duration(400)}>
+          <View>
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
                 <Feather name="check-circle" size={32} color={EMERALD} />
@@ -141,12 +140,11 @@ export default function MemberFinesScreen() {
                 You have no fines recorded for {monthLabel(month)}.
               </Text>
             </View>
-          </Animated.View>
+          </View>
         ) : (
           myFines.map((fine, index) => (
-            <Animated.View
+            <View
               key={fine.id}
-              entering={FadeInDown.delay(200 + Math.min(index, 8) * 65).duration(360)}
               style={{ marginBottom: 12 }}
             >
               <View style={styles.fineCard}>
@@ -171,19 +169,19 @@ export default function MemberFinesScreen() {
                   </View>
                 ) : null}
               </View>
-            </Animated.View>
+            </View>
           ))
         )}
 
         {totalFine > 0 && (
-          <Animated.View entering={FadeInUp.delay(350).duration(350)}>
+          <View>
             <View style={styles.infoBox}>
               <Feather name="info" size={14} color={PRIMARY} />
               <Text style={[styles.infoText, { color: colors.foreground }]}>
                 Fines are applied when the minimum required meals are not consumed. Contact admin for details.
               </Text>
             </View>
-          </Animated.View>
+          </View>
         )}
       </ScrollView>
     </GradientBackground>

@@ -11,7 +11,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -133,8 +132,7 @@ export default function MemberHome() {
         }
       >
         {/* ── Payment Status Banner ─────────────────────────────────────────── */}
-        <Animated.View
-          entering={FadeInDown.delay(60).duration(400)}
+        <View
           style={{ paddingHorizontal: 20, marginTop: 20 }}
         >
           <LinearGradient
@@ -162,11 +160,10 @@ export default function MemberHome() {
               <Text style={styles.paymentBannerPillText}>{isPaid ? "PAID" : "DUE"}</Text>
             </View>
           </LinearGradient>
-        </Animated.View>
+        </View>
 
         {/* ── Amount Due / Credit card ─────────────────────────────────────── */}
-        <Animated.View
-          entering={FadeInDown.delay(120).duration(420)}
+        <View
           style={{ paddingHorizontal: 20, marginTop: 14 }}
         >
           <LinearGradient
@@ -212,10 +209,10 @@ export default function MemberHome() {
               ))}
             </View>
           </LinearGradient>
-        </Animated.View>
+        </View>
 
         {/* ── Mini stats (6 cards, 2-per-row) ──────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(190).duration(400)}>
+        <View>
           <View style={styles.miniStatsRow}>
             {miniStats.map(({ label, val, icon, color, bg }) => (
               <View key={label} style={[styles.miniStatCard, { backgroundColor: card }]}>
@@ -227,10 +224,10 @@ export default function MemberHome() {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
         {/* ── Full Monthly Bill Breakdown ───────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(260).duration(380)} style={styles.section}>
+        <View style={styles.section}>
           <View style={[styles.sectionCard, { backgroundColor: card }]}>
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionCardIcon, { backgroundColor: `${PRIMARY}15` }]}>
@@ -308,10 +305,10 @@ export default function MemberHome() {
               </Text>
             </View>
           </View>
-        </Animated.View>
+        </View>
 
         {/* ── Egg Bill Card ─────────────────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(310).duration(380)} style={styles.section}>
+        <View style={styles.section}>
           <View style={[styles.sectionCard, { backgroundColor: card }]}>
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionCardIcon, { backgroundColor: `${YELLOW}20` }]}>
@@ -336,12 +333,11 @@ export default function MemberHome() {
               </Text>
             </View>
           </View>
-        </Animated.View>
+        </View>
 
         {/* ── Announcements ─────────────────────────────────────────────────── */}
         {recentAnnouncements.length > 0 && (
-          <Animated.View
-            entering={FadeInUp.delay(360).duration(380)}
+          <View
             style={[styles.section, { marginBottom: 8 }]}
           >
             <Text style={[styles.sectionTitle, { color: cardText }]}>📣 Announcements</Text>
@@ -365,7 +361,7 @@ export default function MemberHome() {
                 </View>
               </View>
             ))}
-          </Animated.View>
+          </View>
         )}
       </ScrollView>
     </GradientBackground>

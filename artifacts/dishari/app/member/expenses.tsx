@@ -11,7 +11,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -93,7 +92,7 @@ export default function MemberExpenses() {
       />
 
       {/* Summary */}
-      <Animated.View entering={FadeInDown.delay(60).duration(380)}>
+      <View>
         <View style={styles.summaryCard}>
           {[
             { label: "Market Exp.", val: `₹${total.toFixed(0)}`, color: colors.foreground },
@@ -107,7 +106,7 @@ export default function MemberExpenses() {
             </View>
           ))}
         </View>
-      </Animated.View>
+      </View>
 
       {/* Category chips */}
       <FlatList
@@ -146,7 +145,7 @@ export default function MemberExpenses() {
         renderItem={({ item: e, index }) => {
           const cat = getCat(e.type);
           return (
-            <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 55).duration(350)} style={{ marginBottom: 10 }}>
+            <View style={{ marginBottom: 10 }}>
               <View style={styles.expenseRow}>
                 <View style={[styles.expIcon, { backgroundColor: cat.color + "20" }]}>
                   <Feather name={cat.icon as "list"} size={20} color={cat.color} />
@@ -158,7 +157,7 @@ export default function MemberExpenses() {
                 </View>
                 <Text style={[styles.expAmount, { color: colors.foreground }]}>₹{e.amount}</Text>
               </View>
-            </Animated.View>
+            </View>
           );
         }}
       />

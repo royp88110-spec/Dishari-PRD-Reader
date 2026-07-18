@@ -80,7 +80,7 @@ function AuthGuard() {
 function RootLayoutNav() {
   return (
     <>
-      <Stack screenOptions={{ headerBackTitle: "Back" }}>
+      <Stack screenOptions={{ headerBackTitle: "Back", animation: "none" }}>
         <Stack.Screen name="index"  options={{ headerShown: false }} />
         <Stack.Screen name="login"  options={{ headerShown: false }} />
         <Stack.Screen name="setup"  options={{ headerShown: false }} />

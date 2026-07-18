@@ -14,12 +14,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, {
-  FadeInDown,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Expense, useData } from "@/context/DataContext";
@@ -138,11 +132,6 @@ export default function ExpensesScreen() {
   const getCatInfo = (type: string) =>
     CATEGORIES.find((c) => c.key === type) ?? CATEGORIES[CATEGORIES.length - 1];
 
-  const fabScale = useSharedValue(1);
-  const fabStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: fabScale.value }],
-  }));
-
   return (
     <LinearGradient colors={BG_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.screen}>
       <ScreenHeader
@@ -194,7 +183,7 @@ export default function ExpensesScreen() {
       </ScrollView>
 
       {category !== "all" && (
-        <Animated.View entering={FadeInDown.duration(300)}>
+        <View>
           <View style={[styles.filterTotal, { backgroundColor: colors.card }]}>
             <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
               {CATEGORIES.find((c) => c.key === category)?.label} total:
@@ -203,7 +192,7 @@ export default function ExpensesScreen() {
               ₹{total.toFixed(0)}
             </Text>
           </View>
-        </Animated.View>
+        </View>
       )}
 
       <FlatList
@@ -233,8 +222,7 @@ export default function ExpensesScreen() {
         renderItem={({ item: e, index }) => {
           const cat = getCatInfo(e.type);
           return (
-            <Animated.View
-              entering={FadeInDown.delay(Math.min(index, 10) * 55).duration(350)}
+            <View
               style={{ marginBottom: 10 }}
             >
               <View style={[styles.expenseCard, { backgroundColor: colors.card }]}>
@@ -266,18 +254,16 @@ export default function ExpensesScreen() {
                   </Pressable>
                 </View>
               </View>
-            </Animated.View>
+            </View>
           );
         }}
       />
 
       {/* Animated FAB */}
       <Pressable
-        onPressIn={() => { fabScale.value = withSpring(0.9, { damping: 11, stiffness: 220 }); }}
-        onPressOut={() => { fabScale.value = withSpring(1,   { damping: 11, stiffness: 220 }); }}
         onPress={openAdd}
       >
-        <Animated.View style={[styles.fabWrapper, fabStyle]}>
+        <View style={styles.fabWrapper}>
           <LinearGradient
             colors={[PRIMARY, "#7C3AED"]}
             start={{ x: 0, y: 0 }}
@@ -286,7 +272,7 @@ export default function ExpensesScreen() {
           >
             <Feather name="plus" size={24} color="#fff" />
           </LinearGradient>
-        </Animated.View>
+        </View>
       </Pressable>
 
       {/* ── Modal ── */}

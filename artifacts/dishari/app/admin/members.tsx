@@ -15,12 +15,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, {
-  FadeInDown,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Member, useData } from "@/context/DataContext";
@@ -49,16 +43,9 @@ const MemberCard = React.memo(function MemberCard({
   onDelete: (m: Member) => void;
   onToggleStatus: (m: Member) => void;
 }) {
-  const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   return (
-    <Animated.View style={animStyle}>
+    <View>
       <Pressable
-        onPressIn={() => { scale.value = withSpring(0.97, { damping: 14, stiffness: 280 }); }}
-        onPressOut={() => { scale.value = withSpring(1,    { damping: 14, stiffness: 280 }); }}
         onLongPress={() => onEdit(member)}
       >
         <View style={[styles.memberCard, { backgroundColor: colors.card }]}>
@@ -109,7 +96,7 @@ const MemberCard = React.memo(function MemberCard({
           </View>
         </View>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 });
 
@@ -131,12 +118,6 @@ export default function MembersScreen() {
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       m.phone.includes(search),
   );
-
-  // FAB spring animation
-  const fabScale = useSharedValue(1);
-  const fabStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: fabScale.value }],
-  }));
 
   const openAdd = useCallback(() => {
     setEditing(null);
@@ -210,7 +191,7 @@ export default function MembersScreen() {
         subtitle={`${members.length} total · ${members.filter((m) => m.status === "active").length} active`}
       />
 
-      <Animated.View entering={FadeInDown.delay(60).duration(350)}>
+      <View>
         <View style={[styles.searchBar, { backgroundColor: colors.card }]}>
           <View style={[styles.searchIcon, { backgroundColor: colors.muted }]}>
             <Feather name="search" size={16} color={colors.mutedForeground} />
@@ -228,7 +209,7 @@ export default function MembersScreen() {
             </Pressable>
           )}
         </View>
-      </Animated.View>
+      </View>
 
       <FlatList
         data={filtered}
@@ -255,8 +236,7 @@ export default function MembersScreen() {
           </View>
         }
         renderItem={({ item: m, index }) => (
-          <Animated.View
-            entering={FadeInDown.delay(Math.min(index, 10) * 55).duration(350)}
+          <View
             style={{ marginBottom: 12 }}
           >
             <MemberCard
@@ -266,17 +246,15 @@ export default function MembersScreen() {
               onDelete={handleDelete}
               onToggleStatus={toggleStatus}
             />
-          </Animated.View>
+          </View>
         )}
       />
 
       {/* Animated FAB */}
       <Pressable
-        onPressIn={() => { fabScale.value = withSpring(0.9, { damping: 11, stiffness: 220 }); }}
-        onPressOut={() => { fabScale.value = withSpring(1,   { damping: 11, stiffness: 220 }); }}
         onPress={openAdd}
       >
-        <Animated.View style={[styles.fabWrapper, fabStyle]}>
+        <View style={styles.fabWrapper}>
           <LinearGradient
             colors={[PRIMARY, "#7C3AED"]}
             start={{ x: 0, y: 0 }}
@@ -285,7 +263,7 @@ export default function MembersScreen() {
           >
             <Feather name="user-plus" size={24} color="#fff" />
           </LinearGradient>
-        </Animated.View>
+        </View>
       </Pressable>
 
       {/* ── Member Modal ── */}

@@ -3,7 +3,6 @@ import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import Animated, { useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PRIMARY } from "@/constants/colors";
 
@@ -18,14 +17,11 @@ function TabIcon({
   color: string;
   focused: boolean;
 }) {
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(focused ? 1.12 : 1, { damping: 14, stiffness: 200 }) }],
-  }));
   return (
-    <Animated.View style={[styles.iconWrap, animStyle]}>
+    <View style={styles.iconWrap}>
       {focused && <View style={styles.activeDot} />}
       <Feather name={name} size={22} color={color} />
-    </Animated.View>
+    </View>
   );
 }
 
