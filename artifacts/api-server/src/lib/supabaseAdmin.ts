@@ -1,4 +1,13 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import ws from "ws";
+
+// Node.js < 22 has no native WebSocket; polyfill it for Supabase Realtime.
+// The admin client doesn't use realtime, but supabase-js initialises the
+// RealtimeClient eagerly and throws without a WebSocket implementation.
+if (!globalThis.WebSocket) {
+  // @ts-ignore — ws is not spec-identical but satisfies supabase-js needs
+  globalThis.WebSocket = ws;
+}
 
 let _client: SupabaseClient | null = null;
 
@@ -9,7 +18,7 @@ export function getSupabaseAdmin(): SupabaseClient {
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error(
-        "SUPABASE_URL and SUPABASE_SERVICE_KEY must be set before using admin routes."
+        "SUPABASE_URL and SUPABASE_SERVICE_KEY must be set before using admin routes.",
       );
     }
 
