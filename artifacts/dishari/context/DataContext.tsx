@@ -473,19 +473,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...u } : m)));
     try {
       const { password, ...rest } = u;
+      // Password reset goes through the admin password endpoint (service-role only)
       if (password !== undefined && password.trim()) {
         await apiCall("PATCH", `/admin/members/${id}/password`, { password });
       }
-      const row: Record<string, unknown> = {};
-      if (rest.name !== undefined) row.name = rest.name;
-      if (rest.phone !== undefined) row.phone = rest.phone;
-      if (rest.email !== undefined) row.email = rest.email;
-      if (rest.roomNumber !== undefined) row.room_number = rest.roomNumber;
-      if (rest.joinDate !== undefined) row.join_date = rest.joinDate;
-      if (rest.status !== undefined) row.status = rest.status;
-      if (Object.keys(row).length > 0) {
-        const client = await sb();
-        checkError(await client.from("members").update(row).eq("id", id));
+      // Profile field updates go through the admin members endpoint (service-role only)
+      const profileUpdate: Record<string, unknown> = {};
+      if (rest.name !== undefined) profileUpdate.name = rest.name;
+      if (rest.phone !== undefined) profileUpdate.phone = rest.phone;
+      if (rest.email !== undefined) profileUpdate.email = rest.email;
+      if (rest.roomNumber !== undefined) profileUpdate.roomNumber = rest.roomNumber;
+      if (rest.joinDate !== undefined) profileUpdate.joinDate = rest.joinDate;
+      if (rest.status !== undefined) profileUpdate.status = rest.status;
+      if (Object.keys(profileUpdate).length > 0) {
+        await apiCall("PATCH", `/admin/members/${id}`, profileUpdate);
       }
     } catch (err) {
       if (prevMember) setMembers((ms) => ms.map((m) => (m.id === id ? prevMember : m)));

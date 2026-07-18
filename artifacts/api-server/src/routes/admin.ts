@@ -110,6 +110,73 @@ router.post("/setup", async (req, res) => {
   res.status(201).json({ success: true, message: "Admin account created. You can now log in with ID: admin" });
 });
 
+/**
+ * GET /api/admin/members
+ * Returns all members ordered by name.
+ */
+router.get("/admin/members", verifyAdmin, async (_req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from("members")
+    .select("id, name, phone, email, room_number, join_date, status, role, user_id")
+    .order("name");
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.json({ members: data ?? [] });
+});
+
+/**
+ * PATCH /api/admin/members/:id
+ * Update a member's profile fields (name, phone, email, room_number, join_date, status).
+ * Does NOT handle password — use PATCH /admin/members/:id/password for that.
+ */
+router.patch("/admin/members/:id", verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, phone, email, roomNumber, joinDate, status } = req.body as {
+    name?: string;
+    phone?: string;
+    email?: string;
+    roomNumber?: string;
+    joinDate?: string;
+    status?: string;
+  };
+
+  const row: Record<string, unknown> = {};
+  if (name !== undefined) row.name = name.trim();
+  if (phone !== undefined) row.phone = phone.trim();
+  if (email !== undefined) row.email = email?.trim() || null;
+  if (roomNumber !== undefined) row.room_number = roomNumber?.trim() || null;
+  if (joinDate !== undefined) row.join_date = joinDate;
+  if (status !== undefined) row.status = status;
+
+  if (Object.keys(row).length === 0) {
+    res.status(400).json({ error: "No fields provided to update." });
+    return;
+  }
+
+  const { data: member, error } = await supabaseAdmin
+    .from("members")
+    .update(row)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  if (!member) {
+    res.status(404).json({ error: "Member not found." });
+    return;
+  }
+
+  res.json({ success: true, member });
+});
+
 router.post("/admin/members", verifyAdmin, async (req, res) => {
   const { name, phone, email, roomNumber, joinDate, status, password } =
     req.body as {
