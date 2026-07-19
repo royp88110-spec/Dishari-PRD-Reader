@@ -124,6 +124,7 @@ interface DataContextType {
   deleteAnnouncement: (id: string) => Promise<void>;
   markPaid: (memberId: string, month: string, amount: number) => Promise<void>;
   markUnpaid: (memberId: string, month: string) => Promise<void>;
+  recordPayment: (memberId: string, month: string, paymentAmount: number, dueAmount: number) => Promise<void>;
   calculateMonthlyBill: (memberId: string, month: string) => MonthlyBill;
   calculateAllMonthlyBills: (month: string) => MonthlyBill[];
   getMonthTotals: (month: string) => { totalExpense: number; totalMeals: number; perMealCost: number };
@@ -883,6 +884,60 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const recordPayment = async (memberId: string, month: string, paymentAmount: number, dueAmount: number) => {
+    const prevPayment = payments.find((p) => p.memberId === memberId && p.month === month);
+    const existingAmount = prevPayment?.amount ?? 0;
+    const newTotal = existingAmount + paymentAmount;
+    const isFullyPaid = newTotal >= dueAmount;
+    const now = new Date().toISOString();
+    const paidAt = isFullyPaid ? now : (prevPayment?.paidAt ?? null);
+
+    // Optimistic update
+    setPayments((ps) => {
+      const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
+      return [...without, { id: prevPayment?.id ?? "optimistic", memberId, month, paid: isFullyPaid, paidAt, amount: newTotal }];
+    });
+
+    try {
+      const client = await sb();
+      const existingId = prevPayment && prevPayment.id !== "optimistic" ? prevPayment.id : null;
+      if (existingId) {
+        checkError(
+          await client.from("bill_payments")
+            .update({ paid: isFullyPaid, paid_at: paidAt, amount: newTotal })
+            .eq("id", existingId)
+        );
+      } else {
+        const { data: dbRow, error: selectErr } = await client
+          .from("bill_payments")
+          .select("id")
+          .eq("member_id", memberId)
+          .eq("month", month)
+          .maybeSingle();
+        if (selectErr) throw new Error(selectErr.message);
+        if (dbRow?.id) {
+          checkError(
+            await client.from("bill_payments")
+              .update({ paid: isFullyPaid, paid_at: paidAt, amount: newTotal })
+              .eq("id", dbRow.id)
+          );
+        } else {
+          checkError(
+            await client.from("bill_payments")
+              .insert(buildPaymentRow(memberId, month, { paid: isFullyPaid, paid_at: paidAt, amount: newTotal }))
+          );
+        }
+      }
+    } catch (err) {
+      // Roll back on failure
+      setPayments((ps) => {
+        const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
+        return prevPayment ? [...without, prevPayment] : without;
+      });
+      throw err;
+    }
+  };
+
   // ── Fines ─────────────────────────────────────────────────────────────────
   // Helper: detect "notes column not in schema cache" errors from old DBs.
   const isNotesColumnMissing = (e: { message?: string } | null) =>
@@ -1031,7 +1086,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addFine, updateFine, deleteFine,
       setEggEntry, updateSettings,
       addAnnouncement, deleteAnnouncement,
-      markPaid, markUnpaid,
+      markPaid, markUnpaid, recordPayment,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,
       refresh: loadAll,
     }}>
