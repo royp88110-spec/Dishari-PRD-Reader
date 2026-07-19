@@ -63,33 +63,12 @@ export default function MemberHome() {
 
   const memberId = user?.memberId ?? "";
 
-  // ── Loading guard ─────────────────────────────────────────────────────────
-  if (!isLoaded) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  // ── Derived data ──────────────────────────────────────────────────────────
-  const bill      = calculateMonthlyBill(memberId, month);
-  const payment   = payments.find((p) => p.memberId === memberId && p.month === month);
-
-  // ── Payment state derivation ──────────────────────────────────────────────
-  const paidAmount: number   = payment?.amount ?? 0;
-  const paymentState: PaymentState =
-    payment?.paid           ? "full"    :
-    paidAmount > 0          ? "partial" :
-                              "none";
-  // Remaining balance after any payment applied (only meaningful when bill.dueAmount > 0)
-  const remainingDue: number = paymentState === "full"
-    ? 0
-    : Math.max(0, bill.dueAmount - paidAmount);
-
-  const recentAnnouncements = announcements.slice(0, 3);
+  // ── Derived data (computed unconditionally so effects can reference them) ──
+  const bill    = calculateMonthlyBill(memberId, month);
+  const payment = payments.find((p) => p.memberId === memberId && p.month === month);
 
   // ── Realtime payment-change toast ─────────────────────────────────────────
+  // (hooks must all be unconditional — placed before any early return)
   const prevPayRef = useRef<{ paid: boolean; amount: number } | undefined>(undefined);
 
   // Reset the tracker when the month changes (avoids cross-month false triggers)
@@ -126,6 +105,26 @@ export default function MemberHome() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payment?.paid, payment?.amount]);
+
+  // ── Loading guard (after all hooks) ───────────────────────────────────────
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // ── Additional derived data (safe now that isLoaded is true) ──────────────
+  const paidAmount: number = payment?.amount ?? 0;
+  const paymentState: PaymentState =
+    payment?.paid  ? "full"    :
+    paidAmount > 0 ? "partial" :
+                     "none";
+  const remainingDue: number = paymentState === "full"
+    ? 0
+    : Math.max(0, bill.dueAmount - paidAmount);
+  const recentAnnouncements = announcements.slice(0, 3);
 
   const handleLogout = () =>
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
