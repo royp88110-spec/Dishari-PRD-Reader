@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
+import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { GradientBackground } from "@/components/GradientBackground";
@@ -47,12 +48,16 @@ function safeFix(n: number, digits = 0): string {
   return Number.isFinite(n) ? n.toFixed(digits) : "0";
 }
 
+// ── Payment-state helpers ─────────────────────────────────────────────────────
+type PaymentState = "full" | "partial" | "none";
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function MemberHome() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { calculateMonthlyBill, announcements, payments, settings, isLoaded } = useData();
+  const { showToast } = useToast();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
@@ -68,10 +73,59 @@ export default function MemberHome() {
   }
 
   // ── Derived data ──────────────────────────────────────────────────────────
-  const bill = calculateMonthlyBill(memberId, month);
-  const payment = payments.find((p) => p.memberId === memberId && p.month === month);
-  const isPaid = payment?.paid ?? false;
+  const bill      = calculateMonthlyBill(memberId, month);
+  const payment   = payments.find((p) => p.memberId === memberId && p.month === month);
+
+  // ── Payment state derivation ──────────────────────────────────────────────
+  const paidAmount: number   = payment?.amount ?? 0;
+  const paymentState: PaymentState =
+    payment?.paid           ? "full"    :
+    paidAmount > 0          ? "partial" :
+                              "none";
+  // Remaining balance after any payment applied (only meaningful when bill.dueAmount > 0)
+  const remainingDue: number = paymentState === "full"
+    ? 0
+    : Math.max(0, bill.dueAmount - paidAmount);
+
   const recentAnnouncements = announcements.slice(0, 3);
+
+  // ── Realtime payment-change toast ─────────────────────────────────────────
+  const prevPayRef = useRef<{ paid: boolean; amount: number } | undefined>(undefined);
+
+  // Reset the tracker when the month changes (avoids cross-month false triggers)
+  useEffect(() => {
+    prevPayRef.current = undefined;
+  }, [month]);
+
+  useEffect(() => {
+    if (!payment) {
+      prevPayRef.current = undefined;
+      return;
+    }
+    const prev = prevPayRef.current;
+    prevPayRef.current = { paid: payment.paid, amount: payment.amount };
+
+    // Skip first load (prev is undefined on mount)
+    if (prev === undefined) return;
+    // Skip if nothing actually changed
+    if (prev.paid === payment.paid && prev.amount === payment.amount) return;
+
+    if (payment.paid && !prev.paid) {
+      showToast(
+        "Payment Complete 🎉",
+        `₹${safeFix(payment.amount)} recorded for ${monthLabel(month)}`,
+        "success",
+      );
+    } else if (payment.amount > prev.amount) {
+      const rem = safeFix(Math.max(0, bill.dueAmount - payment.amount));
+      showToast(
+        "Payment Updated",
+        `₹${safeFix(payment.amount)} received · ₹${rem} remaining`,
+        "warning",
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payment?.paid, payment?.amount]);
 
   const handleLogout = () =>
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -89,10 +143,60 @@ export default function MemberHome() {
   ] as const;
 
   // Card / text tokens that adapt to light ↔ dark
-  const card        = colors.card;         // rgba(255,255,255,0.92) light  |  #111827 dark
-  const cardText    = colors.cardForeground; // #1E1B4B light  |  #E2E8F0 dark
+  const card        = colors.card;
+  const cardText    = colors.cardForeground;
   const muted       = colors.mutedForeground;
   const borderColor = colors.border;
+
+  // ── Banner / card visual tokens per payment state ─────────────────────────
+  const bannerColors: [string, string] =
+    paymentState === "full"    ? [EMERALD, "#10B981"] :
+    paymentState === "partial" ? [ORANGE,  "#D97706"] :
+                                 [RED,     "#E11D48"];
+
+  const bannerIcon: React.ComponentProps<typeof Feather>["name"] =
+    paymentState === "full"    ? "check-circle"  :
+    paymentState === "partial" ? "zap"           :
+                                 "clock";
+
+  const bannerTitle =
+    paymentState === "full"    ? "Payment Complete ✓" :
+    paymentState === "partial" ? "Partial Payment"    :
+                                 "Payment Pending";
+
+  const bannerSub =
+    paymentState === "full"
+      ? `Paid ₹${safeFix(payment?.amount ?? 0)} · ${payment?.paidAt?.slice(0, 10) ?? ""}`
+    : paymentState === "partial"
+      ? `Paid ₹${safeFix(paidAmount)} of ₹${safeFix(bill.dueAmount)} · ₹${safeFix(remainingDue)} remaining`
+    : `₹${safeFix(bill.dueAmount)} due for ${monthLabel(month)}`;
+
+  const bannerPillLabel =
+    paymentState === "full"    ? "PAID"    :
+    paymentState === "partial" ? "PARTIAL" :
+                                 "DUE";
+
+  // Due-card tokens
+  const isDuePaid   = paymentState === "full" || bill.dueAmount <= 0;
+  const dueCardColors: [string, string] =
+    isDuePaid                            ? [EMERALD, "#10B981"] :
+    paymentState === "partial"           ? [ORANGE,  "#EA580C"] :
+                                           [RED,     "#E11D48"];
+
+  const dueCardLabel =
+    isDuePaid                  ? "Fully Paid"    :
+    paymentState === "partial" ? "Remaining Due" :
+                                 "Amount Due";
+
+  const dueCardIcon: React.ComponentProps<typeof Feather>["name"] =
+    isDuePaid                  ? "check-circle"  :
+    paymentState === "partial" ? "minus-circle"  :
+                                 "alert-circle";
+
+  const dueCardAmount =
+    isDuePaid ? 0 :
+    bill.dueAmount <= 0 ? 0 :
+    remainingDue;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -132,59 +236,61 @@ export default function MemberHome() {
         }
       >
         {/* ── Payment Status Banner ─────────────────────────────────────────── */}
-        <View
-          style={{ paddingHorizontal: 20, marginTop: 20 }}
-        >
+        <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
           <LinearGradient
-            colors={isPaid ? [EMERALD, "#10B981"] : [ORANGE, "#EA580C"]}
+            colors={bannerColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.paymentBanner}
           >
             <View style={styles.paymentBannerLeft}>
               <View style={styles.paymentBannerBadge}>
-                <Feather name={isPaid ? "check-circle" : "clock"} size={20} color="#fff" />
+                <Feather name={bannerIcon} size={20} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.paymentBannerTitle}>
-                  {isPaid ? "Payment Received ✓" : "Payment Pending"}
-                </Text>
-                <Text style={styles.paymentBannerSub}>
-                  {isPaid
-                    ? `Paid ₹${safeFix(payment?.amount ?? 0)} · ${payment?.paidAt?.slice(0, 10) ?? ""}`
-                    : `₹${safeFix(bill.dueAmount)} due for ${monthLabel(month)}`}
-                </Text>
+                <Text style={styles.paymentBannerTitle}>{bannerTitle}</Text>
+                <Text style={styles.paymentBannerSub}>{bannerSub}</Text>
               </View>
             </View>
-            <View style={styles.paymentBannerPill}>
-              <Text style={styles.paymentBannerPillText}>{isPaid ? "PAID" : "DUE"}</Text>
+            <View style={[
+              styles.paymentBannerPill,
+              paymentState === "partial" && styles.paymentBannerPillPartial,
+            ]}>
+              <Text style={styles.paymentBannerPillText}>{bannerPillLabel}</Text>
             </View>
           </LinearGradient>
         </View>
 
-        {/* ── Amount Due / Credit card ─────────────────────────────────────── */}
-        <View
-          style={{ paddingHorizontal: 20, marginTop: 14 }}
-        >
+        {/* ── Amount Due / Status card ──────────────────────────────────────── */}
+        <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
           <LinearGradient
-            colors={bill.dueAmount > 0 ? [RED, "#E11D48"] : [EMERALD, "#10B981"]}
+            colors={dueCardColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.dueCard}
           >
             <View style={styles.dueCardInner}>
               <View style={styles.dueCardLeft}>
-                <Text style={styles.dueCardLabel}>
-                  {bill.dueAmount > 0 ? "Amount Due" : "Credit Balance"}
-                </Text>
+                <Text style={styles.dueCardLabel}>{dueCardLabel}</Text>
                 <Text style={styles.dueCardAmount}>
-                  ₹{safeFix(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance, 2)}
+                  ₹{safeFix(dueCardAmount, 2)}
                 </Text>
                 <Text style={styles.dueCardSub}>{monthLabel(month)}</Text>
+                {/* Partial-payment progress bar */}
+                {paymentState === "partial" && bill.dueAmount > 0 && (
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { width: `${Math.min(100, (paidAmount / bill.dueAmount) * 100)}%` as `${number}%` },
+                      ]}
+                    />
+                  </View>
+                )}
               </View>
               <View style={styles.dueCardIcon}>
                 <Feather
-                  name={bill.dueAmount > 0 ? "alert-circle" : "check-circle"}
+                  name={dueCardIcon}
                   size={48}
                   color="rgba(255,255,255,0.35)"
                 />
@@ -337,9 +443,7 @@ export default function MemberHome() {
 
         {/* ── Announcements ─────────────────────────────────────────────────── */}
         {recentAnnouncements.length > 0 && (
-          <View
-            style={[styles.section, { marginBottom: 8 }]}
-          >
+          <View style={[styles.section, { marginBottom: 8 }]}>
             <Text style={[styles.sectionTitle, { color: cardText }]}>📣 Announcements</Text>
             {recentAnnouncements.map((a, i) => (
               <View
@@ -405,7 +509,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.25)",
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
   },
-  paymentBannerPillText: { fontSize: 11, fontWeight: "900", color: "#fff", letterSpacing: 1 },
+  paymentBannerPillPartial: {
+    paddingHorizontal: 10,
+  },
+  paymentBannerPillText: { fontSize: 10, fontWeight: "900", color: "#fff", letterSpacing: 0.8 },
 
   // Due card
   dueCard: {
@@ -419,6 +526,18 @@ const styles = StyleSheet.create({
   dueCardAmount: { fontSize: 40, fontWeight: "900", color: "#fff", letterSpacing: -1 },
   dueCardSub: { fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 6 },
   dueCardIcon: { opacity: 0.8 },
+
+  // Partial payment progress bar
+  progressTrack: {
+    marginTop: 10, height: 5, borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden",
+    width: "80%",
+  },
+  progressFill: {
+    height: "100%", borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.85)",
+  },
+
   breakdownStrip: {
     flexDirection: "row",
     backgroundColor: "rgba(0,0,0,0.15)",
@@ -445,14 +564,12 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 14,
     alignItems: "center", justifyContent: "center", marginBottom: 10,
   },
-  // color supplied inline
   miniStatVal: { fontSize: 20, fontWeight: "800" },
   miniStatLabel: { fontSize: 12, marginTop: 3 },
 
   // Sections
   section: { paddingHorizontal: 20, marginTop: 20 },
   sectionTitle: { fontSize: 17, fontWeight: "700" },
-  // background supplied inline via colors.card
   sectionCard: {
     borderRadius: 22,
     borderWidth: 1, borderColor: "rgba(148,163,184,0.22)",
@@ -464,7 +581,7 @@ const styles = StyleSheet.create({
   sectionCardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   sectionCardTitle: { fontSize: 16, fontWeight: "700" },
 
-  // Bill rows — colors supplied inline
+  // Bill rows
   billRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingVertical: 11, borderBottomWidth: 1,
@@ -488,7 +605,7 @@ const styles = StyleSheet.create({
   },
   eggNoteText: { fontSize: 12, flex: 1, lineHeight: 17 },
 
-  // Announcements — background supplied inline via colors.card
+  // Announcements
   announcementCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     borderRadius: 16, padding: 14, borderWidth: 1,

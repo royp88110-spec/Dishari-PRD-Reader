@@ -4,7 +4,8 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PRIMARY } from "@/constants/colors";
+import { PRIMARY, EMERALD } from "@/constants/colors";
+import { useData } from "@/context/DataContext";
 
 const INACTIVE = "#9CA3AF";
 
@@ -25,8 +26,20 @@ function TabIcon({
   );
 }
 
+function useNewNoticeCount() {
+  try {
+    const { announcements } = useData();
+    return announcements.filter(
+      (a) => Date.now() - new Date(a.createdAt).getTime() < 48 * 3_600_000,
+    ).length;
+  } catch {
+    return 0;
+  }
+}
+
 export default function MemberLayout() {
   const insets = useSafeAreaInsets();
+  const newNotices = useNewNoticeCount();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const TAB_HEIGHT = 68;
@@ -118,6 +131,24 @@ export default function MemberLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="alert-circle" color={color} focused={focused} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="notices"
+        options={{
+          title: "Notices",
+          tabBarLabel: "Notices",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="bell" color={color} focused={focused} />
+          ),
+          tabBarBadge: newNotices > 0 ? newNotices : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: EMERALD,
+            fontSize: 9,
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+          },
         }}
       />
     </Tabs>
