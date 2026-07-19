@@ -1,14 +1,20 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
+import * as Linking from "expo-linking";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,6 +54,10 @@ function safeFix(n: number, digits = 0): string {
   return Number.isFinite(n) ? n.toFixed(digits) : "0";
 }
 
+function fmtDate(iso: string) {
+  return iso.slice(0, 10);
+}
+
 // ── Payment-state helpers ─────────────────────────────────────────────────────
 type PaymentState = "full" | "partial" | "none";
 
@@ -56,22 +66,46 @@ export default function MemberHome() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { calculateMonthlyBill, announcements, payments, settings, isLoaded } = useData();
+  const {
+    calculateMonthlyBill, announcements, payments, settings, isLoaded,
+    upiSettings, paymentSubmissions, submitUpiPayment,
+  } = useData();
   const { showToast } = useToast();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
 
+  // Payment modal state
+  const [payModal, setPayModal] = useState(false);
+  const [claimedAmount, setClaimedAmount] = useState("");
+  const [utrInput, setUtrInput] = useState("");
+  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPayUpiPrompt, setShowPayUpiPrompt] = useState(false);
+  const [screenshotModalVisible, setScreenshotModalVisible] = useState(false);
+  const [fullScreenshot, setFullScreenshot] = useState<string | null>(null);
+
   const memberId = user?.memberId ?? "";
 
-  // ── Derived data (computed unconditionally so effects can reference them) ──
+  // ── Derived data ──────────────────────────────────────────────────────────
   const bill    = calculateMonthlyBill(memberId, month);
   const payment = payments.find((p) => p.memberId === memberId && p.month === month);
 
+  const paidAmount: number = payment?.amount ?? 0;
+  const paymentState: PaymentState =
+    payment?.paid  ? "full"    :
+    paidAmount > 0 ? "partial" :
+                     "none";
+  const remainingDue = Math.max(0, bill.dueAmount - paidAmount);
+
+  // Payment submissions for this member/month
+  const mySubmissions = paymentSubmissions
+    .filter((s) => s.memberId === memberId && s.month === month)
+    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+  const pendingSubmission = mySubmissions.find((s) => s.status === "pending");
+
   // ── Realtime payment-change toast ─────────────────────────────────────────
-  // (hooks must all be unconditional — placed before any early return)
   const prevPayRef = useRef<{ paid: boolean; amount: number } | undefined>(undefined);
 
-  // Reset the tracker when the month changes (avoids cross-month false triggers)
   useEffect(() => {
     prevPayRef.current = undefined;
   }, [month]);
@@ -84,9 +118,7 @@ export default function MemberHome() {
     const prev = prevPayRef.current;
     prevPayRef.current = { paid: payment.paid, amount: payment.amount };
 
-    // Skip first load (prev is undefined on mount)
     if (prev === undefined) return;
-    // Skip if nothing actually changed
     if (prev.paid === payment.paid && prev.amount === payment.amount) return;
 
     if (payment.paid && !prev.paid) {
@@ -106,7 +138,7 @@ export default function MemberHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payment?.paid, payment?.amount]);
 
-  // ── Loading guard (after all hooks) ───────────────────────────────────────
+  // ── Loading guard ─────────────────────────────────────────────────────────
   if (!isLoaded) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
@@ -115,15 +147,6 @@ export default function MemberHome() {
     );
   }
 
-  // ── Additional derived data (safe now that isLoaded is true) ──────────────
-  const paidAmount: number = payment?.amount ?? 0;
-  const paymentState: PaymentState =
-    payment?.paid  ? "full"    :
-    paidAmount > 0 ? "partial" :
-                     "none";
-  const remainingDue: number = paymentState === "full"
-    ? 0
-    : Math.max(0, bill.dueAmount - paidAmount);
   const recentAnnouncements = announcements.slice(0, 3);
 
   const handleLogout = () =>
@@ -131,6 +154,80 @@ export default function MemberHome() {
       { text: "Cancel", style: "cancel" },
       { text: "Sign Out", style: "destructive", onPress: () => { void logout(); } },
     ]);
+
+  // ── UPI actions ───────────────────────────────────────────────────────────
+  const handleCopyUpi = async () => {
+    if (!upiSettings?.upiId) return;
+    try {
+      await Share.share({ message: upiSettings.upiId, title: "UPI ID" });
+    } catch {}
+  };
+
+  const handlePayViaUpi = async () => {
+    if (!upiSettings?.upiId) return;
+    const amount = remainingDue > 0 ? safeFix(remainingDue, 2) : "0";
+    const note = upiSettings.paymentNote ?? "Mess bill payment";
+    const name = encodeURIComponent(upiSettings.accountHolderName || "Dishari Mess");
+    const noteEnc = encodeURIComponent(note);
+    const upiUrl = `upi://pay?pa=${upiSettings.upiId}&pn=${name}&am=${amount}&tn=${noteEnc}&cu=INR`;
+    const canOpen = await Linking.canOpenURL(upiUrl).catch(() => false);
+    if (canOpen) {
+      await Linking.openURL(upiUrl).catch(() => {
+        Alert.alert("No UPI App Found", "Please install Google Pay, PhonePe, or any UPI app and try again.");
+      });
+    } else {
+      Alert.alert("No UPI App Found", "Please install Google Pay, PhonePe, or any UPI app and try again.");
+    }
+    // Show "I've Made the Payment" prompt after a brief delay
+    setShowPayUpiPrompt(true);
+  };
+
+  const openPayModal = () => {
+    setClaimedAmount(remainingDue > 0 ? safeFix(remainingDue, 2) : "");
+    setUtrInput("");
+    setScreenshotBase64(null);
+    setPayModal(true);
+  };
+
+  const pickScreenshot = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Please allow access to your photos to upload a screenshot.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.35,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]?.base64) {
+      setScreenshotBase64(result.assets[0].base64);
+    }
+  };
+
+  const handleSubmitPayment = async () => {
+    const amount = parseFloat(claimedAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a valid payment amount.");
+      return;
+    }
+    if (!utrInput.trim() && !screenshotBase64) {
+      Alert.alert("Proof Required", "Please enter the UTR/Transaction ID or upload a payment screenshot.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await submitUpiPayment(memberId, month, amount, screenshotBase64, utrInput.trim() || null);
+      setPayModal(false);
+      setShowPayUpiPrompt(false);
+      showToast("Payment Submitted ✓", "Pending admin verification", "success");
+    } catch (err) {
+      Alert.alert("Submission Failed", (err as Error).message || "Could not submit payment.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const miniStats = [
     { label: "Meals",      val: `${bill.mealCount}`,                icon: "grid",         color: CYAN,    bg: `${CYAN}20`    },
@@ -141,27 +238,25 @@ export default function MemberHome() {
     { label: "Amount Due", val: `₹${safeFix(bill.dueAmount)}`,      icon: "trending-up",  color: PRIMARY, bg: `${PRIMARY}20` },
   ] as const;
 
-  // Card / text tokens that adapt to light ↔ dark
   const card        = colors.card;
   const cardText    = colors.cardForeground;
   const muted       = colors.mutedForeground;
   const borderColor = colors.border;
 
-  // ── Banner / card visual tokens per payment state ─────────────────────────
   const bannerColors: [string, string] =
     paymentState === "full"    ? [EMERALD, "#10B981"] :
     paymentState === "partial" ? [ORANGE,  "#D97706"] :
-                                 [RED,     "#E11D48"];
+                                  [RED,     "#E11D48"];
 
   const bannerIcon: React.ComponentProps<typeof Feather>["name"] =
     paymentState === "full"    ? "check-circle"  :
     paymentState === "partial" ? "zap"           :
-                                 "clock";
+                                  "clock";
 
   const bannerTitle =
     paymentState === "full"    ? "Payment Complete ✓" :
     paymentState === "partial" ? "Partial Payment"    :
-                                 "Payment Pending";
+                                  "Payment Pending";
 
   const bannerSub =
     paymentState === "full"
@@ -173,9 +268,8 @@ export default function MemberHome() {
   const bannerPillLabel =
     paymentState === "full"    ? "PAID"    :
     paymentState === "partial" ? "PARTIAL" :
-                                 "DUE";
+                                  "DUE";
 
-  // Due-card tokens
   const isDuePaid   = paymentState === "full" || bill.dueAmount <= 0;
   const dueCardColors: [string, string] =
     isDuePaid                            ? [EMERALD, "#10B981"] :
@@ -185,17 +279,21 @@ export default function MemberHome() {
   const dueCardLabel =
     isDuePaid                  ? "Fully Paid"    :
     paymentState === "partial" ? "Remaining Due" :
-                                 "Amount Due";
+                                  "Amount Due";
 
   const dueCardIcon: React.ComponentProps<typeof Feather>["name"] =
     isDuePaid                  ? "check-circle"  :
     paymentState === "partial" ? "minus-circle"  :
-                                 "alert-circle";
+                                  "alert-circle";
 
   const dueCardAmount =
     isDuePaid ? 0 :
     bill.dueAmount <= 0 ? 0 :
     remainingDue;
+
+  // ── UPI configured and relevant ───────────────────────────────────────────
+  const upiConfigured = !!(upiSettings?.upiId);
+  const hasDue = bill.dueAmount > 0 && remainingDue > 0;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -234,7 +332,7 @@ export default function MemberHome() {
           />
         }
       >
-        {/* ── Payment Status Banner ─────────────────────────────────────────── */}
+        {/* ── Payment Status Banner ─────────────────────────────────────── */}
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
           <LinearGradient
             colors={bannerColors}
@@ -260,7 +358,7 @@ export default function MemberHome() {
           </LinearGradient>
         </View>
 
-        {/* ── Amount Due / Status card ──────────────────────────────────────── */}
+        {/* ── Amount Due / Status card ──────────────────────────────────── */}
         <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
           <LinearGradient
             colors={dueCardColors}
@@ -275,7 +373,6 @@ export default function MemberHome() {
                   ₹{safeFix(dueCardAmount, 2)}
                 </Text>
                 <Text style={styles.dueCardSub}>{monthLabel(month)}</Text>
-                {/* Partial-payment progress bar */}
                 {paymentState === "partial" && bill.dueAmount > 0 && (
                   <View style={styles.progressTrack}>
                     <View
@@ -295,7 +392,6 @@ export default function MemberHome() {
                 />
               </View>
             </View>
-            {/* 5-column breakdown strip */}
             <View style={styles.breakdownStrip}>
               {[
                 { key: "Meals", val: `₹${safeFix(bill.mealBill)}` },
@@ -316,7 +412,7 @@ export default function MemberHome() {
           </LinearGradient>
         </View>
 
-        {/* ── Mini stats (6 cards, 2-per-row) ──────────────────────────────── */}
+        {/* ── Mini stats ────────────────────────────────────────────────── */}
         <View>
           <View style={styles.miniStatsRow}>
             {miniStats.map(({ label, val, icon, color, bg }) => (
@@ -331,7 +427,7 @@ export default function MemberHome() {
           </View>
         </View>
 
-        {/* ── Full Monthly Bill Breakdown ───────────────────────────────────── */}
+        {/* ── Full Monthly Bill Breakdown ───────────────────────────────── */}
         <View style={styles.section}>
           <View style={[styles.sectionCard, { backgroundColor: card }]}>
             <View style={styles.sectionCardHeader}>
@@ -341,7 +437,6 @@ export default function MemberHome() {
               <Text style={[styles.sectionCardTitle, { color: cardText }]}>Monthly Bill</Text>
             </View>
 
-            {/* Rate info */}
             {[
               { label: "Meal Rate",   val: `₹${safeFix(bill.perMealCost, 2)} / meal` },
               { label: "Meals Eaten", val: `${bill.mealCount} meal${bill.mealCount !== 1 ? "s" : ""}` },
@@ -352,12 +447,10 @@ export default function MemberHome() {
               </View>
             ))}
 
-            {/* Section divider */}
             <View style={[styles.billSectionDivider, { borderBottomColor: borderColor }]}>
               <Text style={[styles.billSectionLabel, { color: muted }]}>Components</Text>
             </View>
 
-            {/* Component line items */}
             {[
               { label: "Meal Cost",   val: `₹${safeFix(bill.mealBill, 2)}`,  icon: "dollar-sign",  color: ORANGE },
               { label: `Eggs (${bill.eggCount} × ₹${settings.eggPrice})`,
@@ -376,7 +469,6 @@ export default function MemberHome() {
               </View>
             ))}
 
-            {/* Gross Bill */}
             <View style={[styles.billRow, { borderBottomColor: borderColor }]}>
               <Text style={[styles.billLabel, { color: cardText, fontWeight: "700" }]}>Gross Bill</Text>
               <Text style={[styles.billVal, { color: PRIMARY, fontWeight: "800", fontSize: 16 }]}>
@@ -384,7 +476,6 @@ export default function MemberHome() {
               </Text>
             </View>
 
-            {/* Advance deduction */}
             <View style={[styles.billRow, { borderBottomColor: borderColor }]}>
               <View style={styles.billLabelRow}>
                 <View style={[styles.billIconDot, { backgroundColor: `${EMERALD}18` }]}>
@@ -397,7 +488,6 @@ export default function MemberHome() {
               </Text>
             </View>
 
-            {/* Final payable */}
             <View style={[styles.billRowFinal, { borderTopColor: borderColor }]}>
               <Text style={[styles.billLabel, { color: cardText, fontWeight: "700", fontSize: 15 }]}>
                 {bill.dueAmount > 0 ? "Final Payable" : "Credit Balance"}
@@ -412,7 +502,248 @@ export default function MemberHome() {
           </View>
         </View>
 
-        {/* ── Egg Bill Card ─────────────────────────────────────────────────── */}
+        {/* ── UPI Payment Section ───────────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={[styles.sectionCard, { backgroundColor: card }]}>
+            <View style={styles.sectionCardHeader}>
+              <View style={[styles.sectionCardIcon, { backgroundColor: "#7C3AED15" }]}>
+                <Feather name="send" size={18} color="#7C3AED" />
+              </View>
+              <Text style={[styles.sectionCardTitle, { color: cardText }]}>Pay via UPI</Text>
+              {pendingSubmission && (
+                <View style={[styles.pendingBadge, { backgroundColor: `${ORANGE}20` }]}>
+                  <Text style={[styles.pendingBadgeText, { color: ORANGE }]}>PENDING</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Case 1: UPI not configured */}
+            {!upiConfigured ? (
+              <View style={[styles.upiNotice, { backgroundColor: `${PRIMARY}10`, borderColor: `${PRIMARY}20` }]}>
+                <Feather name="info" size={16} color={PRIMARY} />
+                <Text style={[styles.upiNoticeText, { color: muted }]}>
+                  Payment via UPI is not configured yet. Please ask your admin to set it up.
+                </Text>
+              </View>
+            ) : !hasDue && mySubmissions.length === 0 ? (
+              /* Case 2: No due amount */
+              <View style={[styles.upiNotice, { backgroundColor: `${EMERALD}10`, borderColor: `${EMERALD}20` }]}>
+                <Feather name="check-circle" size={16} color={EMERALD} />
+                <Text style={[styles.upiNoticeText, { color: EMERALD }]}>
+                  You're all clear! No payment due for {monthLabel(month)}.
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* UPI Details */}
+                {hasDue && !pendingSubmission && (
+                  <>
+                    {/* Amount to Pay */}
+                    <View style={[styles.upiAmountRow, { backgroundColor: `${PRIMARY}08`, borderColor: `${PRIMARY}15` }]}>
+                      <View>
+                        <Text style={[styles.upiAmountLabel, { color: muted }]}>Amount to Pay</Text>
+                        <Text style={[styles.upiAmountVal, { color: PRIMARY }]}>₹{safeFix(remainingDue, 2)}</Text>
+                      </View>
+                      <Feather name="arrow-right-circle" size={28} color={`${PRIMARY}60`} />
+                    </View>
+
+                    {/* UPI ID */}
+                    <View style={[styles.upiIdRow, { borderBottomColor: borderColor }]}>
+                      <View style={[styles.upiIdIcon, { backgroundColor: "#7C3AED15" }]}>
+                        <Feather name="at-sign" size={16} color="#7C3AED" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.upiIdLabel, { color: muted }]}>UPI ID</Text>
+                        <Text style={[styles.upiIdValue, { color: cardText }]} numberOfLines={1}>
+                          {upiSettings.upiId}
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={[styles.copyBtn, { backgroundColor: `${PRIMARY}12` }]}
+                        onPress={handleCopyUpi}
+                        hitSlop={8}
+                      >
+                        <Feather name="copy" size={14} color={PRIMARY} />
+                        <Text style={[styles.copyBtnText, { color: PRIMARY }]}>Share</Text>
+                      </Pressable>
+                    </View>
+
+                    {/* Account Name */}
+                    {upiSettings.accountHolderName ? (
+                      <View style={[styles.upiIdRow, { borderBottomColor: borderColor }]}>
+                        <View style={[styles.upiIdIcon, { backgroundColor: `${EMERALD}15` }]}>
+                          <Feather name="user" size={16} color={EMERALD} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.upiIdLabel, { color: muted }]}>Account Holder</Text>
+                          <Text style={[styles.upiIdValue, { color: cardText }]}>
+                            {upiSettings.accountHolderName}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
+
+                    {/* Payment Note */}
+                    {upiSettings.paymentNote ? (
+                      <View style={[styles.upiNotice, { backgroundColor: `${YELLOW}10`, borderColor: `${YELLOW}20`, marginTop: 8 }]}>
+                        <Feather name="message-circle" size={14} color={YELLOW} />
+                        <Text style={[styles.upiNoticeText, { color: muted }]}>{upiSettings.paymentNote}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* QR Code */}
+                    {upiSettings.qrCodeBase64 ? (
+                      <View style={styles.qrContainer}>
+                        <Image
+                          source={{ uri: `data:image/jpeg;base64,${upiSettings.qrCodeBase64}` }}
+                          style={styles.qrImage}
+                          resizeMode="contain"
+                        />
+                        <Text style={[styles.qrLabel, { color: muted }]}>Scan QR to pay</Text>
+                      </View>
+                    ) : null}
+
+                    {/* Pay via UPI Button */}
+                    <Pressable
+                      style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 16 }]}
+                      onPress={handlePayViaUpi}
+                    >
+                      <LinearGradient
+                        colors={["#7C3AED", "#4F46E5"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.payUpiBtn}
+                      >
+                        <Feather name="send" size={18} color="#fff" />
+                        <Text style={styles.payUpiBtnText}>Pay via UPI</Text>
+                      </LinearGradient>
+                    </Pressable>
+
+                    {/* "I've Made the Payment" prompt */}
+                    {showPayUpiPrompt && (
+                      <Pressable
+                        style={[styles.iHavePaidBtn, { borderColor: EMERALD, backgroundColor: `${EMERALD}10` }]}
+                        onPress={openPayModal}
+                      >
+                        <Feather name="check-circle" size={16} color={EMERALD} />
+                        <Text style={[styles.iHavePaidText, { color: EMERALD }]}>
+                          I've Made the Payment — Record it
+                        </Text>
+                      </Pressable>
+                    )}
+
+                    {!showPayUpiPrompt && (
+                      <Pressable
+                        style={[styles.iHavePaidBtn, { borderColor: borderColor, backgroundColor: `${PRIMARY}06` }]}
+                        onPress={openPayModal}
+                      >
+                        <Feather name="upload" size={16} color={muted} />
+                        <Text style={[styles.iHavePaidText, { color: muted }]}>
+                          Already paid? Submit proof
+                        </Text>
+                      </Pressable>
+                    )}
+                  </>
+                )}
+
+                {/* Pending Submission Card */}
+                {pendingSubmission && (
+                  <View style={[styles.submissionCard, { backgroundColor: `${ORANGE}10`, borderColor: `${ORANGE}30` }]}>
+                    <View style={styles.submissionCardHeader}>
+                      <Feather name="clock" size={16} color={ORANGE} />
+                      <Text style={[styles.submissionCardTitle, { color: ORANGE }]}>Pending Verification</Text>
+                    </View>
+                    <View style={[styles.submissionRow, { borderBottomColor: `${ORANGE}20` }]}>
+                      <Text style={[styles.submissionLabel, { color: muted }]}>Claimed Amount</Text>
+                      <Text style={[styles.submissionVal, { color: cardText }]}>
+                        ₹{safeFix(pendingSubmission.claimedAmount, 2)}
+                      </Text>
+                    </View>
+                    {pendingSubmission.utr ? (
+                      <View style={[styles.submissionRow, { borderBottomColor: `${ORANGE}20` }]}>
+                        <Text style={[styles.submissionLabel, { color: muted }]}>UTR / Txn ID</Text>
+                        <Text style={[styles.submissionVal, { color: cardText }]}>{pendingSubmission.utr}</Text>
+                      </View>
+                    ) : null}
+                    <View style={styles.submissionRow}>
+                      <Text style={[styles.submissionLabel, { color: muted }]}>Submitted</Text>
+                      <Text style={[styles.submissionVal, { color: muted }]}>
+                        {fmtDate(pendingSubmission.submittedAt)}
+                      </Text>
+                    </View>
+                    {pendingSubmission.screenshotBase64 && (
+                      <Pressable
+                        onPress={() => {
+                          setFullScreenshot(pendingSubmission.screenshotBase64);
+                          setScreenshotModalVisible(true);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: `data:image/jpeg;base64,${pendingSubmission.screenshotBase64}` }}
+                          style={styles.submissionThumb}
+                          resizeMode="cover"
+                        />
+                        <Text style={[styles.submissionThumbLabel, { color: muted }]}>Tap to view screenshot</Text>
+                      </Pressable>
+                    )}
+                    {/* Option to submit another (partial) */}
+                    {remainingDue > pendingSubmission.claimedAmount && (
+                      <Pressable
+                        style={[styles.iHavePaidBtn, { borderColor: borderColor, backgroundColor: `${PRIMARY}06`, marginTop: 12 }]}
+                        onPress={openPayModal}
+                      >
+                        <Feather name="plus" size={14} color={muted} />
+                        <Text style={[styles.iHavePaidText, { color: muted }]}>Submit another payment</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+
+                {/* Approved Submissions */}
+                {mySubmissions.filter((s) => s.status === "approved").map((s) => (
+                  <View key={s.id} style={[styles.submissionCard, { backgroundColor: `${EMERALD}10`, borderColor: `${EMERALD}30`, marginTop: 10 }]}>
+                    <View style={styles.submissionCardHeader}>
+                      <Feather name="check-circle" size={16} color={EMERALD} />
+                      <Text style={[styles.submissionCardTitle, { color: EMERALD }]}>Payment Approved</Text>
+                    </View>
+                    <View style={styles.submissionRow}>
+                      <Text style={[styles.submissionLabel, { color: muted }]}>Approved Amount</Text>
+                      <Text style={[styles.submissionVal, { color: EMERALD, fontWeight: "700" }]}>
+                        ₹{safeFix(s.approvedAmount ?? 0, 2)}
+                      </Text>
+                    </View>
+                    <View style={styles.submissionRow}>
+                      <Text style={[styles.submissionLabel, { color: muted }]}>Date</Text>
+                      <Text style={[styles.submissionVal, { color: muted }]}>{fmtDate(s.reviewedAt ?? s.submittedAt)}</Text>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Rejected Submissions */}
+                {mySubmissions.filter((s) => s.status === "rejected").map((s) => (
+                  <View key={s.id} style={[styles.submissionCard, { backgroundColor: `${RED}10`, borderColor: `${RED}30`, marginTop: 10 }]}>
+                    <View style={styles.submissionCardHeader}>
+                      <Feather name="x-circle" size={16} color={RED} />
+                      <Text style={[styles.submissionCardTitle, { color: RED }]}>Payment Rejected</Text>
+                    </View>
+                    {s.adminNotes ? (
+                      <Text style={[styles.submissionLabel, { color: muted, marginTop: 4 }]}>{s.adminNotes}</Text>
+                    ) : null}
+                    <Pressable
+                      style={[styles.iHavePaidBtn, { borderColor: RED, backgroundColor: `${RED}08`, marginTop: 10 }]}
+                      onPress={openPayModal}
+                    >
+                      <Feather name="refresh-cw" size={14} color={RED} />
+                      <Text style={[styles.iHavePaidText, { color: RED }]}>Resubmit Payment</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* ── Egg Bill Card ─────────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={[styles.sectionCard, { backgroundColor: card }]}>
             <View style={styles.sectionCardHeader}>
@@ -440,7 +771,7 @@ export default function MemberHome() {
           </View>
         </View>
 
-        {/* ── Announcements ─────────────────────────────────────────────────── */}
+        {/* ── Announcements ─────────────────────────────────────────────── */}
         {recentAnnouncements.length > 0 && (
           <View style={[styles.section, { marginBottom: 8 }]}>
             <Text style={[styles.sectionTitle, { color: cardText }]}>📣 Announcements</Text>
@@ -467,6 +798,143 @@ export default function MemberHome() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Payment Submission Modal ──────────────────────────────────────── */}
+      <Modal visible={payModal} animationType="slide" transparent statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <ScrollView
+            style={{ width: "100%" }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+              <View style={styles.modalHandle} />
+
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Submit Payment</Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
+                    Pending admin verification
+                  </Text>
+                </View>
+                <Pressable onPress={() => setPayModal(false)} hitSlop={10}>
+                  <Feather name="x" size={22} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+
+              {/* Amount */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>AMOUNT PAID (₹)</Text>
+                <TextInput
+                  style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+                  value={claimedAmount}
+                  onChangeText={setClaimedAmount}
+                  keyboardType="decimal-pad"
+                  placeholder={`₹${safeFix(remainingDue, 2)}`}
+                  placeholderTextColor={colors.mutedForeground}
+                />
+              </View>
+
+              {/* UTR */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>UTR / TRANSACTION ID</Text>
+                <TextInput
+                  style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+                  value={utrInput}
+                  onChangeText={setUtrInput}
+                  placeholder="e.g. 123456789012"
+                  placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {/* Screenshot */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>PAYMENT SCREENSHOT (OPTIONAL)</Text>
+                {screenshotBase64 ? (
+                  <View style={styles.screenshotPreview}>
+                    <Image
+                      source={{ uri: `data:image/jpeg;base64,${screenshotBase64}` }}
+                      style={styles.screenshotImg}
+                      resizeMode="cover"
+                    />
+                    <Pressable
+                      style={[styles.screenshotRemove, { backgroundColor: RED }]}
+                      onPress={() => setScreenshotBase64(null)}
+                    >
+                      <Feather name="x" size={14} color="#fff" />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={[styles.screenshotPickerBtn, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                    onPress={pickScreenshot}
+                  >
+                    <Feather name="image" size={22} color={colors.mutedForeground} />
+                    <Text style={[styles.screenshotPickerText, { color: colors.mutedForeground }]}>
+                      Tap to upload screenshot
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Hint */}
+              <View style={[styles.upiNotice, { backgroundColor: `${PRIMARY}08`, borderColor: `${PRIMARY}15`, marginBottom: 16 }]}>
+                <Feather name="info" size={13} color={PRIMARY} />
+                <Text style={[styles.upiNoticeText, { color: colors.mutedForeground }]}>
+                  Your payment will remain "Pending Verification" until the admin approves it.
+                </Text>
+              </View>
+
+              {/* Submit Button */}
+              <Pressable
+                style={({ pressed }) => [{ opacity: (pressed || isSubmitting) ? 0.75 : 1, marginBottom: 20 }]}
+                onPress={handleSubmitPayment}
+                disabled={isSubmitting}
+              >
+                <LinearGradient
+                  colors={["#7C3AED", "#4F46E5"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.submitBtn}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Feather name="send" size={18} color="#fff" />
+                  )}
+                  <Text style={styles.submitBtnText}>
+                    {isSubmitting ? "Submitting…" : "Submit Payment"}
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* ── Full-screen Screenshot Modal ─────────────────────────────────── */}
+      <Modal visible={screenshotModalVisible} animationType="fade" transparent statusBarTranslucent>
+        <View style={styles.screenshotFullOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setScreenshotModalVisible(false)}
+          />
+          {fullScreenshot && (
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${fullScreenshot}` }}
+              style={styles.screenshotFull}
+              resizeMode="contain"
+            />
+          )}
+          <Pressable
+            style={styles.screenshotFullClose}
+            onPress={() => setScreenshotModalVisible(false)}
+          >
+            <Feather name="x" size={22} color="#fff" />
+          </Pressable>
+        </View>
+      </Modal>
     </GradientBackground>
   );
 }
@@ -508,9 +976,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.25)",
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
   },
-  paymentBannerPillPartial: {
-    paddingHorizontal: 10,
-  },
+  paymentBannerPillPartial: { paddingHorizontal: 10 },
   paymentBannerPillText: { fontSize: 10, fontWeight: "900", color: "#fff", letterSpacing: 0.8 },
 
   // Due card
@@ -526,7 +992,6 @@ const styles = StyleSheet.create({
   dueCardSub: { fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 6 },
   dueCardIcon: { opacity: 0.8 },
 
-  // Partial payment progress bar
   progressTrack: {
     marginTop: 10, height: 5, borderRadius: 3,
     backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden",
@@ -547,7 +1012,7 @@ const styles = StyleSheet.create({
   breakdownKey: { fontSize: 9, color: "rgba(255,255,255,0.72)", marginTop: 2, fontWeight: "500" },
   breakdownDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 2 },
 
-  // Mini stats — background supplied inline via colors.card
+  // Mini stats
   miniStatsRow: {
     flexDirection: "row", flexWrap: "wrap", gap: 12,
     paddingHorizontal: 20, marginTop: 20, marginBottom: 4,
@@ -578,7 +1043,7 @@ const styles = StyleSheet.create({
   },
   sectionCardHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   sectionCardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  sectionCardTitle: { fontSize: 16, fontWeight: "700" },
+  sectionCardTitle: { fontSize: 16, fontWeight: "700", flex: 1 },
 
   // Bill rows
   billRow: {
@@ -613,4 +1078,137 @@ const styles = StyleSheet.create({
   announcementTitle: { fontSize: 15, fontWeight: "700" },
   announcementBody: { fontSize: 13, marginTop: 3, lineHeight: 18 },
   announcementDate: { fontSize: 11, marginTop: 5 },
+
+  // ── UPI Payment section ──
+  pendingBadge: {
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  pendingBadgeText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.8 },
+
+  upiNotice: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    borderRadius: 12, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  upiNoticeText: { fontSize: 13, flex: 1, lineHeight: 18 },
+
+  upiAmountRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    borderRadius: 14, borderWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 12, marginBottom: 14,
+  },
+  upiAmountLabel: { fontSize: 12, fontWeight: "600", marginBottom: 3 },
+  upiAmountVal: { fontSize: 28, fontWeight: "900", letterSpacing: -0.5 },
+
+  upiIdRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingVertical: 10, borderBottomWidth: 1,
+  },
+  upiIdIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  upiIdLabel: { fontSize: 11, fontWeight: "600", marginBottom: 2 },
+  upiIdValue: { fontSize: 15, fontWeight: "700" },
+
+  copyBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+  },
+  copyBtnText: { fontSize: 12, fontWeight: "700" },
+
+  qrContainer: {
+    alignItems: "center", marginTop: 16, marginBottom: 4,
+  },
+  qrImage: {
+    width: 180, height: 180, borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(148,163,184,0.22)",
+  },
+  qrLabel: { fontSize: 12, marginTop: 8 },
+
+  payUpiBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 10, borderRadius: 16, paddingVertical: 16,
+  },
+  payUpiBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+
+  iHavePaidBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, borderRadius: 12, borderWidth: 1.5,
+    paddingVertical: 12, marginTop: 10,
+  },
+  iHavePaidText: { fontSize: 13, fontWeight: "600" },
+
+  // Submission cards
+  submissionCard: {
+    borderRadius: 14, borderWidth: 1, padding: 14, marginTop: 4,
+  },
+  submissionCardHeader: {
+    flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10,
+  },
+  submissionCardTitle: { fontSize: 14, fontWeight: "700" },
+  submissionRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 6, borderBottomWidth: 1,
+  },
+  submissionLabel: { fontSize: 12 },
+  submissionVal: { fontSize: 13, fontWeight: "600" },
+  submissionThumb: {
+    width: "100%", height: 120, borderRadius: 10, marginTop: 10,
+  },
+  submissionThumbLabel: { fontSize: 11, textAlign: "center", marginTop: 4 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: "#00000070", justifyContent: "flex-end" },
+  modalSheet: {
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingTop: 12, maxHeight: "92%",
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(148,163,184,0.4)",
+    alignSelf: "center", marginBottom: 16,
+  },
+  modalHeader: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start",
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 20, fontWeight: "800" },
+  modalSubtitle: { fontSize: 13, marginTop: 2 },
+
+  formGroup: { marginBottom: 16 },
+  formLabel: { fontSize: 11, fontWeight: "700", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.6 },
+  formInput: {
+    borderWidth: 1.5, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 13, fontSize: 16,
+  },
+
+  screenshotPickerBtn: {
+    borderWidth: 1.5, borderRadius: 14, borderStyle: "dashed",
+    alignItems: "center", justifyContent: "center",
+    paddingVertical: 28, gap: 8,
+  },
+  screenshotPickerText: { fontSize: 14 },
+  screenshotPreview: { position: "relative" },
+  screenshotImg: { width: "100%", height: 160, borderRadius: 12 },
+  screenshotRemove: {
+    position: "absolute", top: 8, right: 8,
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: "center", justifyContent: "center",
+  },
+
+  submitBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 10, borderRadius: 16, paddingVertical: 16,
+  },
+  submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+
+  // Full-screen screenshot
+  screenshotFullOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center", justifyContent: "center",
+  },
+  screenshotFull: { width: "90%", height: "80%" },
+  screenshotFullClose: {
+    position: "absolute", top: 56, right: 20,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center", justifyContent: "center",
+  },
 });

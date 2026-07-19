@@ -77,6 +77,27 @@ export interface BillPayment {
   amount: number;
 }
 
+export interface UpiSettings {
+  upiId: string;
+  accountHolderName: string;
+  qrCodeBase64: string | null;
+  paymentNote: string | null;
+}
+
+export interface PaymentSubmission {
+  id: string;
+  memberId: string;
+  month: string;
+  claimedAmount: number;
+  screenshotBase64: string | null;
+  utr: string | null;
+  status: "pending" | "approved" | "rejected";
+  approvedAmount: number | null;
+  submittedAt: string;
+  reviewedAt: string | null;
+  adminNotes: string | null;
+}
+
 export interface MonthlyBill {
   memberId: string;
   memberName: string;
@@ -104,6 +125,8 @@ interface DataContextType {
   payments: BillPayment[];
   paymentsError: string | null;
   announcements: Announcement[];
+  upiSettings: UpiSettings | null;
+  paymentSubmissions: PaymentSubmission[];
   isLoaded: boolean;
   addMember: (m: Omit<Member, "id">) => Promise<void>;
   updateMember: (id: string, u: Partial<Member>) => Promise<void>;
@@ -125,6 +148,10 @@ interface DataContextType {
   markPaid: (memberId: string, month: string, amount: number) => Promise<void>;
   markUnpaid: (memberId: string, month: string) => Promise<void>;
   recordPayment: (memberId: string, month: string, paymentAmount: number, dueAmount: number) => Promise<void>;
+  saveUpiSettings: (s: Partial<UpiSettings>) => Promise<void>;
+  submitUpiPayment: (memberId: string, month: string, claimedAmount: number, screenshotBase64?: string | null, utr?: string | null) => Promise<PaymentSubmission>;
+  approvePaymentSubmission: (id: string, approvedAmount: number) => Promise<void>;
+  rejectPaymentSubmission: (id: string, adminNotes?: string) => Promise<void>;
   calculateMonthlyBill: (memberId: string, month: string) => MonthlyBill;
   calculateAllMonthlyBills: (month: string) => MonthlyBill[];
   getMonthTotals: (month: string) => { totalExpense: number; totalMeals: number; perMealCost: number };
@@ -135,11 +162,8 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 const getApiBase = (): string => {
   if (Platform.OS === "web") return "";
-  // EXPO_PUBLIC_API_URL is the canonical override for EAS / production APK builds.
-  // Set it via: eas secret:create --name EXPO_PUBLIC_API_URL --value https://your-api.example.com
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) return apiUrl.replace(/\/$/, "");
-  // Fallback: EXPO_PUBLIC_DOMAIN is injected by the Replit dev script only.
   const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
   return domain ? `https://${domain}` : "";
 };
@@ -173,7 +197,6 @@ const apiCall = async (method: string, path: string, body?: unknown): Promise<un
       console.error(`[apiCall] ${method} ${url} → ${res.status}:`, msg);
       throw new Error(msg);
     }
-    // HTML or other non-JSON error page — never expose raw markup to the user
     const text = await res.text();
     console.error(`[apiCall] ${method} ${url} → ${res.status} (non-JSON):`, text.slice(0, 300));
     throw new Error(`Server returned an unexpected response (HTTP ${res.status}). Please try again.`);
@@ -188,18 +211,10 @@ const apiCall = async (method: string, path: string, body?: unknown): Promise<un
 
 const sb = () => import("@/lib/supabase").then(({ getSupabase }) => getSupabase());
 
-/**
- * Throw a descriptive error if a Supabase operation returned an error.
- * The Supabase JS client never throws — callers must check the returned error.
- */
 function checkError(result: { error: { message: string } | null }): void {
   if (result.error) throw new Error(result.error.message);
 }
 
-/**
- * Throw if the operation errored OR returned no data.
- * Use for inserts/updates that return a row (.select().single()).
- */
 function getData<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(result.error.message);
   if (result.data === null) throw new Error("No data returned from database.");
@@ -217,6 +232,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [payments, setPayments] = useState<BillPayment[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
+  const [upiSettings, setUpiSettings] = useState<UpiSettings | null>(null);
+  const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchMembers = useCallback(async () => {
@@ -370,6 +387,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchUpiSettings = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client.from("upi_settings").select("*").eq("id", 1).maybeSingle();
+    if (data) {
+      const r = data as Record<string, unknown>;
+      setUpiSettings({
+        upiId: (r.upi_id as string) || "",
+        accountHolderName: (r.account_holder_name as string) || "",
+        qrCodeBase64: (r.qr_code_base64 as string | null) ?? null,
+        paymentNote: (r.payment_note as string | null) ?? null,
+      });
+    }
+  }, []);
+
+  const fetchPaymentSubmissions = useCallback(async () => {
+    const client = await sb();
+    const { data } = await client
+      .from("payment_submissions")
+      .select("*")
+      .order("submitted_at", { ascending: false });
+    if (data) {
+      setPaymentSubmissions(
+        (data as Record<string, unknown>[]).map((p) => ({
+          id: p.id as string,
+          memberId: p.member_id as string,
+          month: p.month as string,
+          claimedAmount: Number(p.claimed_amount),
+          screenshotBase64: (p.screenshot_base64 as string | null) ?? null,
+          utr: (p.utr as string | null) ?? null,
+          status: p.status as "pending" | "approved" | "rejected",
+          approvedAmount: p.approved_amount != null ? Number(p.approved_amount) : null,
+          submittedAt: p.submitted_at as string,
+          reviewedAt: (p.reviewed_at as string | null) ?? null,
+          adminNotes: (p.admin_notes as string | null) ?? null,
+        }))
+      );
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     await Promise.all([
       fetchMembers(),
@@ -381,9 +437,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       fetchPayments(),
       fetchFines(),
       fetchAnnouncements(),
+      fetchUpiSettings().catch(() => {}),
+      fetchPaymentSubmissions().catch(() => {}),
     ]);
     setIsLoaded(true);
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines, fetchAnnouncements]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines, fetchAnnouncements, fetchUpiSettings, fetchPaymentSubmissions]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -402,6 +460,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setAdvances([]); setEggs([]); setPayments([]);
           setFines([]); setAnnouncements([]);
           setSettings({ eggPrice: 12, cookSalary: 250 });
+          setUpiSettings(null);
+          setPaymentSubmissions([]);
           setIsLoaded(false);
         }
       });
@@ -449,6 +509,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on("postgres_changes", { event: "*", schema: "public", table: "bill_payments" }, safeAsync(fetchPayments, "fetchPayments"))
         .on("postgres_changes", { event: "*", schema: "public", table: "fines" }, safeAsync(fetchFines, "fetchFines"))
         .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, safeAsync(fetchAnnouncements, "fetchAnnouncements"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "upi_settings" }, safeAsync(fetchUpiSettings, "fetchUpiSettings"))
+        .on("postgres_changes", { event: "*", schema: "public", table: "payment_submissions" }, safeAsync(fetchPaymentSubmissions, "fetchPaymentSubmissions"))
         .subscribe();
     }).catch((err: Error) => {
       console.error("[DataContext] realtime channel setup failed:", err.message);
@@ -463,11 +525,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.error("[DataContext] cleanup sb() failed:", err.message);
       });
     };
-  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines, fetchAnnouncements]);
+  }, [fetchMembers, fetchMeals, fetchExpenses, fetchAdvances, fetchEggs, fetchSettings, fetchPayments, fetchFines, fetchAnnouncements, fetchUpiSettings, fetchPaymentSubmissions]);
 
   // ── Members ──────────────────────────────────────────────────────────────
-  // addMember: server-first (API creates auth user + row, returns the row).
-  // Commit the returned row to local state — no rollback needed.
   const addMember = async (m: Omit<Member, "id">) => {
     const res = await apiCall("POST", "/admin/members", {
       name: m.name, phone: m.phone, email: m.email,
@@ -491,17 +551,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateMember = async (id: string, u: Partial<Member>) => {
-    // Per-entity optimistic update: snapshot only this member, revert only this
-    // member on failure — concurrent realtime updates to other members are unaffected.
     const prevMember = members.find((m) => m.id === id);
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...u } : m)));
     try {
       const { password, ...rest } = u;
-      // Password reset goes through the admin password endpoint (service-role only)
       if (password !== undefined && password.trim()) {
         await apiCall("PATCH", `/admin/members/${id}/password`, { password });
       }
-      // Profile field updates go through the admin members endpoint (service-role only)
       const profileUpdate: Record<string, unknown> = {};
       if (rest.name !== undefined) profileUpdate.name = rest.name;
       if (rest.phone !== undefined) profileUpdate.phone = rest.phone;
@@ -524,7 +580,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiCall("DELETE", `/admin/members/${id}`);
     } catch (err) {
-      // Re-insert the member only if realtime hasn't already done so
       if (prevMember) {
         setMembers((ms) =>
           ms.some((m) => m.id === id)
@@ -539,7 +594,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // ── Meals ─────────────────────────────────────────────────────────────────
   const setMeal = async (memberId: string, date: string, morning: boolean, night: boolean) => {
     const prevMeal = meals.find((m) => m.memberId === memberId && m.date === date);
-    // Optimistic update
     setMeals((ms) => {
       const idx = ms.findIndex((m) => m.memberId === memberId && m.date === date);
       if (idx >= 0) {
@@ -551,7 +605,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      // Avoid upsert onConflict — requires UNIQUE constraint. Instead: check then insert/update.
       const { data: existing, error: fetchErr } = await client
         .from("meals")
         .select("id")
@@ -565,7 +618,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         checkError(await client.from("meals").insert({ member_id: memberId, date, morning, night }));
       }
     } catch (err) {
-      // Revert only this meal slot
       setMeals((ms) => {
         const without = ms.filter((m) => !(m.memberId === memberId && m.date === date));
         return prevMeal ? [...without, prevMeal] : without;
@@ -576,10 +628,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const setMealsBatch = async (entries: { memberId: string; date: string; morning: boolean; night: boolean }[]) => {
     if (entries.length === 0) return;
-    // Snapshot all affected slots before mutating
     const affectedKeys = new Set(entries.map((e) => `${e.memberId}|${e.date}`));
     const prevSlots = meals.filter((m) => affectedKeys.has(`${m.memberId}|${m.date}`));
-    // Optimistic update
     setMeals((ms) => {
       const next = [...ms];
       for (const e of entries) {
@@ -594,7 +644,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      // Fetch existing rows for all affected (member_id, date) pairs in one query
       const uniqueDates = [...new Set(entries.map((e) => e.date))];
       const memberIds = [...new Set(entries.map((e) => e.memberId))];
       const { data: existingRows, error: fetchErr } = await client
@@ -615,7 +664,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           )
         );
       }
-      // Run updates in parallel — each row has different values so can't batch in one UPDATE
       if (toUpdate.length > 0) {
         const results = await Promise.all(
           toUpdate.map((e) => {
@@ -626,7 +674,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         for (const res of results) checkError(res);
       }
     } catch (err) {
-      // Revert only the affected slots, leave everything else intact
       setMeals((ms) => {
         const withoutAffected = ms.filter((m) => !affectedKeys.has(`${m.memberId}|${m.date}`));
         return [...withoutAffected, ...prevSlots];
@@ -636,7 +683,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── Expenses ──────────────────────────────────────────────────────────────
-  // addExpense: server-first (insert returns the created row).
   const addExpense = async (e: Omit<Expense, "id">) => {
     const client = await sb();
     const r = getData(
@@ -695,7 +741,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── Advances ──────────────────────────────────────────────────────────────
-  // addAdvance: server-first (insert returns the created row).
   const addAdvance = async (a: Omit<Advance, "id">) => {
     const client = await sb();
     const r = getData(
@@ -754,7 +799,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
     } catch (err) {
-      // Revert only this egg slot
       setEggs((es) => {
         const without = es.filter((e) => !(e.memberId === memberId && e.date === date));
         return prevEgg ? [...without, prevEgg] : without;
@@ -783,9 +827,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── Bill payments ─────────────────────────────────────────────────────────
-  // Helper: build the base row payload for bill_payments inserts.
-  // The DB may have a separate `year` column (NOT NULL); we always populate it
-  // so inserts don't violate the constraint regardless of schema variant.
   const buildPaymentRow = (memberId: string, month: string, extra: Record<string, unknown>) => {
     const year = Number(month.split("-")[0]);
     return { member_id: memberId, month, year, ...extra };
@@ -800,7 +841,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     try {
       const client = await sb();
-      // Use the real DB row ID when available — avoids an extra SELECT and any race
       const existingId = prevPayment && prevPayment.id !== "optimistic" ? prevPayment.id : null;
       if (existingId) {
         checkError(
@@ -809,7 +849,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             .eq("id", existingId)
         );
       } else {
-        // No local row yet — check DB before inserting to avoid duplicates
         const { data: dbRow, error: selectErr } = await client
           .from("bill_payments")
           .select("id")
@@ -892,7 +931,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const now = new Date().toISOString();
     const paidAt = isFullyPaid ? now : (prevPayment?.paidAt ?? null);
 
-    // Optimistic update
     setPayments((ps) => {
       const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
       return [...without, { id: prevPayment?.id ?? "optimistic", memberId, month, paid: isFullyPaid, paidAt, amount: newTotal }];
@@ -929,7 +967,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err) {
-      // Roll back on failure
       setPayments((ps) => {
         const without = ps.filter((p) => !(p.memberId === memberId && p.month === month));
         return prevPayment ? [...without, prevPayment] : without;
@@ -939,13 +976,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── Fines ─────────────────────────────────────────────────────────────────
-  // Helper: detect "notes column not in schema cache" errors from old DBs.
   const isNotesColumnMissing = (e: { message?: string } | null) =>
     !!(e?.message?.includes("notes") && (e.message.includes("schema cache") || e.message.includes("does not exist")));
 
-  // addFine: server-first (insert returns the created row).
-  // If the notes column is missing (pre-migration DB), the insert is retried without
-  // notes so the fine is still saved — notes are silently dropped until migrated.
   const addFine = async (f: Omit<Fine, "id">) => {
     const client = await sb();
     let result = await client.from("fines").insert({
@@ -980,8 +1013,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (u.amount !== undefined) row.amount = u.amount;
       if (u.date !== undefined) row.date = u.date;
       if (u.reason !== undefined) row.reason = u.reason;
-      // Include notes in the update (supports both setting and clearing to null).
-      // If the notes column is missing, retry without it so the rest of the update succeeds.
       if ("notes" in u) row.notes = (u.notes && u.notes.trim()) ? u.notes.trim() : null;
       const client = await sb();
       let updateResult = await client.from("fines").update(row).eq("id", id);
@@ -1038,6 +1069,131 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ── UPI Settings ──────────────────────────────────────────────────────────
+  const saveUpiSettings = async (s: Partial<UpiSettings>) => {
+    const prev = upiSettings;
+    const next: UpiSettings = {
+      upiId: "",
+      accountHolderName: "",
+      qrCodeBase64: null,
+      paymentNote: null,
+      ...(upiSettings ?? {}),
+      ...s,
+    };
+    setUpiSettings(next);
+    try {
+      const client = await sb();
+      checkError(
+        await client.from("upi_settings").upsert(
+          {
+            id: 1,
+            upi_id: next.upiId,
+            account_holder_name: next.accountHolderName,
+            qr_code_base64: next.qrCodeBase64,
+            payment_note: next.paymentNote,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        )
+      );
+    } catch (err) {
+      setUpiSettings(prev);
+      throw err;
+    }
+  };
+
+  // ── Payment Submissions ───────────────────────────────────────────────────
+  const submitUpiPayment = async (
+    memberId: string,
+    month: string,
+    claimedAmount: number,
+    screenshotBase64?: string | null,
+    utr?: string | null,
+  ): Promise<PaymentSubmission> => {
+    const client = await sb();
+    const r = getData(
+      await client.from("payment_submissions").insert({
+        member_id: memberId,
+        month,
+        claimed_amount: claimedAmount,
+        screenshot_base64: screenshotBase64 ?? null,
+        utr: utr ?? null,
+        status: "pending",
+      }).select().single()
+    ) as Record<string, unknown>;
+    const submission: PaymentSubmission = {
+      id: r.id as string,
+      memberId: r.member_id as string,
+      month: r.month as string,
+      claimedAmount: Number(r.claimed_amount),
+      screenshotBase64: (r.screenshot_base64 as string | null) ?? null,
+      utr: (r.utr as string | null) ?? null,
+      status: "pending",
+      approvedAmount: null,
+      submittedAt: r.submitted_at as string,
+      reviewedAt: null,
+      adminNotes: null,
+    };
+    setPaymentSubmissions((prev) => [submission, ...prev]);
+    return submission;
+  };
+
+  const approvePaymentSubmission = async (id: string, approvedAmount: number) => {
+    const sub = paymentSubmissions.find((p) => p.id === id);
+    if (!sub) throw new Error("Submission not found");
+    const now = new Date().toISOString();
+
+    setPaymentSubmissions((ps) =>
+      ps.map((p) => p.id === id ? { ...p, status: "approved" as const, approvedAmount, reviewedAt: now } : p)
+    );
+
+    try {
+      const client = await sb();
+      checkError(
+        await client.from("payment_submissions").update({
+          status: "approved",
+          approved_amount: approvedAmount,
+          reviewed_at: now,
+        }).eq("id", id)
+      );
+      // Update bill_payments with the approved amount
+      const bill = calculateMonthlyBill(sub.memberId, sub.month);
+      await recordPayment(sub.memberId, sub.month, approvedAmount, bill.dueAmount);
+    } catch (err) {
+      if (sub) {
+        setPaymentSubmissions((ps) => ps.map((p) => p.id === id ? sub : p));
+      }
+      throw err;
+    }
+  };
+
+  const rejectPaymentSubmission = async (id: string, adminNotes?: string) => {
+    const sub = paymentSubmissions.find((p) => p.id === id);
+    const now = new Date().toISOString();
+
+    setPaymentSubmissions((ps) =>
+      ps.map((p) =>
+        p.id === id ? { ...p, status: "rejected" as const, reviewedAt: now, adminNotes: adminNotes ?? null } : p
+      )
+    );
+
+    try {
+      const client = await sb();
+      checkError(
+        await client.from("payment_submissions").update({
+          status: "rejected",
+          reviewed_at: now,
+          ...(adminNotes ? { admin_notes: adminNotes } : {}),
+        }).eq("id", id)
+      );
+    } catch (err) {
+      if (sub) {
+        setPaymentSubmissions((ps) => ps.map((p) => p.id === id ? sub : p));
+      }
+      throw err;
+    }
+  };
+
   // ── Calculations ──────────────────────────────────────────────────────────
   const getMonthTotals = (month: string) => {
     const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
@@ -1078,7 +1234,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      members, meals, expenses, advances, eggs, fines, settings, payments, paymentsError, announcements, isLoaded,
+      members, meals, expenses, advances, eggs, fines, settings, payments, paymentsError, announcements,
+      upiSettings, paymentSubmissions,
+      isLoaded,
       addMember, updateMember, deleteMember,
       setMeal, setMealsBatch,
       addExpense, updateExpense, deleteExpense,
@@ -1087,6 +1245,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setEggEntry, updateSettings,
       addAnnouncement, deleteAnnouncement,
       markPaid, markUnpaid, recordPayment,
+      saveUpiSettings, submitUpiPayment, approvePaymentSubmission, rejectPaymentSubmission,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,
       refresh: loadAll,
     }}>
