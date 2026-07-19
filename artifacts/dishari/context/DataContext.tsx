@@ -851,7 +851,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (existingId) {
         checkError(
           await client.from("bill_payments")
-            .update({ paid: false, paid_at: null })
+            .update({ paid: false, paid_at: null, amount: 0 })
             .eq("id", existingId)
         );
       } else {
@@ -865,13 +865,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (dbRow?.id) {
           checkError(
             await client.from("bill_payments")
-              .update({ paid: false, paid_at: null })
+              .update({ paid: false, paid_at: null, amount: 0 })
               .eq("id", dbRow.id)
           );
         } else {
           checkError(
             await client.from("bill_payments")
-              .insert(buildPaymentRow(memberId, month, { paid: false, paid_at: null }))
+              .insert(buildPaymentRow(memberId, month, { paid: false, paid_at: null, amount: 0 }))
           );
         }
       }
