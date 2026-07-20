@@ -1,11 +1,6 @@
 /**
  * AnnouncementToast — Premium slide-in notification card
- *
- * Accent colour is inferred from the announcement title:
- *   🔴 Red     — "important" | "urgent" | "critical" | "required"
- *   🟠 Orange  — "warning"   | "notice" | "reminder" | "attention"
- *   🟢 Green   — "success"   | "done"   | "completed"| "resolved"
- *   🔵 Blue    — everything else (default)
+ * Clean white glassmorphism card with a blue gradient accent.
  */
 
 import { Feather } from "@expo/vector-icons";
@@ -25,64 +20,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { Announcement } from "@/context/DataContext";
-import {
-  EMERALD,
-  ORANGE,
-  PRIMARY,
-  PRIMARY2,
-  RED,
-  SKY,
-} from "@/constants/colors";
-
-// ─── Accent palette ───────────────────────────────────────────────────────────
-
-type AccentKind = "info" | "success" | "warning" | "important";
-
-const ACCENT: Record<
-  AccentKind,
-  { bar: string; gradientStart: string; gradientEnd: string; icon: string; iconBg: string; shadow: string }
-> = {
-  info: {
-    bar: PRIMARY,
-    gradientStart: PRIMARY,
-    gradientEnd: PRIMARY2,
-    icon: "bell",
-    iconBg: `${PRIMARY}18`,
-    shadow: PRIMARY,
-  },
-  success: {
-    bar: EMERALD,
-    gradientStart: "#10B981",
-    gradientEnd: "#059669",
-    icon: "check-circle",
-    iconBg: `${EMERALD}18`,
-    shadow: EMERALD,
-  },
-  warning: {
-    bar: ORANGE,
-    gradientStart: ORANGE,
-    gradientEnd: "#EA580C",
-    icon: "alert-triangle",
-    iconBg: `${ORANGE}18`,
-    shadow: ORANGE,
-  },
-  important: {
-    bar: RED,
-    gradientStart: RED,
-    gradientEnd: "#BE123C",
-    icon: "alert-circle",
-    iconBg: `${RED}18`,
-    shadow: RED,
-  },
-};
-
-function inferKind(title: string): AccentKind {
-  const t = title.toLowerCase();
-  if (/important|urgent|critical|required|mandatory/.test(t)) return "important";
-  if (/warning|notice|reminder|attention|caution/.test(t)) return "warning";
-  if (/success|done|completed|resolved|approved/.test(t)) return "success";
-  return "info";
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -90,6 +27,16 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const H_MARGIN = 14;
 const AUTO_DISMISS_MS = 4000;
 const IS_IOS = Platform.OS === "ios";
+
+// Design tokens
+const NAVY       = "#1E293B";
+const SLATE      = "#475569";
+const SLATE_LIGHT = "#94A3B8";
+const BLUE_PRIMARY = "#4F46E5";
+const BLUE_DEEP    = "#2563EB";
+const ICON_BG      = "#EFF6FF";   // very light blue circle
+const ICON_COLOR   = "#3B82F6";   // medium blue icon
+const PROGRESS_BG  = "#EFF6FF";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,24 +61,17 @@ interface Props {
 
 export function AnnouncementToast({ announcement, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
-  const kind = inferKind(announcement.title);
-  const accent = ACCENT[kind];
 
   // ── Animation values ──────────────────────────────────────────────────────
-  // Slide: starts off-screen right, springs in
   const translateX = useRef(new Animated.Value(SCREEN_W + 60)).current;
-  // Lift (Y) for a subtle drop-in feel
-  const translateY = useRef(new Animated.Value(-12)).current;
-  // Scale for the slight pop
-  const scale = useRef(new Animated.Value(0.94)).current;
-  // Opacity
-  const opacity = useRef(new Animated.Value(0)).current;
-  // Progress bar (non-native, drives width %)
-  const progress = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(-10)).current;
+  const scale      = useRef(new Animated.Value(0.95)).current;
+  const opacity    = useRef(new Animated.Value(0)).current;
+  const progress   = useRef(new Animated.Value(1)).current;
 
-  const dismissedRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const progressAnim = useRef<Animated.CompositeAnimation | null>(null);
+  const dismissedRef   = useRef(false);
+  const timerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressAnim   = useRef<Animated.CompositeAnimation | null>(null);
 
   const dismiss = useCallback(() => {
     if (dismissedRef.current) return;
@@ -143,8 +83,8 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
       Animated.spring(translateX, {
         toValue: SCREEN_W + 60,
         useNativeDriver: true,
-        damping: 26,
-        stiffness: 280,
+        damping: 28,
+        stiffness: 300,
         mass: 0.75,
       }),
       Animated.timing(opacity, {
@@ -157,22 +97,22 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
   }, [onDismiss, translateX, opacity]);
 
   useEffect(() => {
-    // ── Entrance: spring slide + pop ──────────────────────────────────────
+    // ── Entrance — spring with slight bounce ──────────────────────────────
     Animated.parallel([
       Animated.spring(translateX, {
         toValue: 0,
         useNativeDriver: true,
         damping: 16,
-        stiffness: 140,
+        stiffness: 135,
         mass: 0.85,
         velocity: 4,
-        overshootClamping: false,   // allows the bounce
+        overshootClamping: false,
       }),
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
-        damping: 18,
-        stiffness: 200,
+        damping: 20,
+        stiffness: 220,
         mass: 0.7,
       }),
       Animated.spring(scale, {
@@ -184,7 +124,7 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 220,
+        duration: 200,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
@@ -219,49 +159,48 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
           top: insets.top + 10,
           transform: [{ translateX }, { translateY }, { scale }],
           opacity,
-          shadowColor: accent.shadow,
         },
       ]}
     >
       {/* ── Card ──────────────────────────────────────────────────────────── */}
       <View style={styles.card}>
 
-        {/* iOS blur background */}
+        {/* iOS blur layer */}
         {IS_IOS && (
           <BlurView
-            intensity={85}
+            intensity={90}
             tint="light"
             style={StyleSheet.absoluteFill}
           />
         )}
 
-        {/* ── Coloured left accent bar ──────────────────────────────────── */}
+        {/* Blue gradient left accent bar */}
         <LinearGradient
-          colors={[accent.gradientStart, accent.gradientEnd]}
+          colors={[BLUE_PRIMARY, BLUE_DEEP]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.accentBar}
         />
 
-        {/* ── Body ─────────────────────────────────────────────────────── */}
+        {/* Body row */}
         <View style={styles.body}>
 
           {/* Circular icon */}
-          <View style={[styles.iconCircle, { backgroundColor: accent.iconBg }]}>
-            <Feather name={accent.icon as any} size={20} color={accent.bar} />
+          <View style={styles.iconCircle}>
+            <Feather name="bell" size={20} color={ICON_COLOR} />
           </View>
 
           {/* Text stack */}
           <View style={styles.textStack}>
 
-            {/* Title row */}
+            {/* Title + NEW badge */}
             <View style={styles.titleRow}>
               <Text style={styles.title} numberOfLines={2}>
                 {announcement.title}
               </Text>
               {fresh && (
                 <LinearGradient
-                  colors={["#10B981", "#059669"]}
+                  colors={["#22C55E", "#16A34A"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.newBadge}
@@ -280,9 +219,10 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
 
             {/* Date */}
             <View style={styles.dateRow}>
-              <Feather name="calendar" size={11} color="#94A3B8" />
+              <Feather name="calendar" size={11} color={SLATE_LIGHT} />
               <Text style={styles.dateText}>{fmtDate(announcement.createdAt)}</Text>
             </View>
+
           </View>
 
           {/* Close button */}
@@ -296,12 +236,11 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
       </View>
 
       {/* ── Progress bar ──────────────────────────────────────────────────── */}
-      <View style={[styles.progressTrack, { backgroundColor: `${accent.bar}1A` }]}>
+      <View style={styles.progressTrack}>
         <Animated.View
           style={[
             styles.progressFill,
             {
-              backgroundColor: accent.bar,
               width: progress.interpolate({
                 inputRange: [0, 1],
                 outputRange: ["0%", "100%"],
@@ -317,37 +256,41 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+
+  // ── Outer wrapper (carries the shadow) ────────────────────────────────────
   wrapper: {
     position: "absolute",
     left: H_MARGIN,
     right: H_MARGIN,
     zIndex: 9999,
-    // Shadow set dynamically (shadowColor from accent)
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.28,
-    shadowRadius: 28,
-    elevation: 22,
     borderRadius: 18,
+    // Premium shadow — indigo-tinted, elevated
+    shadowColor: BLUE_PRIMARY,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
+    elevation: 20,
   },
 
-  // ── Card shell ──────────────────────────────────────────────────────────────
+  // ── Card shell ────────────────────────────────────────────────────────────
   card: {
     flexDirection: "row",
     borderRadius: 18,
     overflow: "hidden",
-    backgroundColor: IS_IOS ? "transparent" : "rgba(255,255,255,0.97)",
-    borderWidth: 1.2,
-    borderColor: "rgba(255,255,255,0.75)",
     minHeight: 92,
+    backgroundColor: IS_IOS ? "transparent" : "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "rgba(226,232,240,0.9)",   // cool-gray border
   },
 
+  // ── Left accent bar ───────────────────────────────────────────────────────
   accentBar: {
     width: 6,
     borderTopLeftRadius: 18,
     borderBottomLeftRadius: 18,
   },
 
-  // ── Body row ────────────────────────────────────────────────────────────────
+  // ── Body row ──────────────────────────────────────────────────────────────
   body: {
     flex: 1,
     flexDirection: "row",
@@ -357,17 +300,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  // ── Circular icon ───────────────────────────────────────────────────────────
+  // ── Circular icon ─────────────────────────────────────────────────────────
   iconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: ICON_BG,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+    // Inner ring
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
   },
 
-  // ── Text area ───────────────────────────────────────────────────────────────
+  // ── Text stack ────────────────────────────────────────────────────────────
   textStack: {
     flex: 1,
     gap: 4,
@@ -384,9 +331,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: "700",
-    color: "#1E1B4B",
+    color: NAVY,
     lineHeight: 21,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
 
   newBadge: {
@@ -399,13 +346,13 @@ const styles = StyleSheet.create({
   newBadgeText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#fff",
+    color: "#FFFFFF",
     letterSpacing: 0.8,
   },
 
   message: {
     fontSize: 13,
-    color: "#374151",
+    color: SLATE,
     lineHeight: 19,
     fontWeight: "400",
   },
@@ -418,33 +365,37 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: SLATE_LIGHT,
     fontWeight: "500",
   },
 
-  // ── Close button ────────────────────────────────────────────────────────────
+  // ── Close button ──────────────────────────────────────────────────────────
   closeBtn: {
     flexShrink: 0,
     alignSelf: "flex-start",
   },
   closeCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "rgba(100,116,139,0.10)",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
 
-  // ── Progress bar ────────────────────────────────────────────────────────────
+  // ── Progress bar ──────────────────────────────────────────────────────────
   progressTrack: {
     height: 3.5,
+    backgroundColor: PROGRESS_BG,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
+    backgroundColor: BLUE_PRIMARY,
     borderBottomLeftRadius: 18,
   },
 });
