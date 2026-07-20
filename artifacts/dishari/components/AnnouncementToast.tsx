@@ -1,6 +1,6 @@
 /**
- * AnnouncementToast — Premium slide-in notification card
- * Clean white glassmorphism card with a blue gradient accent.
+ * AnnouncementToast — Purple glassmorphism slide-in notification
+ * Matches the app's purple gradient header UI.
  */
 
 import { Feather } from "@expo/vector-icons";
@@ -27,16 +27,6 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const H_MARGIN = 14;
 const AUTO_DISMISS_MS = 4000;
 const IS_IOS = Platform.OS === "ios";
-
-// Design tokens
-const NAVY       = "#1E293B";
-const SLATE      = "#475569";
-const SLATE_LIGHT = "#94A3B8";
-const BLUE_PRIMARY = "#4F46E5";
-const BLUE_DEEP    = "#2563EB";
-const ICON_BG      = "#EFF6FF";   // very light blue circle
-const ICON_COLOR   = "#3B82F6";   // medium blue icon
-const PROGRESS_BG  = "#EFF6FF";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,9 +59,9 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
   const opacity    = useRef(new Animated.Value(0)).current;
   const progress   = useRef(new Animated.Value(1)).current;
 
-  const dismissedRef   = useRef(false);
-  const timerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const progressAnim   = useRef<Animated.CompositeAnimation | null>(null);
+  const dismissedRef  = useRef(false);
+  const timerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressAnim  = useRef<Animated.CompositeAnimation | null>(null);
 
   const dismiss = useCallback(() => {
     if (dismissedRef.current) return;
@@ -89,7 +79,7 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
       }),
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 180,
+        duration: 200,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
@@ -97,7 +87,7 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
   }, [onDismiss, translateX, opacity]);
 
   useEffect(() => {
-    // ── Entrance — spring with slight bounce ──────────────────────────────
+    // Entrance — spring with gentle bounce
     Animated.parallel([
       Animated.spring(translateX, {
         toValue: 0,
@@ -124,13 +114,12 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 200,
+        duration: 220,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
     ]).start();
 
-    // ── Progress bar drain ────────────────────────────────────────────────
     progressAnim.current = Animated.timing(progress, {
       toValue: 0,
       duration: AUTO_DISMISS_MS,
@@ -162,32 +151,32 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
         },
       ]}
     >
-      {/* ── Card ──────────────────────────────────────────────────────────── */}
+      {/* ── Glass card ──────────────────────────────────────────────────────── */}
       <View style={styles.card}>
 
-        {/* iOS blur layer */}
-        {IS_IOS && (
+        {/* Blur layer — iOS native, web/Android fallback via gradient opacity */}
+        {IS_IOS ? (
           <BlurView
-            intensity={90}
-            tint="light"
+            intensity={40}
+            tint="dark"
             style={StyleSheet.absoluteFill}
           />
-        )}
+        ) : null}
 
-        {/* Blue gradient left accent bar */}
+        {/* Purple gradient fill (sits on top of blur on iOS, standalone on Android/web) */}
         <LinearGradient
-          colors={[BLUE_PRIMARY, BLUE_DEEP]}
+          colors={["rgba(124,58,237,0.92)", "rgba(91,33,182,0.94)"]}
           start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.accentBar}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
         />
 
-        {/* Body row */}
+        {/* ── Content row ───────────────────────────────────────────────────── */}
         <View style={styles.body}>
 
-          {/* Circular icon */}
+          {/* Circular icon — frosted white on purple */}
           <View style={styles.iconCircle}>
-            <Feather name="bell" size={20} color={ICON_COLOR} />
+            <Feather name="bell" size={20} color="#FFFFFF" />
           </View>
 
           {/* Text stack */}
@@ -219,7 +208,7 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
 
             {/* Date */}
             <View style={styles.dateRow}>
-              <Feather name="calendar" size={11} color={SLATE_LIGHT} />
+              <Feather name="calendar" size={11} color="rgba(255,255,255,0.55)" />
               <Text style={styles.dateText}>{fmtDate(announcement.createdAt)}</Text>
             </View>
 
@@ -228,14 +217,14 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
           {/* Close button */}
           <Pressable onPress={dismiss} hitSlop={12} style={styles.closeBtn}>
             <View style={styles.closeCircle}>
-              <Feather name="x" size={13} color="#64748B" />
+              <Feather name="x" size={13} color="rgba(255,255,255,0.85)" />
             </View>
           </Pressable>
 
         </View>
       </View>
 
-      {/* ── Progress bar ──────────────────────────────────────────────────── */}
+      {/* ── Progress bar ──────────────────────────────────────────────────────── */}
       <View style={styles.progressTrack}>
         <Animated.View
           style={[
@@ -257,42 +246,30 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
 
 const styles = StyleSheet.create({
 
-  // ── Outer wrapper (carries the shadow) ────────────────────────────────────
   wrapper: {
     position: "absolute",
     left: H_MARGIN,
     right: H_MARGIN,
     zIndex: 9999,
-    borderRadius: 18,
-    // Premium shadow — indigo-tinted, elevated
-    shadowColor: BLUE_PRIMARY,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 28,
-    elevation: 20,
+    borderRadius: 20,
+    // Deep purple shadow
+    shadowColor: "#4C1D95",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.55,
+    shadowRadius: 32,
+    elevation: 24,
   },
 
-  // ── Card shell ────────────────────────────────────────────────────────────
   card: {
-    flexDirection: "row",
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: "hidden",
-    minHeight: 92,
-    backgroundColor: IS_IOS ? "transparent" : "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "rgba(226,232,240,0.9)",   // cool-gray border
+    minHeight: 90,
+    // Subtle glass border — white at low opacity
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
 
-  // ── Left accent bar ───────────────────────────────────────────────────────
-  accentBar: {
-    width: 6,
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-  },
-
-  // ── Body row ──────────────────────────────────────────────────────────────
   body: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
@@ -300,21 +277,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  // ── Circular icon ─────────────────────────────────────────────────────────
+  // Frosted white icon circle
   iconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: ICON_BG,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    // Inner ring
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
   },
 
-  // ── Text stack ────────────────────────────────────────────────────────────
   textStack: {
     flex: 1,
     gap: 4,
@@ -331,9 +306,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: "700",
-    color: NAVY,
+    color: "#FFFFFF",
     lineHeight: 21,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
 
   newBadge: {
@@ -352,7 +327,7 @@ const styles = StyleSheet.create({
 
   message: {
     fontSize: 13,
-    color: SLATE,
+    color: "rgba(255,255,255,0.75)",
     lineHeight: 19,
     fontWeight: "400",
   },
@@ -365,11 +340,10 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: SLATE_LIGHT,
+    color: "rgba(255,255,255,0.55)",
     fontWeight: "500",
   },
 
-  // ── Close button ──────────────────────────────────────────────────────────
   closeBtn: {
     flexShrink: 0,
     alignSelf: "flex-start",
@@ -378,24 +352,23 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
   },
 
-  // ── Progress bar ──────────────────────────────────────────────────────────
   progressTrack: {
-    height: 3.5,
-    backgroundColor: PROGRESS_BG,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: BLUE_PRIMARY,
-    borderBottomLeftRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderBottomLeftRadius: 20,
   },
 });
