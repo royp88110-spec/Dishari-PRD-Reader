@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PRIMARY, EMERALD, ORANGE } from "@/constants/colors";
 import { useData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
+import { AnnouncementToast } from "@/components/AnnouncementToast";
+import { useAnnouncementNotifications } from "@/hooks/useAnnouncementNotifications";
 
 const INACTIVE = "#9CA3AF";
 
@@ -60,7 +62,10 @@ export default function MemberLayout() {
   const TAB_HEIGHT = 68;
   const tabBottom = isIOS ? Math.max(insets.bottom, 16) : 16;
 
+  const { current, onDismiss } = useAnnouncementNotifications();
+
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: PRIMARY,
@@ -182,6 +187,16 @@ export default function MemberLayout() {
         }}
       />
     </Tabs>
+
+      {/* ── Announcement slide-in toast overlay ─────────────────────────── */}
+      {current && (
+        <AnnouncementToast
+          key={current.id}
+          announcement={current}
+          onDismiss={onDismiss}
+        />
+      )}
+    </View>
   );
 }
 
