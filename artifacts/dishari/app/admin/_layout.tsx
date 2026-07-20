@@ -4,7 +4,8 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PRIMARY } from "@/constants/colors";
+import { PRIMARY, ORANGE } from "@/constants/colors";
+import { useData } from "@/context/DataContext";
 
 const INACTIVE = "#9CA3AF";
 
@@ -25,8 +26,18 @@ function TabIcon({
   );
 }
 
+function usePendingCount() {
+  try {
+    const { paymentSubmissions } = useData();
+    return paymentSubmissions.filter((s) => s.status === "pending").length;
+  } catch {
+    return 0;
+  }
+}
+
 export default function AdminLayout() {
   const insets = useSafeAreaInsets();
+  const pendingCount = usePendingCount();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const TAB_HEIGHT = 68;
@@ -94,6 +105,24 @@ export default function AdminLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="users" color={color} focused={focused} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="payments"
+        options={{
+          title: "Payments",
+          tabBarLabel: "Payments",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="credit-card" color={color} focused={focused} />
+          ),
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: ORANGE,
+            fontSize: 9,
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+          },
         }}
       />
       <Tabs.Screen

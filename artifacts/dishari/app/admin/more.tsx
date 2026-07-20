@@ -1,14 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -23,7 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useData } from "@/context/DataContext";
-import type { Fine, PaymentSubmission } from "@/context/DataContext";
+import type { Fine } from "@/context/DataContext";
 import { useColors } from "@/hooks/useColors";
 import { useRefresh } from "@/hooks/useRefresh";
 
@@ -92,7 +90,7 @@ function ShortcutTab({
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Section = "eggs" | "fines" | "advances" | "reports" | "announce" | "settings" | "payments";
+type Section = "eggs" | "fines" | "advances" | "reports" | "announce" | "settings";
 
 type EditModalState = {
   visible: boolean;
@@ -107,8 +105,6 @@ const EDIT_MODAL_CLOSED: EditModalState = {
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
-type PaymentFilter = "all" | "pending" | "approved" | "rejected";
-
 // ─── MoreScreen ───────────────────────────────────────────────────────────────
 
 export default function MoreScreen() {
@@ -116,12 +112,10 @@ export default function MoreScreen() {
   const insets = useSafeAreaInsets();
   const {
     members, eggs, advances, fines, settings, announcements,
-    upiSettings, paymentSubmissions,
     setEggEntry, addAdvance, deleteAdvance,
     addFine, updateFine, deleteFine,
     updateSettings, calculateAllMonthlyBills,
     addAnnouncement, deleteAnnouncement,
-    saveUpiSettings, approvePaymentSubmission, rejectPaymentSubmission,
   } = useData();
 
   const { refreshing, onRefresh } = useRefresh();
@@ -153,38 +147,6 @@ export default function MoreScreen() {
   const [editModal, setEditModal]         = useState<EditModalState>(EDIT_MODAL_CLOSED);
   const [editInputVal, setEditInputVal]   = useState("");
 
-  // UPI Settings state
-  const [upiForm, setUpiForm] = useState({
-    upiId: "",
-    accountHolderName: "",
-    paymentNote: "",
-  });
-  const [upiQrBase64, setUpiQrBase64] = useState<string | null>(null);
-  const [isSavingUpi, setIsSavingUpi] = useState(false);
-
-  // Payment admin state
-  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("pending");
-  const [verifyModal, setVerifyModal] = useState(false);
-  const [verifyingSub, setVerifyingSub] = useState<PaymentSubmission | null>(null);
-  const [approvedAmountInput, setApprovedAmountInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [screenshotModalVisible, setScreenshotModalVisible] = useState(false);
-  const [fullScreenshot, setFullScreenshot] = useState<string | null>(null);
-  const [rejectNotesInput, setRejectNotesInput] = useState("");
-  const [showRejectNotes, setShowRejectNotes] = useState(false);
-
-  // Sync UPI form when settings load
-  useEffect(() => {
-    if (upiSettings) {
-      setUpiForm({
-        upiId: upiSettings.upiId,
-        accountHolderName: upiSettings.accountHolderName,
-        paymentNote: upiSettings.paymentNote ?? "",
-      });
-      setUpiQrBase64(upiSettings.qrCodeBase64);
-    }
-  }, [upiSettings]);
-
   const openEditModal = (state: Omit<EditModalState, "visible">) => {
     setEditInputVal(state.value);
     setEditModal({ ...state, visible: true });
@@ -206,12 +168,6 @@ export default function MoreScreen() {
   const monthAdvances = advances.filter((a) => a.date.startsWith(month));
   const monthFines    = fines.filter((f) => f.date.startsWith(month));
   const bills         = calculateAllMonthlyBills(month);
-
-  // Payments
-  const pendingCount = paymentSubmissions.filter((s) => s.status === "pending").length;
-  const filteredSubmissions = paymentFilter === "all"
-    ? paymentSubmissions
-    : paymentSubmissions.filter((s) => s.status === paymentFilter);
 
   // ── Egg save ──
   const saveEgg = async () => {
@@ -302,88 +258,11 @@ export default function MoreScreen() {
     }
   };
 
-  // ── UPI Settings save ──
-  const pickQrCode = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission Required", "Please allow access to your photos.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      quality: 0.7,
-      base64: true,
-    });
-    if (!result.canceled && result.assets[0]?.base64) {
-      setUpiQrBase64(result.assets[0].base64);
-    }
-  };
-
-  const saveUpi = async () => {
-    if (!upiForm.upiId.trim()) return Alert.alert("Validation Error", "UPI ID is required.");
-    if (!upiForm.accountHolderName.trim()) return Alert.alert("Validation Error", "Account Holder Name is required.");
-    setIsSavingUpi(true);
-    try {
-      await saveUpiSettings({
-        upiId: upiForm.upiId.trim(),
-        accountHolderName: upiForm.accountHolderName.trim(),
-        qrCodeBase64: upiQrBase64,
-        paymentNote: upiForm.paymentNote.trim() || null,
-      });
-    } catch (err) {
-      Alert.alert("Save Failed", (err as Error).message || "Could not save UPI settings.");
-    } finally {
-      setIsSavingUpi(false);
-    }
-  };
-
-  // ── Payment approval ──
-  const openVerifyModal = (sub: PaymentSubmission) => {
-    setVerifyingSub(sub);
-    setApprovedAmountInput(String(sub.claimedAmount));
-    setRejectNotesInput("");
-    setShowRejectNotes(false);
-    setVerifyModal(true);
-  };
-
-  const handleApprove = async () => {
-    if (!verifyingSub) return;
-    const amount = parseFloat(approvedAmountInput);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert("Invalid Amount", "Please enter a valid approved amount.");
-      return;
-    }
-    setIsProcessing(true);
-    try {
-      await approvePaymentSubmission(verifyingSub.id, amount);
-      setVerifyModal(false);
-    } catch (err) {
-      Alert.alert("Approval Failed", (err as Error).message || "Could not approve payment.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!verifyingSub) return;
-    setIsProcessing(true);
-    try {
-      await rejectPaymentSubmission(verifyingSub.id, rejectNotesInput.trim() || undefined);
-      setVerifyModal(false);
-    } catch (err) {
-      Alert.alert("Rejection Failed", (err as Error).message || "Could not reject payment.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const sections: { key: Section; label: string; icon: string }[] = [
     { key: "eggs",     label: "Eggs",  icon: "circle"       },
     { key: "fines",    label: "Fines", icon: "alert-circle" },
     { key: "advances", label: "Adv",   icon: "credit-card"  },
     { key: "reports",  label: "Bill",  icon: "bar-chart-2"  },
-    { key: "payments", label: "Pay",   icon: "send"         },
     { key: "announce", label: "News",  icon: "bell"         },
     { key: "settings", label: "Setup", icon: "settings"     },
   ];
@@ -396,14 +275,6 @@ export default function MoreScreen() {
       tintColor={PRIMARY}
     />
   );
-
-  // ── Status helpers ──
-  const statusColor = (s: string) =>
-    s === "pending" ? ORANGE : s === "approved" ? EMERALD : RED;
-  const statusLabel = (s: string) =>
-    s === "pending" ? "Pending" : s === "approved" ? "Approved" : "Rejected";
-  const statusIcon = (s: string): React.ComponentProps<typeof Feather>["name"] =>
-    s === "pending" ? "clock" : s === "approved" ? "check-circle" : "x-circle";
 
   return (
     <LinearGradient colors={["#7DE7D8", "#B7F5E7", "#DDF5FF"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.screen}>
@@ -420,7 +291,6 @@ export default function MoreScreen() {
                 label={s.label}
                 active={activeSection === s.key}
                 onPress={() => setActiveSection(s.key)}
-                badge={s.key === "payments" ? pendingCount : undefined}
               />
             ))}
           </ScrollView>
@@ -668,158 +538,6 @@ export default function MoreScreen() {
         />
       )}
 
-      {/* ══ PAYMENTS ══ */}
-      {activeSection === "payments" && (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
-          refreshControl={REFRESH}
-        >
-          {/* Summary */}
-          {pendingCount > 0 && (
-            <View style={[styles.paymentSummaryCard, { backgroundColor: `${ORANGE}12`, borderColor: `${ORANGE}30` }]}>
-              <Feather name="clock" size={18} color={ORANGE} />
-              <Text style={[styles.paymentSummaryText, { color: ORANGE }]}>
-                {pendingCount} payment{pendingCount !== 1 ? "s" : ""} pending verification
-              </Text>
-            </View>
-          )}
-
-          {/* Filter chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-            <View style={styles.filterRow}>
-              {(["pending", "approved", "rejected", "all"] as PaymentFilter[]).map((f) => (
-                <Pressable
-                  key={f}
-                  style={[
-                    styles.filterChip,
-                    paymentFilter === f && { backgroundColor: PRIMARY },
-                  ]}
-                  onPress={() => setPaymentFilter(f)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    { color: paymentFilter === f ? "#fff" : colors.mutedForeground },
-                  ]}>
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
-
-          {filteredSubmissions.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Feather name="inbox" size={40} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                No {paymentFilter === "all" ? "" : paymentFilter} payments
-              </Text>
-            </View>
-          ) : filteredSubmissions.map((sub) => {
-            const sc = statusColor(sub.status);
-            return (
-              <View key={sub.id} style={[styles.paymentCard, { backgroundColor: colors.card }]}>
-                {/* Card Header */}
-                <View style={styles.paymentCardHeader}>
-                  <MemberAvatar name={getMemberName(sub.memberId)} size={44} bgColor={`${sc}18`} textColor={sc} />
-                  <View style={styles.paymentCardInfo}>
-                    <Text style={[styles.paymentCardName, { color: colors.foreground }]}>
-                      {getMemberName(sub.memberId)}
-                    </Text>
-                    <Text style={[styles.paymentCardMonth, { color: colors.mutedForeground }]}>
-                      {monthLabel(sub.month)} · {fmtDate(sub.submittedAt)}
-                    </Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: `${sc}18` }]}>
-                    <Feather name={statusIcon(sub.status)} size={12} color={sc} />
-                    <Text style={[styles.statusBadgeText, { color: sc }]}>{statusLabel(sub.status)}</Text>
-                  </View>
-                </View>
-
-                <View style={[styles.paymentCardDivider, { backgroundColor: colors.border }]} />
-
-                {/* Details */}
-                <View style={styles.paymentDetails}>
-                  <View style={styles.paymentDetailRow}>
-                    <Text style={[styles.paymentDetailLabel, { color: colors.mutedForeground }]}>Claimed</Text>
-                    <Text style={[styles.paymentDetailVal, { color: colors.foreground }]}>
-                      ₹{sub.claimedAmount.toFixed(2)}
-                    </Text>
-                  </View>
-                  {sub.approvedAmount != null && (
-                    <View style={styles.paymentDetailRow}>
-                      <Text style={[styles.paymentDetailLabel, { color: colors.mutedForeground }]}>Approved</Text>
-                      <Text style={[styles.paymentDetailVal, { color: EMERALD, fontWeight: "700" }]}>
-                        ₹{sub.approvedAmount.toFixed(2)}
-                      </Text>
-                    </View>
-                  )}
-                  {sub.utr ? (
-                    <View style={styles.paymentDetailRow}>
-                      <Text style={[styles.paymentDetailLabel, { color: colors.mutedForeground }]}>UTR / Txn ID</Text>
-                      <Text style={[styles.paymentDetailVal, { color: colors.foreground }]}>{sub.utr}</Text>
-                    </View>
-                  ) : null}
-                  {sub.adminNotes ? (
-                    <View style={styles.paymentDetailRow}>
-                      <Text style={[styles.paymentDetailLabel, { color: colors.mutedForeground }]}>Note</Text>
-                      <Text style={[styles.paymentDetailVal, { color: colors.mutedForeground }]}>{sub.adminNotes}</Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                {/* Screenshot thumbnail */}
-                {sub.screenshotBase64 && (
-                  <Pressable
-                    onPress={() => {
-                      setFullScreenshot(sub.screenshotBase64);
-                      setScreenshotModalVisible(true);
-                    }}
-                    style={styles.screenshotThumbWrap}
-                  >
-                    <Image
-                      source={{ uri: `data:image/jpeg;base64,${sub.screenshotBase64}` }}
-                      style={styles.screenshotThumb}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.screenshotThumbOverlay}>
-                      <Feather name="maximize-2" size={16} color="#fff" />
-                      <Text style={styles.screenshotThumbLabel}>View Screenshot</Text>
-                    </View>
-                  </Pressable>
-                )}
-
-                {/* Actions for pending */}
-                {sub.status === "pending" && (
-                  <View style={[styles.paymentActions, { borderTopColor: colors.border }]}>
-                    <Pressable
-                      style={[styles.paymentActionBtn, { backgroundColor: `${EMERALD}12` }]}
-                      onPress={() => openVerifyModal(sub)}
-                    >
-                      <Feather name="check-circle" size={16} color={EMERALD} />
-                      <Text style={[styles.paymentActionText, { color: EMERALD }]}>Verify & Approve</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.paymentActionBtn, { backgroundColor: `${RED}12` }]}
-                      onPress={() => {
-                        setVerifyingSub(sub);
-                        setShowRejectNotes(true);
-                        setRejectNotesInput("");
-                        setVerifyModal(true);
-                        setApprovedAmountInput(String(sub.claimedAmount));
-                      }}
-                    >
-                      <Feather name="x-circle" size={16} color={RED} />
-                      <Text style={[styles.paymentActionText, { color: RED }]}>Reject</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </ScrollView>
-      )}
-
       {/* ══ SETTINGS ══ */}
       {activeSection === "settings" && (
         <ScrollView
@@ -827,115 +545,6 @@ export default function MoreScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
           refreshControl={REFRESH}
         >
-          {/* ── UPI Payment Settings ── */}
-          <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
-            <View style={styles.upiSettingHeader}>
-              <View style={[styles.upiSettingIcon, { backgroundColor: "#7C3AED15" }]}>
-                <Feather name="send" size={18} color="#7C3AED" />
-              </View>
-              <View>
-                <Text style={[styles.settingTitle, { color: colors.foreground }]}>UPI Payment Settings</Text>
-                <Text style={[styles.settingDesc, { color: colors.mutedForeground }]}>
-                  Members will use this to pay their bills
-                </Text>
-              </View>
-            </View>
-
-            {/* UPI ID */}
-            <View style={styles.upiFormGroup}>
-              <Text style={[styles.upiFormLabel, { color: colors.mutedForeground }]}>UPI ID *</Text>
-              <TextInput
-                style={[styles.upiFormInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-                value={upiForm.upiId}
-                onChangeText={(v) => setUpiForm((f) => ({ ...f, upiId: v }))}
-                placeholder="e.g. dishari@upi"
-                placeholderTextColor={colors.mutedForeground}
-                autoCapitalize="none"
-              />
-            </View>
-
-            {/* Account Holder Name */}
-            <View style={styles.upiFormGroup}>
-              <Text style={[styles.upiFormLabel, { color: colors.mutedForeground }]}>Account Holder Name *</Text>
-              <TextInput
-                style={[styles.upiFormInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-                value={upiForm.accountHolderName}
-                onChangeText={(v) => setUpiForm((f) => ({ ...f, accountHolderName: v }))}
-                placeholder="e.g. Dishari Mess Admin"
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
-
-            {/* Payment Note */}
-            <View style={styles.upiFormGroup}>
-              <Text style={[styles.upiFormLabel, { color: colors.mutedForeground }]}>Payment Note (optional)</Text>
-              <TextInput
-                style={[styles.upiFormInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-                value={upiForm.paymentNote}
-                onChangeText={(v) => setUpiForm((f) => ({ ...f, paymentNote: v }))}
-                placeholder="e.g. Mess bill — Jul 2026"
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
-
-            {/* QR Code */}
-            <View style={styles.upiFormGroup}>
-              <Text style={[styles.upiFormLabel, { color: colors.mutedForeground }]}>QR Code (optional)</Text>
-              {upiQrBase64 ? (
-                <View style={styles.qrPreviewWrap}>
-                  <Image
-                    source={{ uri: `data:image/jpeg;base64,${upiQrBase64}` }}
-                    style={styles.qrPreview}
-                    resizeMode="contain"
-                  />
-                  <View style={styles.qrPreviewActions}>
-                    <Pressable
-                      style={[styles.qrChangeBtn, { backgroundColor: `${PRIMARY}12`, borderColor: `${PRIMARY}25` }]}
-                      onPress={pickQrCode}
-                    >
-                      <Feather name="refresh-cw" size={14} color={PRIMARY} />
-                      <Text style={[styles.qrChangeBtnText, { color: PRIMARY }]}>Change</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.qrChangeBtn, { backgroundColor: `${RED}12`, borderColor: `${RED}25` }]}
-                      onPress={() => setUpiQrBase64(null)}
-                    >
-                      <Feather name="trash-2" size={14} color={RED} />
-                      <Text style={[styles.qrChangeBtnText, { color: RED }]}>Remove</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : (
-                <Pressable
-                  style={[styles.qrPickerBtn, { borderColor: colors.border, backgroundColor: colors.muted }]}
-                  onPress={pickQrCode}
-                >
-                  <Feather name="image" size={22} color={colors.mutedForeground} />
-                  <Text style={[styles.qrPickerText, { color: colors.mutedForeground }]}>
-                    Upload QR Code Image
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-
-            <Pressable
-              style={({ pressed }) => [{ opacity: (pressed || isSavingUpi) ? 0.75 : 1, marginTop: 4 }]}
-              onPress={saveUpi}
-              disabled={isSavingUpi}
-            >
-              <LinearGradient colors={["#7C3AED", PRIMARY]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
-                {isSavingUpi ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Feather name="save" size={16} color="#fff" />
-                )}
-                <Text style={styles.addBtnText}>
-                  {isSavingUpi ? "Saving…" : "Save UPI Settings"}
-                </Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-
           <View style={[styles.settingCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Cook Salary</Text>
             <Text style={[styles.settingDesc, { color: colors.mutedForeground }]}>Fixed amount charged per member per month</Text>
@@ -1286,187 +895,6 @@ export default function MoreScreen() {
               </LinearGradient>
             </Pressable>
           </View>
-        </View>
-      </Modal>
-
-      {/* ══ Payment Verify / Reject Modal ══ */}
-      <Modal visible={verifyModal} animationType="slide" transparent statusBarTranslucent>
-        <View style={styles.modalOverlay}>
-          <ScrollView
-            style={{ width: "100%" }}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-              <View style={styles.modalHandle} />
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-                    {showRejectNotes ? "Reject Payment" : "Verify Payment"}
-                  </Text>
-                  {verifyingSub && (
-                    <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
-                      {getMemberName(verifyingSub.memberId)} · {monthLabel(verifyingSub.month)}
-                    </Text>
-                  )}
-                </View>
-                <Pressable onPress={() => { setVerifyModal(false); setShowRejectNotes(false); }} hitSlop={10}>
-                  <Feather name="x" size={22} color={colors.mutedForeground} />
-                </Pressable>
-              </View>
-
-              {verifyingSub && (
-                <>
-                  {/* Screenshot in modal */}
-                  {verifyingSub.screenshotBase64 && (
-                    <Pressable
-                      onPress={() => {
-                        setFullScreenshot(verifyingSub.screenshotBase64);
-                        setScreenshotModalVisible(true);
-                      }}
-                      style={styles.verifyScreenshotWrap}
-                    >
-                      <Image
-                        source={{ uri: `data:image/jpeg;base64,${verifyingSub.screenshotBase64}` }}
-                        style={styles.verifyScreenshot}
-                        resizeMode="cover"
-                      />
-                      <View style={styles.screenshotThumbOverlay}>
-                        <Feather name="maximize-2" size={14} color="#fff" />
-                        <Text style={styles.screenshotThumbLabel}>View Full</Text>
-                      </View>
-                    </Pressable>
-                  )}
-
-                  {/* Details */}
-                  <View style={[styles.verifyDetailsCard, { backgroundColor: colors.muted }]}>
-                    <View style={styles.verifyDetailRow}>
-                      <Text style={[styles.paymentDetailLabel, { color: colors.mutedForeground }]}>Member</Text>
-                      <Text style={[styles.paymentDetailVal, { color: colors.foreground }]}>{getMemberName(verifyingSub.memberId)}</Text>
-                    </View>
-                    <View style={styles.verifyDetailRow}>
-                      <Text style={[styles.paymentDetailLabel, { color: colors.mutedForeground }]}>Claimed Amount</Text>
-                      <Text style={[styles.paymentDetailVal, { color: colors.foreground }]}>₹{verifyingSub.claimedAmount.toFixed(2)}</Text>
-                    </View>
-                    {verifyingSub.utr && (
-                      <View style={styles.verifyDetailRow}>
-                        <Text style={[styles.paymentDetailLabel, { color: colors.mutedForeground }]}>UTR / Txn ID</Text>
-                        <Text style={[styles.paymentDetailVal, { color: colors.foreground }]}>{verifyingSub.utr}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {!showRejectNotes ? (
-                    <>
-                      {/* Approved Amount */}
-                      <View style={styles.formGroup}>
-                        <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>APPROVED AMOUNT (₹)</Text>
-                        <TextInput
-                          style={[styles.verifyAmountInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-                          value={approvedAmountInput}
-                          onChangeText={setApprovedAmountInput}
-                          keyboardType="decimal-pad"
-                          placeholder={String(verifyingSub.claimedAmount)}
-                          placeholderTextColor={colors.mutedForeground}
-                          autoFocus
-                        />
-                        {/* Partial / Full tag */}
-                        {approvedAmountInput !== "" && !isNaN(parseFloat(approvedAmountInput)) && (
-                          <View style={[styles.amountHint, {
-                            backgroundColor: parseFloat(approvedAmountInput) < verifyingSub.claimedAmount
-                              ? `${ORANGE}15` : `${EMERALD}15`,
-                          }]}>
-                            <Text style={{
-                              fontSize: 12, fontWeight: "600",
-                              color: parseFloat(approvedAmountInput) < verifyingSub.claimedAmount ? ORANGE : EMERALD,
-                            }}>
-                              {parseFloat(approvedAmountInput) < verifyingSub.claimedAmount
-                                ? `Partial Payment — ₹${(verifyingSub.claimedAmount - parseFloat(approvedAmountInput)).toFixed(2)} less than claimed`
-                                : "Full claimed amount approved"}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <Pressable
-                        style={({ pressed }) => [{ opacity: (pressed || isProcessing) ? 0.75 : 1, marginBottom: 12 }]}
-                        onPress={handleApprove}
-                        disabled={isProcessing}
-                      >
-                        <LinearGradient colors={[EMERALD, "#10B981"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                          {isProcessing ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="check" size={18} color="#fff" />}
-                          <Text style={styles.saveBtnText}>{isProcessing ? "Approving…" : "Confirm Approval"}</Text>
-                        </LinearGradient>
-                      </Pressable>
-
-                      <Pressable
-                        style={[styles.rejectOutlineBtn, { borderColor: RED }]}
-                        onPress={() => setShowRejectNotes(true)}
-                      >
-                        <Feather name="x-circle" size={16} color={RED} />
-                        <Text style={[styles.rejectOutlineBtnText, { color: RED }]}>Reject Instead</Text>
-                      </Pressable>
-                    </>
-                  ) : (
-                    <>
-                      {/* Reject Notes */}
-                      <View style={styles.formGroup}>
-                        <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>REJECTION REASON (OPTIONAL)</Text>
-                        <TextInput
-                          style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border, minHeight: 80, textAlignVertical: "top" }]}
-                          value={rejectNotesInput}
-                          onChangeText={setRejectNotesInput}
-                          placeholder="e.g. UTR not matching, please resubmit"
-                          placeholderTextColor={colors.mutedForeground}
-                          multiline
-                          numberOfLines={3}
-                          autoFocus
-                        />
-                      </View>
-
-                      <Pressable
-                        style={({ pressed }) => [{ opacity: (pressed || isProcessing) ? 0.75 : 1, marginBottom: 12 }]}
-                        onPress={handleReject}
-                        disabled={isProcessing}
-                      >
-                        <LinearGradient colors={[RED, "#E11D48"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                          {isProcessing ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="x" size={18} color="#fff" />}
-                          <Text style={styles.saveBtnText}>{isProcessing ? "Rejecting…" : "Confirm Rejection"}</Text>
-                        </LinearGradient>
-                      </Pressable>
-
-                      <Pressable
-                        style={[styles.rejectOutlineBtn, { borderColor: colors.border, marginBottom: 20 }]}
-                        onPress={() => setShowRejectNotes(false)}
-                      >
-                        <Text style={[styles.rejectOutlineBtnText, { color: colors.mutedForeground }]}>Back to Approval</Text>
-                      </Pressable>
-                    </>
-                  )}
-                </>
-              )}
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* ══ Full-screen Screenshot Modal ══ */}
-      <Modal visible={screenshotModalVisible} animationType="fade" transparent statusBarTranslucent>
-        <View style={styles.screenshotFullOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setScreenshotModalVisible(false)} />
-          {fullScreenshot && (
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${fullScreenshot}` }}
-              style={styles.screenshotFull}
-              resizeMode="contain"
-            />
-          )}
-          <Pressable
-            style={styles.screenshotFullClose}
-            onPress={() => setScreenshotModalVisible(false)}
-          >
-            <Feather name="x" size={22} color="#fff" />
-          </Pressable>
         </View>
       </Modal>
 

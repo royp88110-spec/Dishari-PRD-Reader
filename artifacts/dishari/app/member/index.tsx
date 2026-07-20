@@ -1,20 +1,15 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as ImagePicker from "expo-image-picker";
-import * as Linking from "expo-linking";
+import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,21 +63,10 @@ export default function MemberHome() {
   const { user, logout } = useAuth();
   const {
     calculateMonthlyBill, announcements, payments, settings, isLoaded,
-    upiSettings, paymentSubmissions, submitUpiPayment,
   } = useData();
   const { showToast } = useToast();
   const { refreshing, onRefresh } = useRefresh();
   const [month, setMonth] = useState(getCurrentMonth());
-
-  // Payment modal state
-  const [payModal, setPayModal] = useState(false);
-  const [claimedAmount, setClaimedAmount] = useState("");
-  const [utrInput, setUtrInput] = useState("");
-  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPayUpiPrompt, setShowPayUpiPrompt] = useState(false);
-  const [screenshotModalVisible, setScreenshotModalVisible] = useState(false);
-  const [fullScreenshot, setFullScreenshot] = useState<string | null>(null);
 
   const memberId = user?.memberId ?? "";
 
@@ -96,12 +80,6 @@ export default function MemberHome() {
     paidAmount > 0 ? "partial" :
                      "none";
   const remainingDue = Math.max(0, bill.dueAmount - paidAmount);
-
-  // Payment submissions for this member/month
-  const mySubmissions = paymentSubmissions
-    .filter((s) => s.memberId === memberId && s.month === month)
-    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-  const pendingSubmission = mySubmissions.find((s) => s.status === "pending");
 
   // ── Realtime payment-change toast ─────────────────────────────────────────
   const prevPayRef = useRef<{ paid: boolean; amount: number } | undefined>(undefined);
@@ -154,80 +132,6 @@ export default function MemberHome() {
       { text: "Cancel", style: "cancel" },
       { text: "Sign Out", style: "destructive", onPress: () => { void logout(); } },
     ]);
-
-  // ── UPI actions ───────────────────────────────────────────────────────────
-  const handleCopyUpi = async () => {
-    if (!upiSettings?.upiId) return;
-    try {
-      await Share.share({ message: upiSettings.upiId, title: "UPI ID" });
-    } catch {}
-  };
-
-  const handlePayViaUpi = async () => {
-    if (!upiSettings?.upiId) return;
-    const amount = remainingDue > 0 ? safeFix(remainingDue, 2) : "0";
-    const note = upiSettings.paymentNote ?? "Mess bill payment";
-    const name = encodeURIComponent(upiSettings.accountHolderName || "Dishari Mess");
-    const noteEnc = encodeURIComponent(note);
-    const upiUrl = `upi://pay?pa=${upiSettings.upiId}&pn=${name}&am=${amount}&tn=${noteEnc}&cu=INR`;
-    const canOpen = await Linking.canOpenURL(upiUrl).catch(() => false);
-    if (canOpen) {
-      await Linking.openURL(upiUrl).catch(() => {
-        Alert.alert("No UPI App Found", "Please install Google Pay, PhonePe, or any UPI app and try again.");
-      });
-    } else {
-      Alert.alert("No UPI App Found", "Please install Google Pay, PhonePe, or any UPI app and try again.");
-    }
-    // Show "I've Made the Payment" prompt after a brief delay
-    setShowPayUpiPrompt(true);
-  };
-
-  const openPayModal = () => {
-    setClaimedAmount(remainingDue > 0 ? safeFix(remainingDue, 2) : "");
-    setUtrInput("");
-    setScreenshotBase64(null);
-    setPayModal(true);
-  };
-
-  const pickScreenshot = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission Required", "Please allow access to your photos to upload a screenshot.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      quality: 0.35,
-      base64: true,
-    });
-    if (!result.canceled && result.assets[0]?.base64) {
-      setScreenshotBase64(result.assets[0].base64);
-    }
-  };
-
-  const handleSubmitPayment = async () => {
-    const amount = parseFloat(claimedAmount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert("Invalid Amount", "Please enter a valid payment amount.");
-      return;
-    }
-    if (!utrInput.trim() && !screenshotBase64) {
-      Alert.alert("Proof Required", "Please enter the UTR/Transaction ID or upload a payment screenshot.");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await submitUpiPayment(memberId, month, amount, screenshotBase64, utrInput.trim() || null);
-      setPayModal(false);
-      setShowPayUpiPrompt(false);
-      showToast("Payment Submitted ✓", "Pending admin verification", "success");
-    } catch (err) {
-      Alert.alert("Submission Failed", (err as Error).message || "Could not submit payment.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const miniStats = [
     { label: "Meals",      val: `${bill.mealCount}`,                icon: "grid",         color: CYAN,    bg: `${CYAN}20`    },
@@ -290,10 +194,6 @@ export default function MemberHome() {
     isDuePaid ? 0 :
     bill.dueAmount <= 0 ? 0 :
     remainingDue;
-
-  // ── UPI configured and relevant ───────────────────────────────────────────
-  const upiConfigured = !!(upiSettings?.upiId);
-  const hasDue = bill.dueAmount > 0 && remainingDue > 0;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -427,320 +327,40 @@ export default function MemberHome() {
           </View>
         </View>
 
-        {/* ── Full Monthly Bill Breakdown ───────────────────────────────── */}
+        {/* ── Go to Payments Card ───────────────────────────────────────── */}
         <View style={styles.section}>
-          <View style={[styles.sectionCard, { backgroundColor: card }]}>
-            <View style={styles.sectionCardHeader}>
-              <View style={[styles.sectionCardIcon, { backgroundColor: `${PRIMARY}15` }]}>
-                <Feather name="file-text" size={18} color={PRIMARY} />
-              </View>
-              <Text style={[styles.sectionCardTitle, { color: cardText }]}>Monthly Bill</Text>
-            </View>
-
-            {[
-              { label: "Meal Rate",   val: `₹${safeFix(bill.perMealCost, 2)} / meal` },
-              { label: "Meals Eaten", val: `${bill.mealCount} meal${bill.mealCount !== 1 ? "s" : ""}` },
-            ].map(({ label, val }) => (
-              <View key={label} style={[styles.billRow, { borderBottomColor: borderColor }]}>
-                <Text style={[styles.billLabel, { color: muted }]}>{label}</Text>
-                <Text style={[styles.billVal, { color: cardText }]}>{val}</Text>
-              </View>
-            ))}
-
-            <View style={[styles.billSectionDivider, { borderBottomColor: borderColor }]}>
-              <Text style={[styles.billSectionLabel, { color: muted }]}>Components</Text>
-            </View>
-
-            {[
-              { label: "Meal Cost",   val: `₹${safeFix(bill.mealBill, 2)}`,  icon: "dollar-sign",  color: ORANGE },
-              { label: `Eggs (${bill.eggCount} × ₹${settings.eggPrice})`,
-                                      val: `₹${safeFix(bill.eggBill, 2)}`,   icon: "sun",          color: YELLOW },
-              { label: "Cook Salary", val: `₹${safeFix(bill.cookShare, 2)}`, icon: "users",        color: CYAN   },
-              { label: "Fine",        val: `₹${safeFix(bill.fineTotal, 2)}`, icon: "alert-circle", color: RED    },
-            ].map(({ label, val, icon, color }) => (
-              <View key={label} style={[styles.billRow, { borderBottomColor: borderColor }]}>
-                <View style={styles.billLabelRow}>
-                  <View style={[styles.billIconDot, { backgroundColor: `${color}18` }]}>
-                    <Feather name={icon as "grid"} size={12} color={color} />
-                  </View>
-                  <Text style={[styles.billLabel, { color: muted }]}>{label}</Text>
-                </View>
-                <Text style={[styles.billVal, { color: cardText }]}>{val}</Text>
-              </View>
-            ))}
-
-            <View style={[styles.billRow, { borderBottomColor: borderColor }]}>
-              <Text style={[styles.billLabel, { color: cardText, fontWeight: "700" }]}>Gross Bill</Text>
-              <Text style={[styles.billVal, { color: PRIMARY, fontWeight: "800", fontSize: 16 }]}>
-                ₹{safeFix(bill.grossBill, 2)}
-              </Text>
-            </View>
-
-            <View style={[styles.billRow, { borderBottomColor: borderColor }]}>
-              <View style={styles.billLabelRow}>
-                <View style={[styles.billIconDot, { backgroundColor: `${EMERALD}18` }]}>
-                  <Feather name="minus-circle" size={12} color={EMERALD} />
-                </View>
-                <Text style={[styles.billLabel, { color: muted }]}>Advance Deduction</Text>
-              </View>
-              <Text style={[styles.billVal, { color: EMERALD, fontWeight: "600" }]}>
-                − ₹{safeFix(bill.totalAdvance, 2)}
-              </Text>
-            </View>
-
-            <View style={[styles.billRowFinal, { borderTopColor: borderColor }]}>
-              <Text style={[styles.billLabel, { color: cardText, fontWeight: "700", fontSize: 15 }]}>
-                {bill.dueAmount > 0 ? "Final Payable" : "Credit Balance"}
-              </Text>
-              <Text style={[styles.billVal, {
-                color: bill.dueAmount > 0 ? RED : EMERALD,
-                fontWeight: "900", fontSize: 20,
-              }]}>
-                ₹{safeFix(bill.dueAmount > 0 ? bill.dueAmount : bill.creditBalance, 2)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── UPI Payment Section ───────────────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={[styles.sectionCard, { backgroundColor: card }]}>
+          <Pressable
+            style={({ pressed }) => [styles.sectionCard, { backgroundColor: card, opacity: pressed ? 0.92 : 1 }]}
+            onPress={() => router.navigate("/member/payments")}
+          >
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionCardIcon, { backgroundColor: "#7C3AED15" }]}>
-                <Feather name="send" size={18} color="#7C3AED" />
+                <Feather name="credit-card" size={18} color="#7C3AED" />
               </View>
-              <Text style={[styles.sectionCardTitle, { color: cardText }]}>Pay via UPI</Text>
-              {pendingSubmission && (
-                <View style={[styles.pendingBadge, { backgroundColor: `${ORANGE}20` }]}>
-                  <Text style={[styles.pendingBadgeText, { color: ORANGE }]}>PENDING</Text>
-                </View>
-              )}
+              <Text style={[styles.sectionCardTitle, { color: cardText }]}>View Full Bill & Pay</Text>
+              <Feather name="chevron-right" size={18} color={muted} style={{ marginLeft: "auto" }} />
             </View>
-
-            {/* Case 1: UPI not configured */}
-            {!upiConfigured ? (
-              <View style={[styles.upiNotice, { backgroundColor: `${PRIMARY}10`, borderColor: `${PRIMARY}20` }]}>
-                <Feather name="info" size={16} color={PRIMARY} />
-                <Text style={[styles.upiNoticeText, { color: muted }]}>
-                  Payment via UPI is not configured yet. Please ask your admin to set it up.
+            <View style={{ flexDirection: "row", justifyContent: "space-between", paddingTop: 12 }}>
+              <View>
+                <Text style={{ fontSize: 12, color: muted }}>Remaining Due</Text>
+                <Text style={{ fontSize: 20, fontWeight: "800", color: remainingDue > 0 ? RED : EMERALD }}>
+                  ₹{safeFix(remainingDue, 2)}
                 </Text>
               </View>
-            ) : !hasDue && mySubmissions.length === 0 ? (
-              /* Case 2: No due amount */
-              <View style={[styles.upiNotice, { backgroundColor: `${EMERALD}10`, borderColor: `${EMERALD}20` }]}>
-                <Feather name="check-circle" size={16} color={EMERALD} />
-                <Text style={[styles.upiNoticeText, { color: EMERALD }]}>
-                  You're all clear! No payment due for {monthLabel(month)}.
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 12, color: muted }}>Monthly Bill</Text>
+                <Text style={{ fontSize: 20, fontWeight: "800", color: PRIMARY }}>
+                  ₹{safeFix(bill.dueAmount, 2)}
                 </Text>
               </View>
-            ) : (
-              <>
-                {/* UPI Details */}
-                {hasDue && !pendingSubmission && (
-                  <>
-                    {/* Amount to Pay */}
-                    <View style={[styles.upiAmountRow, { backgroundColor: `${PRIMARY}08`, borderColor: `${PRIMARY}15` }]}>
-                      <View>
-                        <Text style={[styles.upiAmountLabel, { color: muted }]}>Amount to Pay</Text>
-                        <Text style={[styles.upiAmountVal, { color: PRIMARY }]}>₹{safeFix(remainingDue, 2)}</Text>
-                      </View>
-                      <Feather name="arrow-right-circle" size={28} color={`${PRIMARY}60`} />
-                    </View>
-
-                    {/* UPI ID */}
-                    <View style={[styles.upiIdRow, { borderBottomColor: borderColor }]}>
-                      <View style={[styles.upiIdIcon, { backgroundColor: "#7C3AED15" }]}>
-                        <Feather name="at-sign" size={16} color="#7C3AED" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.upiIdLabel, { color: muted }]}>UPI ID</Text>
-                        <Text style={[styles.upiIdValue, { color: cardText }]} numberOfLines={1}>
-                          {upiSettings.upiId}
-                        </Text>
-                      </View>
-                      <Pressable
-                        style={[styles.copyBtn, { backgroundColor: `${PRIMARY}12` }]}
-                        onPress={handleCopyUpi}
-                        hitSlop={8}
-                      >
-                        <Feather name="copy" size={14} color={PRIMARY} />
-                        <Text style={[styles.copyBtnText, { color: PRIMARY }]}>Share</Text>
-                      </Pressable>
-                    </View>
-
-                    {/* Account Name */}
-                    {upiSettings.accountHolderName ? (
-                      <View style={[styles.upiIdRow, { borderBottomColor: borderColor }]}>
-                        <View style={[styles.upiIdIcon, { backgroundColor: `${EMERALD}15` }]}>
-                          <Feather name="user" size={16} color={EMERALD} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.upiIdLabel, { color: muted }]}>Account Holder</Text>
-                          <Text style={[styles.upiIdValue, { color: cardText }]}>
-                            {upiSettings.accountHolderName}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : null}
-
-                    {/* Payment Note */}
-                    {upiSettings.paymentNote ? (
-                      <View style={[styles.upiNotice, { backgroundColor: `${YELLOW}10`, borderColor: `${YELLOW}20`, marginTop: 8 }]}>
-                        <Feather name="message-circle" size={14} color={YELLOW} />
-                        <Text style={[styles.upiNoticeText, { color: muted }]}>{upiSettings.paymentNote}</Text>
-                      </View>
-                    ) : null}
-
-                    {/* QR Code */}
-                    {upiSettings.qrCodeBase64 ? (
-                      <View style={styles.qrContainer}>
-                        <Image
-                          source={{ uri: `data:image/jpeg;base64,${upiSettings.qrCodeBase64}` }}
-                          style={styles.qrImage}
-                          resizeMode="contain"
-                        />
-                        <Text style={[styles.qrLabel, { color: muted }]}>Scan QR to pay</Text>
-                      </View>
-                    ) : null}
-
-                    {/* Pay via UPI Button */}
-                    <Pressable
-                      style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginTop: 16 }]}
-                      onPress={handlePayViaUpi}
-                    >
-                      <LinearGradient
-                        colors={["#7C3AED", "#4F46E5"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.payUpiBtn}
-                      >
-                        <Feather name="send" size={18} color="#fff" />
-                        <Text style={styles.payUpiBtnText}>Pay via UPI</Text>
-                      </LinearGradient>
-                    </Pressable>
-
-                    {/* "I've Made the Payment" prompt */}
-                    {showPayUpiPrompt && (
-                      <Pressable
-                        style={[styles.iHavePaidBtn, { borderColor: EMERALD, backgroundColor: `${EMERALD}10` }]}
-                        onPress={openPayModal}
-                      >
-                        <Feather name="check-circle" size={16} color={EMERALD} />
-                        <Text style={[styles.iHavePaidText, { color: EMERALD }]}>
-                          I've Made the Payment — Record it
-                        </Text>
-                      </Pressable>
-                    )}
-
-                    {!showPayUpiPrompt && (
-                      <Pressable
-                        style={[styles.iHavePaidBtn, { borderColor: borderColor, backgroundColor: `${PRIMARY}06` }]}
-                        onPress={openPayModal}
-                      >
-                        <Feather name="upload" size={16} color={muted} />
-                        <Text style={[styles.iHavePaidText, { color: muted }]}>
-                          Already paid? Submit proof
-                        </Text>
-                      </Pressable>
-                    )}
-                  </>
-                )}
-
-                {/* Pending Submission Card */}
-                {pendingSubmission && (
-                  <View style={[styles.submissionCard, { backgroundColor: `${ORANGE}10`, borderColor: `${ORANGE}30` }]}>
-                    <View style={styles.submissionCardHeader}>
-                      <Feather name="clock" size={16} color={ORANGE} />
-                      <Text style={[styles.submissionCardTitle, { color: ORANGE }]}>Pending Verification</Text>
-                    </View>
-                    <View style={[styles.submissionRow, { borderBottomColor: `${ORANGE}20` }]}>
-                      <Text style={[styles.submissionLabel, { color: muted }]}>Claimed Amount</Text>
-                      <Text style={[styles.submissionVal, { color: cardText }]}>
-                        ₹{safeFix(pendingSubmission.claimedAmount, 2)}
-                      </Text>
-                    </View>
-                    {pendingSubmission.utr ? (
-                      <View style={[styles.submissionRow, { borderBottomColor: `${ORANGE}20` }]}>
-                        <Text style={[styles.submissionLabel, { color: muted }]}>UTR / Txn ID</Text>
-                        <Text style={[styles.submissionVal, { color: cardText }]}>{pendingSubmission.utr}</Text>
-                      </View>
-                    ) : null}
-                    <View style={styles.submissionRow}>
-                      <Text style={[styles.submissionLabel, { color: muted }]}>Submitted</Text>
-                      <Text style={[styles.submissionVal, { color: muted }]}>
-                        {fmtDate(pendingSubmission.submittedAt)}
-                      </Text>
-                    </View>
-                    {pendingSubmission.screenshotBase64 && (
-                      <Pressable
-                        onPress={() => {
-                          setFullScreenshot(pendingSubmission.screenshotBase64);
-                          setScreenshotModalVisible(true);
-                        }}
-                      >
-                        <Image
-                          source={{ uri: `data:image/jpeg;base64,${pendingSubmission.screenshotBase64}` }}
-                          style={styles.submissionThumb}
-                          resizeMode="cover"
-                        />
-                        <Text style={[styles.submissionThumbLabel, { color: muted }]}>Tap to view screenshot</Text>
-                      </Pressable>
-                    )}
-                    {/* Option to submit another (partial) */}
-                    {remainingDue > pendingSubmission.claimedAmount && (
-                      <Pressable
-                        style={[styles.iHavePaidBtn, { borderColor: borderColor, backgroundColor: `${PRIMARY}06`, marginTop: 12 }]}
-                        onPress={openPayModal}
-                      >
-                        <Feather name="plus" size={14} color={muted} />
-                        <Text style={[styles.iHavePaidText, { color: muted }]}>Submit another payment</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                )}
-
-                {/* Approved Submissions */}
-                {mySubmissions.filter((s) => s.status === "approved").map((s) => (
-                  <View key={s.id} style={[styles.submissionCard, { backgroundColor: `${EMERALD}10`, borderColor: `${EMERALD}30`, marginTop: 10 }]}>
-                    <View style={styles.submissionCardHeader}>
-                      <Feather name="check-circle" size={16} color={EMERALD} />
-                      <Text style={[styles.submissionCardTitle, { color: EMERALD }]}>Payment Approved</Text>
-                    </View>
-                    <View style={styles.submissionRow}>
-                      <Text style={[styles.submissionLabel, { color: muted }]}>Approved Amount</Text>
-                      <Text style={[styles.submissionVal, { color: EMERALD, fontWeight: "700" }]}>
-                        ₹{safeFix(s.approvedAmount ?? 0, 2)}
-                      </Text>
-                    </View>
-                    <View style={styles.submissionRow}>
-                      <Text style={[styles.submissionLabel, { color: muted }]}>Date</Text>
-                      <Text style={[styles.submissionVal, { color: muted }]}>{fmtDate(s.reviewedAt ?? s.submittedAt)}</Text>
-                    </View>
-                  </View>
-                ))}
-
-                {/* Rejected Submissions */}
-                {mySubmissions.filter((s) => s.status === "rejected").map((s) => (
-                  <View key={s.id} style={[styles.submissionCard, { backgroundColor: `${RED}10`, borderColor: `${RED}30`, marginTop: 10 }]}>
-                    <View style={styles.submissionCardHeader}>
-                      <Feather name="x-circle" size={16} color={RED} />
-                      <Text style={[styles.submissionCardTitle, { color: RED }]}>Payment Rejected</Text>
-                    </View>
-                    {s.adminNotes ? (
-                      <Text style={[styles.submissionLabel, { color: muted, marginTop: 4 }]}>{s.adminNotes}</Text>
-                    ) : null}
-                    <Pressable
-                      style={[styles.iHavePaidBtn, { borderColor: RED, backgroundColor: `${RED}08`, marginTop: 10 }]}
-                      onPress={openPayModal}
-                    >
-                      <Feather name="refresh-cw" size={14} color={RED} />
-                      <Text style={[styles.iHavePaidText, { color: RED }]}>Resubmit Payment</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </>
-            )}
-          </View>
+            </View>
+            <View style={{ marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: "#7C3AED10", flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Feather name="send" size={14} color="#7C3AED" />
+              <Text style={{ fontSize: 13, color: "#7C3AED", fontWeight: "600" }}>
+                Tap to view bill details and submit UPI payment
+              </Text>
+            </View>
+          </Pressable>
         </View>
 
         {/* ── Egg Bill Card ─────────────────────────────────────────────── */}
@@ -799,142 +419,6 @@ export default function MemberHome() {
         )}
       </ScrollView>
 
-      {/* ── Payment Submission Modal ──────────────────────────────────────── */}
-      <Modal visible={payModal} animationType="slide" transparent statusBarTranslucent>
-        <View style={styles.modalOverlay}>
-          <ScrollView
-            style={{ width: "100%" }}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-              <View style={styles.modalHandle} />
-
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Submit Payment</Text>
-                  <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
-                    Pending admin verification
-                  </Text>
-                </View>
-                <Pressable onPress={() => setPayModal(false)} hitSlop={10}>
-                  <Feather name="x" size={22} color={colors.mutedForeground} />
-                </Pressable>
-              </View>
-
-              {/* Amount */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>AMOUNT PAID (₹)</Text>
-                <TextInput
-                  style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-                  value={claimedAmount}
-                  onChangeText={setClaimedAmount}
-                  keyboardType="decimal-pad"
-                  placeholder={`₹${safeFix(remainingDue, 2)}`}
-                  placeholderTextColor={colors.mutedForeground}
-                />
-              </View>
-
-              {/* UTR */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>UTR / TRANSACTION ID</Text>
-                <TextInput
-                  style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
-                  value={utrInput}
-                  onChangeText={setUtrInput}
-                  placeholder="e.g. 123456789012"
-                  placeholderTextColor={colors.mutedForeground}
-                  autoCapitalize="none"
-                />
-              </View>
-
-              {/* Screenshot */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>PAYMENT SCREENSHOT (OPTIONAL)</Text>
-                {screenshotBase64 ? (
-                  <View style={styles.screenshotPreview}>
-                    <Image
-                      source={{ uri: `data:image/jpeg;base64,${screenshotBase64}` }}
-                      style={styles.screenshotImg}
-                      resizeMode="cover"
-                    />
-                    <Pressable
-                      style={[styles.screenshotRemove, { backgroundColor: RED }]}
-                      onPress={() => setScreenshotBase64(null)}
-                    >
-                      <Feather name="x" size={14} color="#fff" />
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable
-                    style={[styles.screenshotPickerBtn, { borderColor: colors.border, backgroundColor: colors.muted }]}
-                    onPress={pickScreenshot}
-                  >
-                    <Feather name="image" size={22} color={colors.mutedForeground} />
-                    <Text style={[styles.screenshotPickerText, { color: colors.mutedForeground }]}>
-                      Tap to upload screenshot
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Hint */}
-              <View style={[styles.upiNotice, { backgroundColor: `${PRIMARY}08`, borderColor: `${PRIMARY}15`, marginBottom: 16 }]}>
-                <Feather name="info" size={13} color={PRIMARY} />
-                <Text style={[styles.upiNoticeText, { color: colors.mutedForeground }]}>
-                  Your payment will remain "Pending Verification" until the admin approves it.
-                </Text>
-              </View>
-
-              {/* Submit Button */}
-              <Pressable
-                style={({ pressed }) => [{ opacity: (pressed || isSubmitting) ? 0.75 : 1, marginBottom: 20 }]}
-                onPress={handleSubmitPayment}
-                disabled={isSubmitting}
-              >
-                <LinearGradient
-                  colors={["#7C3AED", "#4F46E5"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.submitBtn}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Feather name="send" size={18} color="#fff" />
-                  )}
-                  <Text style={styles.submitBtnText}>
-                    {isSubmitting ? "Submitting…" : "Submit Payment"}
-                  </Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* ── Full-screen Screenshot Modal ─────────────────────────────────── */}
-      <Modal visible={screenshotModalVisible} animationType="fade" transparent statusBarTranslucent>
-        <View style={styles.screenshotFullOverlay}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setScreenshotModalVisible(false)}
-          />
-          {fullScreenshot && (
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${fullScreenshot}` }}
-              style={styles.screenshotFull}
-              resizeMode="contain"
-            />
-          )}
-          <Pressable
-            style={styles.screenshotFullClose}
-            onPress={() => setScreenshotModalVisible(false)}
-          >
-            <Feather name="x" size={22} color="#fff" />
-          </Pressable>
-        </View>
-      </Modal>
     </GradientBackground>
   );
 }

@@ -1148,17 +1148,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     );
 
     try {
-      const client = await sb();
-      checkError(
-        await client.from("payment_submissions").update({
-          status: "approved",
-          approved_amount: approvedAmount,
-          reviewed_at: now,
-        }).eq("id", id)
-      );
-      // Update bill_payments with the approved amount
       const bill = calculateMonthlyBill(sub.memberId, sub.month);
-      await recordPayment(sub.memberId, sub.month, approvedAmount, bill.dueAmount);
+
+      // Try API server first (atomic: updates both submission + bill_payments with service key)
+      let viaApi = false;
+      try {
+        await apiCall("POST", `/admin/payments/${id}/approve`, {
+          approvedAmount,
+          dueAmount: bill.dueAmount,
+        });
+        viaApi = true;
+      } catch {
+        // API server unavailable — fall back to direct Supabase
+      }
+
+      if (!viaApi) {
+        const client = await sb();
+        checkError(
+          await client.from("payment_submissions").update({
+            status: "approved",
+            approved_amount: approvedAmount,
+            reviewed_at: now,
+          }).eq("id", id)
+        );
+        await recordPayment(sub.memberId, sub.month, approvedAmount, bill.dueAmount);
+      }
     } catch (err) {
       if (sub) {
         setPaymentSubmissions((ps) => ps.map((p) => p.id === id ? sub : p));
@@ -1178,14 +1192,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     );
 
     try {
-      const client = await sb();
-      checkError(
-        await client.from("payment_submissions").update({
-          status: "rejected",
-          reviewed_at: now,
-          ...(adminNotes ? { admin_notes: adminNotes } : {}),
-        }).eq("id", id)
-      );
+      // Try API server first
+      let viaApi = false;
+      try {
+        await apiCall("POST", `/admin/payments/${id}/reject`, { adminNotes: adminNotes ?? null });
+        viaApi = true;
+      } catch {
+        // API server unavailable — fall back to direct Supabase
+      }
+
+      if (!viaApi) {
+        const client = await sb();
+        checkError(
+          await client.from("payment_submissions").update({
+            status: "rejected",
+            reviewed_at: now,
+            ...(adminNotes ? { admin_notes: adminNotes } : {}),
+          }).eq("id", id)
+        );
+      }
     } catch (err) {
       if (sub) {
         setPaymentSubmissions((ps) => ps.map((p) => p.id === id ? sub : p));

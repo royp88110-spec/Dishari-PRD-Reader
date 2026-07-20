@@ -4,8 +4,9 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PRIMARY, EMERALD } from "@/constants/colors";
+import { PRIMARY, EMERALD, ORANGE } from "@/constants/colors";
 import { useData } from "@/context/DataContext";
+import { useAuth } from "@/context/AuthContext";
 
 const INACTIVE = "#9CA3AF";
 
@@ -37,9 +38,23 @@ function useNewNoticeCount() {
   }
 }
 
+function usePendingPaymentCount() {
+  try {
+    const { paymentSubmissions } = useData();
+    const { user } = useAuth();
+    const memberId = user?.memberId ?? "";
+    return paymentSubmissions.filter(
+      (s) => s.memberId === memberId && s.status === "pending",
+    ).length;
+  } catch {
+    return 0;
+  }
+}
+
 export default function MemberLayout() {
   const insets = useSafeAreaInsets();
   const newNotices = useNewNoticeCount();
+  const pendingPayments = usePendingPaymentCount();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const TAB_HEIGHT = 68;
@@ -94,6 +109,24 @@ export default function MemberLayout() {
         }}
       />
       <Tabs.Screen
+        name="payments"
+        options={{
+          title: "Payments",
+          tabBarLabel: "Pay",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="credit-card" color={color} focused={focused} />
+          ),
+          tabBarBadge: pendingPayments > 0 ? pendingPayments : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: ORANGE,
+            fontSize: 9,
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+          },
+        }}
+      />
+      <Tabs.Screen
         name="meals"
         options={{
           title: "My Meals",
@@ -110,16 +143,6 @@ export default function MemberLayout() {
           tabBarLabel: "Expenses",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="bar-chart-2" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="advances"
-        options={{
-          title: "Advances",
-          tabBarLabel: "Advances",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="credit-card" color={color} focused={focused} />
           ),
         }}
       />
@@ -149,6 +172,13 @@ export default function MemberLayout() {
             height: 16,
             lineHeight: 16,
           },
+        }}
+      />
+      {/* Hidden tabs (accessible via programmatic navigation) */}
+      <Tabs.Screen
+        name="advances"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

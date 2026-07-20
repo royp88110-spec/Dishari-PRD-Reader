@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import adminRouter from "./admin";
 import schemaRouter from "./schema";
 import membersRouter from "./members";
+import paymentsRouter from "./payments";
 
 const router: IRouter = Router();
 
@@ -10,5 +11,6 @@ router.use(healthRouter);
 router.use(schemaRouter);
 router.use(adminRouter);
 router.use(membersRouter);
+router.use(paymentsRouter);
 
 export default router;

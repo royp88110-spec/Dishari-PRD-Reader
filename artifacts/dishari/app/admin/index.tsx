@@ -260,6 +260,7 @@ export default function AdminDashboard() {
   const {
     members, expenses, payments, paymentsError, announcements, deleteAnnouncement,
     getMonthTotals, calculateAllMonthlyBills, markUnpaid, recordPayment,
+    paymentSubmissions,
   } = useData();
   const { showToast } = useToast();
   const [month, setMonth] = useState(getCurrentMonth());
@@ -478,115 +479,83 @@ export default function AdminDashboard() {
           ))}
         </View>
 
-        {/* Member bills */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Member Bills</Text>
-          {bills.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active members</Text>
-          ) : bills.map((b) => {
-            const payment   = getPayment(b.memberId);
-            const payState  = getPayState(payment?.paid, payment?.amount);
-            const stateColor = PAY_STATE_COLOR[payState];
-            const isProcessing = payingIds.has(b.memberId);
-            const alreadyPaid  = payment?.amount ?? 0;
-            const remaining    = Math.max(0, b.dueAmount - alreadyPaid);
-            const canRecord    = b.dueAmount > 0 && remaining > 0 && !isProcessing;
-
-            return (
-              <View key={b.memberId}>
-                {/* Member row */}
-                <View style={styles.memberBillRow}>
-                  <MemberAvatar
-                    name={b.memberName}
-                    size={42}
-                    bgColor={`${stateColor}20`}
-                    textColor={stateColor}
-                  />
-                  <View style={styles.memberBillInfo}>
-                    <Text style={[styles.memberBillName, { color: colors.foreground }]}>{b.memberName}</Text>
-                    <Text style={[styles.memberBillSub, { color: colors.mutedForeground }]}>
-                      {b.mealCount} meals · {b.eggCount} eggs
-                    </Text>
-                  </View>
-                  <View style={styles.memberBillRight}>
-                    <Text style={[styles.memberBillAmount, { color: b.dueAmount > 0 ? RED : EMERALD }]}>
-                      ₹{b.dueAmount > 0 ? safeFix(b.dueAmount) : safeFix(b.creditBalance)}
-                    </Text>
-                    <Text style={[styles.memberBillStatus, { color: colors.mutedForeground }]}>
-                      {b.dueAmount > 0 ? "Due" : "Credit"}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Payment status + partial progress */}
-                <View style={styles.payStatusRow}>
-                  <View style={[styles.statusBadge, { backgroundColor: `${stateColor}15` }]}>
-                    <Feather name={PAY_STATE_ICON[payState]} size={13} color={stateColor} />
-                    <Text style={[styles.statusBadgeText, { color: stateColor }]}>
-                      {PAY_STATE_LABEL[payState]}
-                      {payState !== "none" ? ` · ₹${safeFix(alreadyPaid)}` : ""}
-                      {payState === "full" && payment?.paidAt ? ` · ${shortDate(payment.paidAt)}` : ""}
-                    </Text>
-                  </View>
-                  {payState === "partial" && b.dueAmount > 0 && (
-                    <View style={styles.progressTrack}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          { width: `${Math.min(100, (alreadyPaid / b.dueAmount) * 100)}%` as `${number}%`, backgroundColor: ORANGE },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* Action buttons */}
-                <View style={styles.paymentRow}>
-                  {/* Record Payment — always primary action */}
-                  <Pressable
-                    style={({ pressed }) => [styles.recordBtnWrap, { opacity: pressed || !canRecord ? 0.65 : 1 }]}
-                    onPress={() => canRecord && openPayModal(b.memberId, b.memberName, b.dueAmount)}
-                    disabled={!canRecord}
-                  >
-                    <LinearGradient
-                      colors={canRecord ? [PRIMARY, "#4338CA"] : ["#9CA3AF", "#6B7280"]}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                      style={styles.actionBtn}
-                    >
-                      {isProcessing ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <>
-                          <Feather name="plus-circle" size={14} color="#fff" />
-                          <Text style={[styles.actionBtnText, { color: "#fff" }]}>
-                            {payState === "none" ? "Record Payment" : "Add Payment"}
-                          </Text>
-                        </>
-                      )}
-                    </LinearGradient>
-                  </Pressable>
-
-                  {/* Reset — only when there's a payment */}
-                  {payState !== "none" && (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.resetBtn,
-                        { backgroundColor: `${RED}15`, opacity: pressed || isProcessing ? 0.65 : 1 },
-                      ]}
-                      onPress={() => handleResetPayment(b.memberId, b.memberName)}
-                      disabled={isProcessing}
-                    >
-                      <Feather name="rotate-ccw" size={13} color={RED} />
-                      <Text style={[styles.actionBtnText, { color: RED }]}>Reset</Text>
-                    </Pressable>
-                  )}
-                </View>
-
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        {/* Payment Summary */}
+        {(() => {
+          const totalDue = bills.reduce((s, b) => s + b.dueAmount, 0);
+          const totalPaid = bills.reduce((s, b) => {
+            const p = getPayment(b.memberId);
+            return s + (p?.amount ?? 0);
+          }, 0);
+          const paidFull = bills.filter((b) => {
+            const p = getPayment(b.memberId);
+            return p?.paid === true;
+          }).length;
+          const paidPartial = bills.filter((b) => {
+            const p = getPayment(b.memberId);
+            return !p?.paid && (p?.amount ?? 0) > 0;
+          }).length;
+          const pending = bills.filter((b) => {
+            const p = getPayment(b.memberId);
+            return !p?.paid && (p?.amount ?? 0) === 0;
+          }).length;
+          const pendingSubs = paymentSubmissions.filter((s) => s.status === "pending").length;
+          return (
+            <View style={[styles.section, { backgroundColor: colors.card }]}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Payment Summary</Text>
+                <Pressable
+                  style={[styles.viewAllBtn, { backgroundColor: `${PRIMARY}12` }]}
+                  onPress={() => router.navigate("/admin/payments")}
+                >
+                  <Feather name="credit-card" size={13} color={PRIMARY} />
+                  <Text style={[styles.viewAllText, { color: PRIMARY }]}>Manage</Text>
+                </Pressable>
               </View>
-            );
-          })}
-        </View>
+
+              {pendingSubs > 0 && (
+                <Pressable
+                  style={[styles.pendingAlert, { backgroundColor: `${ORANGE}12`, borderColor: `${ORANGE}30` }]}
+                  onPress={() => router.navigate("/admin/payments")}
+                >
+                  <Feather name="clock" size={15} color={ORANGE} />
+                  <Text style={[styles.pendingAlertText, { color: ORANGE }]}>
+                    {pendingSubs} UPI payment{pendingSubs !== 1 ? "s" : ""} awaiting verification
+                  </Text>
+                  <Feather name="chevron-right" size={15} color={ORANGE} />
+                </Pressable>
+              )}
+
+              <View style={styles.payOverviewRow}>
+                {[
+                  { label: "Fully Paid",  count: paidFull,    color: EMERALD },
+                  { label: "Partial",     count: paidPartial, color: ORANGE  },
+                  { label: "Not Paid",    count: pending,     color: RED     },
+                ].map(({ label, count, color }) => (
+                  <View key={label} style={[styles.payOverviewCard, { backgroundColor: `${color}10`, borderColor: `${color}25` }]}>
+                    <Text style={[styles.payOverviewCount, { color }]}>{count}</Text>
+                    <Text style={[styles.payOverviewLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Total Bill</Text>
+                <Text style={[styles.summaryVal, { color: RED }]}>₹{safeFix(totalDue)}</Text>
+              </View>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Collected (UPI)</Text>
+                <Text style={[styles.summaryVal, { color: EMERALD }]}>₹{safeFix(totalPaid)}</Text>
+              </View>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryKey, { color: colors.mutedForeground }]}>Still Outstanding</Text>
+                <Text style={[styles.summaryVal, { color: ORANGE }]}>₹{safeFix(Math.max(0, totalDue - totalPaid))}</Text>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* Recent expenses */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
@@ -769,6 +738,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.10, shadowRadius: 16, elevation: 6,
   },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  viewAllBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  viewAllText: { fontSize: 13, fontWeight: "700" },
+  pendingAlert: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, padding: 12, borderWidth: 1, marginBottom: 14 },
+  pendingAlertText: { fontSize: 13, fontWeight: "600", flex: 1 },
+  payOverviewRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  payOverviewCard: { flex: 1, borderRadius: 14, padding: 12, borderWidth: 1, alignItems: "center" },
+  payOverviewCount: { fontSize: 24, fontWeight: "900", marginBottom: 2 },
+  payOverviewLabel: { fontSize: 11, fontWeight: "600" },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },
   summaryKey: { fontSize: 14 },
   summaryVal: { fontSize: 14, fontWeight: "600" },
