@@ -8,6 +8,11 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust the first hop from Replit's reverse proxy so that express-rate-limit
+// can read the real client IP from X-Forwarded-For rather than seeing the
+// proxy's internal address (which would trigger ERR_ERL_UNEXPECTED_X_FORWARDED_FOR).
+app.set("trust proxy", 1);
+
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet());
 

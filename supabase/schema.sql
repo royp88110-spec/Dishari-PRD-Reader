@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS bill_payments (
   id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   member_id   UUID          NOT NULL REFERENCES members(id) ON DELETE CASCADE,
   month       TEXT          NOT NULL,          -- e.g. "2026-06"
+  year        INTEGER       NOT NULL,          -- e.g. 2026 (derived from month for efficient filtering)
   paid        BOOLEAN       NOT NULL DEFAULT false,
   paid_at     TIMESTAMPTZ,
   amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -221,6 +222,66 @@ CREATE POLICY "member reads own bill_payment"
     EXISTS (SELECT 1 FROM members WHERE id = bill_payments.member_id AND user_id = auth.uid())
   );
 
+CREATE TABLE IF NOT EXISTS upi_settings (
+  id                  INTEGER     PRIMARY KEY DEFAULT 1,
+  upi_id              TEXT        NOT NULL DEFAULT '',
+  account_holder_name TEXT        NOT NULL DEFAULT '',
+  qr_code_base64      TEXT,
+  payment_note        TEXT,
+  updated_at          TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT upi_settings_single_row CHECK (id = 1)
+);
+INSERT INTO upi_settings (id) VALUES (1) ON CONFLICT DO NOTHING;
+
+ALTER TABLE upi_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "upi_settings_read" ON upi_settings
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "upi_settings_admin_write" ON upi_settings
+  FOR ALL TO authenticated
+  USING (get_my_role() = 'admin')
+  WITH CHECK (get_my_role() = 'admin');
+
+CREATE TABLE IF NOT EXISTS payment_submissions (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id         UUID        NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  month             TEXT        NOT NULL,   -- "YYYY-MM"
+  claimed_amount    NUMERIC     NOT NULL DEFAULT 0,
+  screenshot_base64 TEXT,
+  utr               TEXT,
+  status            TEXT        NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'approved', 'rejected')),
+  approved_amount   NUMERIC,
+  submitted_at      TIMESTAMPTZ DEFAULT now(),
+  reviewed_at       TIMESTAMPTZ,
+  admin_notes       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_submissions_member_month
+  ON payment_submissions(member_id, month);
+
+CREATE INDEX IF NOT EXISTS idx_payment_submissions_status
+  ON payment_submissions(status, submitted_at DESC);
+
+ALTER TABLE payment_submissions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "payment_submissions_select" ON payment_submissions
+  FOR SELECT TO authenticated USING (
+    member_id = (SELECT id FROM members WHERE user_id = auth.uid() LIMIT 1)
+    OR get_my_role() = 'admin'
+  );
+
+CREATE POLICY "payment_submissions_insert" ON payment_submissions
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    member_id = (SELECT id FROM members WHERE user_id = auth.uid() LIMIT 1)
+  );
+
+CREATE POLICY "payment_submissions_admin_update" ON payment_submissions
+  FOR UPDATE TO authenticated
+  USING (get_my_role() = 'admin');
+
 -- ── 6. Enable Realtime ────────────────────────────────────────
 -- In the Supabase dashboard → Database → Replication,
 -- enable the following tables for realtime:
@@ -229,12 +290,18 @@ CREATE POLICY "member reads own bill_payment"
 -- Or run:
 ALTER PUBLICATION supabase_realtime ADD TABLE
   members, meals, expenses, advances, eggs,
-  fines, announcements, settings, bill_payments;
+  fines, announcements, settings, bill_payments,
+  upi_settings, payment_submissions;
 
 -- ── 7. Migrations (safe to re-run on existing databases) ──────
 
 -- Add notes column to fines if missing (databases created before this column was added)
 ALTER TABLE fines ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Add year column to bill_payments if missing (the app always writes this field)
+ALTER TABLE bill_payments ADD COLUMN IF NOT EXISTS year INTEGER;
+-- Back-fill year from month for any existing rows
+UPDATE bill_payments SET year = CAST(SPLIT_PART(month, '-', 1) AS INTEGER) WHERE year IS NULL;
 
 -- Create bill_payments table and its policies if they do not already exist.
 -- Wrapped in a DO block so re-running the full schema is idempotent.
