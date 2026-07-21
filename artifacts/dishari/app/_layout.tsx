@@ -9,7 +9,7 @@ import { Feather } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -19,20 +19,34 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { SplashCover } from "@/components/SplashCover";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+// Minimum time (ms) the splash cover is shown even if auth resolves faster.
+const MIN_SPLASH_MS = 2200;
 
 // ── Auth guard — lives inside AuthProvider so it can read user state ──────────
 function AuthGuard() {
   const { user, isLoading, needsSetup, schemaNotReady, supabaseReady } = useAuth();
   const segments = useSegments();
 
+  // Track whether the minimum splash duration has elapsed.
+  const [minDelayDone, setMinDelayDone] = useState(false);
+
   useEffect(() => {
-    // While auth is still resolving, do nothing — the opaque cover below
-    // ensures no intermediate screen is visible.
-    if (isLoading) return;
+    const t = setTimeout(() => setMinDelayDone(true), MIN_SPLASH_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Keep the cover up while auth is still loading OR the min delay hasn't passed.
+  const showCover = isLoading || !minDelayDone;
+
+  useEffect(() => {
+    // Wait until both auth and minimum display time are ready.
+    if (showCover) return;
 
     const topSegment = segments[0] as string | undefined;
     const onProtected = topSegment === "admin" || topSegment === "member";
@@ -52,26 +66,19 @@ function AuthGuard() {
       }
     }
 
-    // Hide the splash AFTER routing is queued. router.replace() is synchronous
-    // in terms of committing the navigation to Expo Router's stack, so by the
-    // time hideAsync resolves (fade-out ~300 ms) the destination screen is ready.
+    // Hide the native splash AFTER routing is queued.
     void SplashScreen.hideAsync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isLoading, needsSetup, schemaNotReady, supabaseReady]);
+  }, [showCover, user, needsSetup, schemaNotReady, supabaseReady]);
 
-  // ── Opaque init cover ────────────────────────────────────────────────────────
-  // While auth is resolving, render a solid cover that matches the splash
-  // background so no half-rendered screen bleeds through during the native
-  // splash fade. This is rendered AFTER <Stack> so it layers on top.
-  if (isLoading) {
+  // ── Animated splash cover ────────────────────────────────────────────────────
+  // Rendered AFTER <Stack> so it layers on top. Shown while auth resolves AND
+  // during the minimum splash duration for a polished entry experience.
+  if (showCover) {
     return (
-      <View
-        style={[
-          StyleSheet.absoluteFillObject,
-          styles.initCover,
-        ]}
-        pointerEvents="none"
-      />
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        <SplashCover />
+      </View>
     );
   }
 
@@ -130,10 +137,5 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  initCover: {
-    // Matches app.json splash.backgroundColor — user sees a seamless handoff
-    // from the native splash to this cover while auth resolves.
-    backgroundColor: "#FFF8F3",
-  },
-});
+// StyleSheet kept for future use; initCover replaced by <SplashCover />.
+const styles = StyleSheet.create({});
