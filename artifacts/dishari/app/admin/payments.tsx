@@ -101,11 +101,12 @@ export default function AdminPaymentsScreen() {
 
   const getMemberName = (id: string) => members.find((m) => m.id === id)?.name ?? "Unknown";
 
-  // ── Submission filters ────────────────────────────────────────────────────
-  const pendingCount = paymentSubmissions.filter((s) => s.status === "pending").length;
+  // ── Submission filters (scoped to selected month) ─────────────────────────
+  const monthSubmissions = paymentSubmissions.filter((s) => s.month === month);
+  const pendingCount = monthSubmissions.filter((s) => s.status === "pending").length;
   const filteredSubmissions = paymentFilter === "all"
-    ? paymentSubmissions
-    : paymentSubmissions.filter((s) => s.status === paymentFilter);
+    ? monthSubmissions
+    : monthSubmissions.filter((s) => s.status === paymentFilter);
 
   // ── Payment summary for current month ─────────────────────────────────────
   const bills = calculateAllMonthlyBills(month);
