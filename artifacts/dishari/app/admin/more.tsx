@@ -935,47 +935,74 @@ export default function MoreScreen() {
       </Modal>
 
       {/* ══ Payment Reminder Modal ══ */}
-      <Modal visible={reminderModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <ScrollView
-            style={{ width: "100%" }}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Send Payment Reminders</Text>
-                  <Text style={[styles.annDate, { color: colors.mutedForeground, marginTop: 2 }]}>
-                    {monthLabel(month)} · members with outstanding due
-                  </Text>
-                </View>
-                <Pressable onPress={() => setReminderModal(false)} hitSlop={10}>
-                  <Feather name="x" size={22} color={colors.mutedForeground} />
-                </Pressable>
-              </View>
+      <Modal visible={reminderModal} animationType="slide" transparent statusBarTranslucent>
+        {/* Full-screen scrim — tap to dismiss */}
+        <View style={styles.reminderOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => { if (!isSendingReminders) setReminderModal(false); }}
+          />
 
-              {(() => {
-                const debtors = bills.filter((b) => b.dueAmount > 0);
-                if (debtors.length === 0) {
-                  return (
-                    <View style={[styles.reminderNotice, { backgroundColor: `${EMERALD}10`, borderColor: `${EMERALD}25` }]}>
-                      <Feather name="check-circle" size={20} color={EMERALD} />
-                      <Text style={[styles.annBody, { color: EMERALD, marginTop: 6, textAlign: "center" }]}>
-                        All members are settled for {monthLabel(month)}.{"\n"}No reminders to send.
-                      </Text>
-                    </View>
-                  );
-                }
+          {/* Bottom sheet — flex column so header + scroll + footer stack cleanly */}
+          <View style={[styles.reminderSheet, { backgroundColor: colors.card }]}>
+
+            {/* Drag handle */}
+            <View style={styles.modalHandle} />
+
+            {/* ── Fixed header ────────────────────────────────────────────── */}
+            <View style={styles.reminderHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Send Payment Reminders</Text>
+                <Text style={[styles.annDate, { color: colors.mutedForeground, marginTop: 2 }]}>
+                  {monthLabel(month)} · members with outstanding due
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => { if (!isSendingReminders) setReminderModal(false); }}
+                hitSlop={12}
+              >
+                <Feather name="x" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+
+            {/* ── Dynamic body ─────────────────────────────────────────────── */}
+            {(() => {
+              const debtors = bills.filter((b) => b.dueAmount > 0);
+
+              /* All settled — no scroll needed */
+              if (debtors.length === 0) {
                 return (
-                  <>
-                    <View style={[styles.reminderNotice, { backgroundColor: `${ORANGE}10`, borderColor: `${ORANGE}25`, marginBottom: 14 }]}>
+                  <View style={[
+                    styles.reminderNotice,
+                    { backgroundColor: `${EMERALD}10`, borderColor: `${EMERALD}25`, marginBottom: insets.bottom + 24 },
+                  ]}>
+                    <Feather name="check-circle" size={20} color={EMERALD} />
+                    <Text style={[styles.annBody, { color: EMERALD, marginTop: 6, textAlign: "center" }]}>
+                      All members are settled for {monthLabel(month)}.{"\n"}No reminders to send.
+                    </Text>
+                  </View>
+                );
+              }
+
+              return (
+                <>
+                  {/* Scrollable member list + preview */}
+                  <ScrollView
+                    style={styles.reminderScroll}
+                    contentContainerStyle={styles.reminderScrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    bounces={false}
+                  >
+                    {/* Count banner */}
+                    <View style={[styles.reminderNotice, { backgroundColor: `${ORANGE}10`, borderColor: `${ORANGE}25` }]}>
                       <Feather name="bell" size={16} color={ORANGE} />
                       <Text style={[styles.annDate, { color: ORANGE, fontWeight: "600", marginTop: 4 }]}>
                         {debtors.length} member{debtors.length !== 1 ? "s" : ""} will receive a personalised reminder
                       </Text>
                     </View>
 
+                    {/* Member rows */}
                     {debtors.map((b) => (
                       <View key={b.memberId} style={[styles.reminderRow, { borderBottomColor: colors.border }]}>
                         <Text style={[styles.annTitle, { color: colors.foreground, fontSize: 14 }]}>{b.memberName}</Text>
@@ -983,15 +1010,22 @@ export default function MoreScreen() {
                       </View>
                     ))}
 
+                    {/* Message preview */}
                     <View style={[styles.reminderPreview, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                       <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>PREVIEW MESSAGE</Text>
                       <Text style={[styles.annBody, { color: colors.foreground, lineHeight: 20 }]}>
                         {"Hello {Name},\n\nYour payment for " + monthLabel(month) + " is still pending.\n\nOutstanding Amount: ₹{Due}\n\nPlease complete your payment as soon as possible."}
                       </Text>
                     </View>
+                  </ScrollView>
 
+                  {/* ── Pinned footer: Send button ────────────────────────── */}
+                  <View style={[
+                    styles.reminderFooter,
+                    { borderTopColor: colors.border, paddingBottom: insets.bottom + 12 },
+                  ]}>
                     <Pressable
-                      style={({ pressed }) => [{ opacity: (pressed || isSendingReminders) ? 0.7 : 1, marginTop: 8, marginBottom: 20 }]}
+                      style={({ pressed }) => [{ opacity: (pressed || isSendingReminders) ? 0.7 : 1 }]}
                       onPress={async () => {
                         setIsSendingReminders(true);
                         try {
@@ -1018,11 +1052,11 @@ export default function MoreScreen() {
                         </Text>
                       </LinearGradient>
                     </Pressable>
-                  </>
-                );
-              })()}
-            </View>
-          </ScrollView>
+                  </View>
+                </>
+              );
+            })()}
+          </View>
         </View>
       </Modal>
 
@@ -1269,17 +1303,51 @@ const styles = StyleSheet.create({
   annActionDesc: { fontSize: 11, textAlign: "center" },
   annTypeBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   annTypeBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
+  // ── Payment reminder modal layout ──
+  reminderOverlay: {
+    flex: 1,
+    backgroundColor: "#00000065",
+    justifyContent: "flex-end",
+  },
+  reminderSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 8,
+    maxHeight: "90%",        // never taller than 90% of screen
+    // flex children: header (fixed) + scroll (flex 1) + footer (fixed)
+  },
+  reminderHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  reminderScroll: {
+    flex: 1,                 // takes all remaining height between header & footer
+    paddingHorizontal: 24,
+  },
+  reminderScrollContent: {
+    paddingTop: 4,
+    paddingBottom: 12,
+    gap: 0,
+  },
+  reminderFooter: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   reminderNotice: {
     borderRadius: 14, padding: 14, borderWidth: 1,
-    alignItems: "center", gap: 4, marginBottom: 4,
+    alignItems: "center", gap: 4, marginBottom: 12,
   },
   reminderRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingVertical: 10, borderBottomWidth: 1,
+    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth,
   },
   reminderPreview: {
     borderRadius: 14, padding: 14, borderWidth: 1,
-    marginTop: 14, marginBottom: 4, gap: 8,
+    marginTop: 14, gap: 8,
   },
 
   // ── Announcement cards ──
