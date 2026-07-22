@@ -99,6 +99,7 @@ export interface PaymentSubmission {
   submittedAt: string;
   reviewedAt: string | null;
   adminNotes: string | null;
+  paymentMethod: "upi" | "cash" | null;
 }
 
 export interface MonthlyBill {
@@ -156,6 +157,7 @@ interface DataContextType {
   submitUpiPayment: (memberId: string, month: string, claimedAmount: number, screenshotBase64?: string | null, utr?: string | null) => Promise<PaymentSubmission>;
   approvePaymentSubmission: (id: string, approvedAmount: number) => Promise<void>;
   rejectPaymentSubmission: (id: string, adminNotes?: string) => Promise<void>;
+  recordCashPayment: (memberId: string, month: string, amount: number, note?: string) => Promise<void>;
   calculateMonthlyBill: (memberId: string, month: string) => MonthlyBill;
   calculateAllMonthlyBills: (month: string) => MonthlyBill[];
   getMonthTotals: (month: string) => { totalExpense: number; totalMeals: number; perMealCost: number };
@@ -428,6 +430,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           submittedAt: p.submitted_at as string,
           reviewedAt: (p.reviewed_at as string | null) ?? null,
           adminNotes: (p.admin_notes as string | null) ?? null,
+          paymentMethod: (p.payment_method as "upi" | "cash" | null) ?? null,
         }))
       );
     }
@@ -1153,6 +1156,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       submittedAt: r.submitted_at as string,
       reviewedAt: null,
       adminNotes: null,
+      paymentMethod: null,
     };
     setPaymentSubmissions((prev) => [submission, ...prev]);
     return submission;
@@ -1239,6 +1243,58 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const recordCashPayment = async (memberId: string, month: string, amount: number, note?: string) => {
+    const now = new Date().toISOString();
+    const bill = calculateMonthlyBill(memberId, month);
+    const client = await sb();
+
+    const baseRow: Record<string, unknown> = {
+      member_id: memberId,
+      month,
+      claimed_amount: amount,
+      screenshot_base64: null,
+      utr: null,
+      status: "approved",
+      approved_amount: amount,
+      reviewed_at: now,
+      ...(note?.trim() ? { admin_notes: note.trim() } : {}),
+    };
+
+    // Try with payment_method column; fall back gracefully if column doesn't exist yet
+    let result = await client
+      .from("payment_submissions")
+      .insert({ ...baseRow, payment_method: "cash" })
+      .select()
+      .single();
+
+    if (result.error?.message?.includes("payment_method")) {
+      result = await client
+        .from("payment_submissions")
+        .insert(baseRow)
+        .select()
+        .single();
+    }
+
+    const r = getData(result) as Record<string, unknown>;
+    const submission: PaymentSubmission = {
+      id: r.id as string,
+      memberId: r.member_id as string,
+      month: r.month as string,
+      claimedAmount: Number(r.claimed_amount),
+      screenshotBase64: null,
+      utr: null,
+      status: "approved",
+      approvedAmount: amount,
+      submittedAt: r.submitted_at as string,
+      reviewedAt: now,
+      adminNotes: (r.admin_notes as string | null) ?? null,
+      paymentMethod: "cash",
+    };
+    setPaymentSubmissions((prev) => [submission, ...prev]);
+
+    await recordPayment(memberId, month, amount, bill.dueAmount);
+  };
+
   // ── Calculations ──────────────────────────────────────────────────────────
   const getMonthTotals = (month: string) => {
     const monthExpenses = expenses.filter((e) => e.date.startsWith(month));
@@ -1318,7 +1374,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setEggEntry, updateSettings,
       addAnnouncement, deleteAnnouncement, sendPaymentReminders,
       markPaid, markUnpaid, recordPayment,
-      saveUpiSettings, submitUpiPayment, approvePaymentSubmission, rejectPaymentSubmission,
+      saveUpiSettings, submitUpiPayment, approvePaymentSubmission, rejectPaymentSubmission, recordCashPayment,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,
       refresh: loadAll,
     }}>

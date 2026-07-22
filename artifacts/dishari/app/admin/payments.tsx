@@ -63,7 +63,7 @@ export default function AdminPaymentsScreen() {
     members,
     upiSettings, paymentSubmissions,
     saveUpiSettings, approvePaymentSubmission, rejectPaymentSubmission,
-    calculateAllMonthlyBills, payments,
+    calculateAllMonthlyBills, calculateMonthlyBill, payments, recordCashPayment,
   } = useData();
   const { refreshing, onRefresh } = useRefresh();
 
@@ -81,6 +81,14 @@ export default function AdminPaymentsScreen() {
   // Screenshot
   const [screenshotModalVisible, setScreenshotModalVisible] = useState(false);
   const [fullScreenshot, setFullScreenshot] = useState<string | null>(null);
+
+  // Cash payment modal
+  const [cashModal, setCashModal] = useState(false);
+  const [cashMemberId, setCashMemberId] = useState("");
+  const [cashMonth, setCashMonth] = useState(getCurrentMonth());
+  const [cashAmount, setCashAmount] = useState("");
+  const [cashNote, setCashNote] = useState("");
+  const [isSavingCash, setIsSavingCash] = useState(false);
 
   // UPI Settings form
   const [upiForm, setUpiForm] = useState({ upiId: "", accountHolderName: "", paymentNote: "" });
@@ -180,6 +188,38 @@ export default function AdminPaymentsScreen() {
     }
   };
 
+  // ── Cash Payment ──────────────────────────────────────────────────────────
+  const openCashModal = () => {
+    setCashMemberId("");
+    setCashMonth(month);
+    setCashAmount("");
+    setCashNote("");
+    setCashModal(true);
+  };
+
+  const handleSaveCash = async () => {
+    if (!cashMemberId) {
+      Alert.alert("Select Member", "Please select a member.");
+      return;
+    }
+    const amount = parseFloat(cashAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a valid amount.");
+      return;
+    }
+    setIsSavingCash(true);
+    try {
+      const bill = calculateMonthlyBill(cashMemberId, cashMonth);
+      await recordCashPayment(cashMemberId, cashMonth, amount, cashNote.trim() || undefined);
+      setCashModal(false);
+      Alert.alert("Recorded", `Cash payment of ₹${amount.toFixed(2)} recorded for ${members.find((m) => m.id === cashMemberId)?.name ?? "member"}.`);
+    } catch (err) {
+      Alert.alert("Failed", (err as Error).message || "Could not record cash payment.");
+    } finally {
+      setIsSavingCash(false);
+    }
+  };
+
   // ── Status helpers ─────────────────────────────────────────────────────────
   const statusColor = (s: string) => s === "pending" ? ORANGE : s === "approved" ? EMERALD : RED;
   const statusLabel = (s: string) => s === "pending" ? "Pending" : s === "approved" ? "Approved" : "Rejected";
@@ -238,6 +278,18 @@ export default function AdminPaymentsScreen() {
             </Text>
           </View>
         )}
+
+        {/* ── Record Cash Payment ───────────────────────────────────────────── */}
+        <Pressable
+          style={({ pressed }) => [styles.cashBtn, { backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 }]}
+          onPress={openCashModal}
+        >
+          <View style={[styles.cashBtnIcon, { backgroundColor: `${EMERALD}15` }]}>
+            <Feather name="plus-circle" size={18} color={EMERALD} />
+          </View>
+          <Text style={[styles.cashBtnText, { color: colors.foreground }]}>Record Cash Payment</Text>
+          <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+        </Pressable>
 
         {/* ── Filter chips ──────────────────────────────────────────────────── */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
@@ -302,6 +354,11 @@ export default function AdminPaymentsScreen() {
                   <View style={styles.payDetailRow}>
                     <Text style={[styles.payDetailLabel, { color: colors.mutedForeground }]}>UTR / Txn ID</Text>
                     <Text style={[styles.payDetailVal, { color: colors.foreground }]}>{sub.utr}</Text>
+                  </View>
+                ) : sub.paymentMethod === "cash" ? (
+                  <View style={styles.payDetailRow}>
+                    <Text style={[styles.payDetailLabel, { color: colors.mutedForeground }]}>Payment Method</Text>
+                    <Text style={[styles.payDetailVal, { color: colors.foreground }]}>Cash</Text>
                   </View>
                 ) : null}
                 {sub.adminNotes ? (
@@ -416,6 +473,100 @@ export default function AdminPaymentsScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* ── Cash Payment Modal ────────────────────────────────────────────────── */}
+      <Modal visible={cashModal} animationType="slide" transparent statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <ScrollView style={{ width: "100%" }} contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }} keyboardShouldPersistTaps="handled">
+            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Record Cash Payment</Text>
+                  <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Auto-approved · No screenshot needed</Text>
+                </View>
+                <Pressable onPress={() => setCashModal(false)} hitSlop={10}>
+                  <Feather name="x" size={22} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+
+              {/* Member picker */}
+              <Text style={[styles.formLabel, { color: colors.mutedForeground, marginBottom: 8 }]}>MEMBER</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {members.filter((m) => m.status === "active").map((m) => (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => setCashMemberId(m.id)}
+                      style={[
+                        styles.cashMemberChip,
+                        cashMemberId === m.id
+                          ? { backgroundColor: EMERALD, borderColor: EMERALD }
+                          : { backgroundColor: colors.muted, borderColor: colors.border },
+                      ]}
+                    >
+                      <Text style={[styles.cashMemberChipText, { color: cashMemberId === m.id ? "#fff" : colors.foreground }]}>
+                        {m.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+
+              {/* Month picker */}
+              <Text style={[styles.formLabel, { color: colors.mutedForeground, marginBottom: 8 }]}>MONTH</Text>
+              <View style={[styles.cashMonthRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                <Pressable onPress={() => setCashMonth(prevMonth(cashMonth))} style={styles.navArrow}>
+                  <Feather name="chevron-left" size={20} color={colors.foreground} />
+                </Pressable>
+                <Text style={[styles.cashMonthText, { color: colors.foreground }]}>{monthLabel(cashMonth)}</Text>
+                <Pressable onPress={() => setCashMonth(nextMonth(cashMonth))} style={styles.navArrow}>
+                  <Feather name="chevron-right" size={20} color={colors.foreground} />
+                </Pressable>
+              </View>
+
+              {/* Amount */}
+              <View style={[styles.formGroup, { marginTop: 16 }]}>
+                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>AMOUNT (₹)</Text>
+                <TextInput
+                  style={[styles.approveInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+                  value={cashAmount}
+                  onChangeText={setCashAmount}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  placeholderTextColor={colors.mutedForeground}
+                />
+              </View>
+
+              {/* Note */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>NOTE (OPTIONAL)</Text>
+                <TextInput
+                  style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+                  value={cashNote}
+                  onChangeText={setCashNote}
+                  placeholder="e.g. Paid in hand"
+                  placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="sentences"
+                />
+              </View>
+
+              {/* Payment method pill */}
+              <View style={[styles.cashMethodPill, { backgroundColor: `${EMERALD}12`, borderColor: `${EMERALD}30` }]}>
+                <Feather name="check-circle" size={14} color={EMERALD} />
+                <Text style={[styles.cashMethodPillText, { color: EMERALD }]}>Payment Method: Cash · Approved Instantly</Text>
+              </View>
+
+              <Pressable style={({ pressed }) => [{ opacity: (pressed || isSavingCash) ? 0.75 : 1, marginBottom: 12 }]} onPress={handleSaveCash} disabled={isSavingCash}>
+                <LinearGradient colors={[EMERALD, "#10B981"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+                  {isSavingCash ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="check" size={18} color="#fff" />}
+                  <Text style={styles.saveBtnText}>{isSavingCash ? "Saving…" : "Record Cash Payment"}</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* ── Verify / Reject Modal ─────────────────────────────────────────────── */}
       <Modal visible={verifyModal} animationType="slide" transparent statusBarTranslucent>
@@ -640,6 +791,27 @@ const styles = StyleSheet.create({
   amountHint: { borderRadius: 10, padding: 10, marginBottom: 16 },
   rejectOutline: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, borderWidth: 1.5, paddingVertical: 13, marginBottom: 20 },
   rejectOutlineText: { fontSize: 14, fontWeight: "600" },
+
+  // Cash payment
+  cashBtn: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderRadius: 16, padding: 14, marginBottom: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#34D399", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+  },
+  cashBtnIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  cashBtnText: { flex: 1, fontSize: 15, fontWeight: "700" },
+  cashMemberChip: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9, borderWidth: 1.5 },
+  cashMemberChipText: { fontSize: 14, fontWeight: "600" },
+  cashMonthRow: {
+    flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1.5, overflow: "hidden",
+  },
+  cashMonthText: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "700" },
+  cashMethodPill: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 16,
+  },
+  cashMethodPillText: { fontSize: 13, fontWeight: "600", flex: 1 },
 
   // Screenshot full
   screenshotFullOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },

@@ -532,6 +532,12 @@ export default function MemberPayments() {
                       <Text style={[styles.subLabel, { color: muted }]}>Approved Amount</Text>
                       <Text style={[styles.subVal, { color: EMERALD, fontWeight: "700" }]}>₹{safeFix(s.approvedAmount ?? 0, 2)}</Text>
                     </View>
+                    {s.paymentMethod === "cash" && (
+                      <View style={styles.subRow}>
+                        <Text style={[styles.subLabel, { color: muted }]}>Payment Method</Text>
+                        <Text style={[styles.subVal, { color: muted }]}>Cash</Text>
+                      </View>
+                    )}
                     <View style={styles.subRow}>
                       <Text style={[styles.subLabel, { color: muted }]}>Date</Text>
                       <Text style={[styles.subVal, { color: muted }]}>{fmtDate(s.reviewedAt ?? s.submittedAt)}</Text>
