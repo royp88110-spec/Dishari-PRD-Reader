@@ -1283,20 +1283,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const debtors = bills.filter((b) => b.dueAmount > 0);
     if (debtors.length === 0) return 0;
 
-    const [yearStr, moStr] = month.split("-");
-    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const monthLabel = `${monthNames[parseInt(moStr) - 1]} ${yearStr}`;
+    // Route through the API server so the service-role key is used and the
+    // schema migration can be applied automatically if the columns are missing.
+    const result = await apiCall("POST", "/admin/announcements/reminders", {
+      month,
+      debtors: debtors.map((b) => ({
+        memberId:   b.memberId,
+        memberName: b.memberName,
+        dueAmount:  b.dueAmount,
+      })),
+    }) as { sent: number; needsMigration?: boolean; migrationSql?: string };
 
-    const client = await sb();
-    const rows = debtors.map((b) => ({
-      title: "🔔 Payment Reminder",
-      body: `Hello ${b.memberName},\n\nYour payment for ${monthLabel} is still pending.\n\nOutstanding Amount: ₹${b.dueAmount.toFixed(0)}\n\nPlease complete your payment as soon as possible.`,
-      type: "payment_reminder",
-      target_member_id: b.memberId,
-      target_month: month,
-    }));
+    if ((result as { needsMigration?: boolean }).needsMigration) {
+      throw new Error(
+        (result as { migrationSql?: string }).migrationSql ??
+        "Database migration required — run the SQL in your Supabase SQL Editor.",
+      );
+    }
 
-    checkError(await client.from("announcements").insert(rows));
     await fetchAnnouncements();
     return debtors.length;
   };

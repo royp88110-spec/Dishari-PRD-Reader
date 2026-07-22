@@ -60,7 +60,10 @@ const strictLimiter = rateLimit({
 app.use("/api", generalLimiter);
 app.use("/api/setup", strictLimiter);
 app.use("/api/admin/members", (req, res, next) => {
-  if (req.method === "POST" || req.method === "DELETE") return strictLimiter(req, res, next);
+  if (req.method === "POST" || req.method === "DELETE") {
+    strictLimiter(req, res, next);
+    return;
+  }
   next();
 });
 app.use("/api/members/me/password", strictLimiter);
