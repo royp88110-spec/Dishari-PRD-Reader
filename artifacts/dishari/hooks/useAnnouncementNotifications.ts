@@ -15,6 +15,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import type { Announcement } from "@/context/DataContext";
 
+/** Returns true if this announcement is visible to the given member. */
+function isRelevantToMember(a: Announcement, memberId: string): boolean {
+  if (a.type === "general") return true;
+  if (a.type === "payment_reminder") return a.targetMemberId === memberId;
+  return true;
+}
+
 // ─── Supabase helpers (lazy-import, matches the rest of the codebase) ─────────
 
 const getSb = () =>
@@ -139,7 +146,7 @@ export function useAnnouncementNotifications() {
         // Use the ref so we always see the latest announcements value even
         // though `announcements` is intentionally absent from this effect's deps.
         const unread = announcementsRef.current
-          .filter((a) => !readIds.has(a.id))
+          .filter((a) => !readIds.has(a.id) && isRelevantToMember(a, memberId))
           .sort(
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -159,10 +166,13 @@ export function useAnnouncementNotifications() {
     // Only run after the initial load so we don't race with Effect 1
     if (!initDoneRef.current || !user || user.role !== "member") return;
 
+    const memberId = user?.memberId ?? "";
     const newUnread = announcements
       .filter(
         (a) =>
-          !readIdsRef.current.has(a.id) && !processedRef.current.has(a.id),
+          !readIdsRef.current.has(a.id) &&
+          !processedRef.current.has(a.id) &&
+          isRelevantToMember(a, memberId),
       )
       .sort(
         (a, b) =>

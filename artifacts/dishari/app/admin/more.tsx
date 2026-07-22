@@ -115,7 +115,7 @@ export default function MoreScreen() {
     setEggEntry, addAdvance, deleteAdvance,
     addFine, updateFine, deleteFine,
     updateSettings, calculateAllMonthlyBills,
-    addAnnouncement, deleteAnnouncement,
+    addAnnouncement, deleteAnnouncement, sendPaymentReminders,
   } = useData();
 
   const { refreshing, onRefresh } = useRefresh();
@@ -142,6 +142,8 @@ export default function MoreScreen() {
   const [annModal, setAnnModal]       = useState(false);
   const [annForm, setAnnForm]         = useState({ title: "", body: "" });
   const [isSavingAnn, setIsSavingAnn] = useState(false);
+  const [reminderModal, setReminderModal]           = useState(false);
+  const [isSendingReminders, setIsSendingReminders] = useState(false);
 
   // Inline numeric edit modal
   const [editModal, setEditModal]         = useState<EditModalState>(EDIT_MODAL_CLOSED);
@@ -618,52 +620,86 @@ export default function MoreScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }}
           refreshControl={REFRESH}
         >
-          <Pressable
-            style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, marginBottom: 20 }]}
-            onPress={() => { setAnnForm({ title: "", body: "" }); setAnnModal(true); }}
-          >
-            <LinearGradient colors={[PRIMARY, "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addBtn}>
-              <Feather name="plus" size={18} color="#fff" />
-              <Text style={styles.addBtnText}>Post Announcement</Text>
-            </LinearGradient>
-          </Pressable>
+          {/* ── Two action cards ── */}
+          <View style={styles.annActionRow}>
+            <Pressable
+              style={({ pressed }) => [styles.annActionCard, { backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => { setAnnForm({ title: "", body: "" }); setAnnModal(true); }}
+            >
+              <View style={[styles.annActionIcon, { backgroundColor: `${PRIMARY}15` }]}>
+                <Feather name="volume-2" size={22} color={PRIMARY} />
+              </View>
+              <Text style={[styles.annActionTitle, { color: colors.foreground }]}>General</Text>
+              <Text style={[styles.annActionDesc, { color: colors.mutedForeground }]}>Send to all members</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.annActionCard, { backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => setReminderModal(true)}
+            >
+              <View style={[styles.annActionIcon, { backgroundColor: `${ORANGE}15` }]}>
+                <Feather name="bell" size={22} color={ORANGE} />
+              </View>
+              <Text style={[styles.annActionTitle, { color: colors.foreground }]}>Reminder</Text>
+              <Text style={[styles.annActionDesc, { color: colors.mutedForeground }]}>Members with due {">"} ₹0</Text>
+            </Pressable>
+          </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>All Announcements</Text>
           {announcements.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No announcements yet</Text>
-          ) : announcements.map((a) => (
-            <View key={a.id} style={[styles.annCard, { backgroundColor: colors.card }]}>
-              <View style={styles.annCardTop}>
-                <View style={[styles.annIconWrap, { backgroundColor: "#4F46E518" }]}>
-                  <Feather name="bell" size={16} color={PRIMARY} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.annTitle, { color: colors.foreground }]}>{a.title}</Text>
-                  <Text style={[styles.annDate, { color: colors.mutedForeground }]}>
-                    {new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() =>
-                    Alert.alert("Delete", `Remove "${a.title}"?`, [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Delete", style: "destructive",
-                        onPress: async () => {
-                          try { await deleteAnnouncement(a.id); }
-                          catch (err) { Alert.alert("Delete Failed", (err as Error).message || "Could not delete."); }
+          ) : announcements.map((a) => {
+            const isReminder = a.type === "payment_reminder";
+            const accentColor = isReminder ? ORANGE : PRIMARY;
+            const targetName = isReminder && a.targetMemberId
+              ? (members.find((m) => m.id === a.targetMemberId)?.name ?? "Unknown")
+              : null;
+            return (
+              <View key={a.id} style={[styles.annCard, { backgroundColor: colors.card }]}>
+                <View style={styles.annCardTop}>
+                  <View style={[styles.annIconWrap, { backgroundColor: `${accentColor}18` }]}>
+                    <Feather name={isReminder ? "bell" : "volume-2"} size={16} color={accentColor} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                      <Text style={[styles.annTitle, { color: colors.foreground }]}>{a.title}</Text>
+                      <View style={[styles.annTypeBadge, { backgroundColor: `${accentColor}18` }]}>
+                        <Text style={[styles.annTypeBadgeText, { color: accentColor }]}>
+                          {isReminder ? "REMINDER" : "GENERAL"}
+                        </Text>
+                      </View>
+                    </View>
+                    {targetName && (
+                      <Text style={[styles.annDate, { color: accentColor, fontWeight: "600" }]}>
+                        → {targetName}{a.targetMonth ? ` · ${a.targetMonth}` : ""}
+                      </Text>
+                    )}
+                    <Text style={[styles.annDate, { color: colors.mutedForeground }]}>
+                      {new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() =>
+                      Alert.alert("Delete", `Remove "${a.title}"?`, [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Delete", style: "destructive",
+                          onPress: async () => {
+                            try { await deleteAnnouncement(a.id); }
+                            catch (err) { Alert.alert("Delete Failed", (err as Error).message || "Could not delete."); }
+                          },
                         },
-                      },
-                    ])
-                  }
-                  style={{ padding: 6 }}
-                >
-                  <Feather name="trash-2" size={18} color={colors.destructive} />
-                </Pressable>
+                      ])
+                    }
+                    style={{ padding: 6 }}
+                  >
+                    <Feather name="trash-2" size={18} color={colors.destructive} />
+                  </Pressable>
+                </View>
+                <Text style={[styles.annBody, { color: colors.mutedForeground }]}>{a.body}</Text>
               </View>
-              <Text style={[styles.annBody, { color: colors.mutedForeground }]}>{a.body}</Text>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
       )}
 
@@ -858,7 +894,7 @@ export default function MoreScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Post Announcement</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>General Announcement</Text>
               <Pressable onPress={() => setAnnModal(false)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </Pressable>
@@ -895,6 +931,98 @@ export default function MoreScreen() {
               </LinearGradient>
             </Pressable>
           </View>
+        </View>
+      </Modal>
+
+      {/* ══ Payment Reminder Modal ══ */}
+      <Modal visible={reminderModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <ScrollView
+            style={{ width: "100%" }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Send Payment Reminders</Text>
+                  <Text style={[styles.annDate, { color: colors.mutedForeground, marginTop: 2 }]}>
+                    {monthLabel(month)} · members with outstanding due
+                  </Text>
+                </View>
+                <Pressable onPress={() => setReminderModal(false)} hitSlop={10}>
+                  <Feather name="x" size={22} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+
+              {(() => {
+                const debtors = bills.filter((b) => b.dueAmount > 0);
+                if (debtors.length === 0) {
+                  return (
+                    <View style={[styles.reminderNotice, { backgroundColor: `${EMERALD}10`, borderColor: `${EMERALD}25` }]}>
+                      <Feather name="check-circle" size={20} color={EMERALD} />
+                      <Text style={[styles.annBody, { color: EMERALD, marginTop: 6, textAlign: "center" }]}>
+                        All members are settled for {monthLabel(month)}.{"\n"}No reminders to send.
+                      </Text>
+                    </View>
+                  );
+                }
+                return (
+                  <>
+                    <View style={[styles.reminderNotice, { backgroundColor: `${ORANGE}10`, borderColor: `${ORANGE}25`, marginBottom: 14 }]}>
+                      <Feather name="bell" size={16} color={ORANGE} />
+                      <Text style={[styles.annDate, { color: ORANGE, fontWeight: "600", marginTop: 4 }]}>
+                        {debtors.length} member{debtors.length !== 1 ? "s" : ""} will receive a personalised reminder
+                      </Text>
+                    </View>
+
+                    {debtors.map((b) => (
+                      <View key={b.memberId} style={[styles.reminderRow, { borderBottomColor: colors.border }]}>
+                        <Text style={[styles.annTitle, { color: colors.foreground, fontSize: 14 }]}>{b.memberName}</Text>
+                        <Text style={[styles.annDate, { color: RED, fontWeight: "700" }]}>₹{b.dueAmount.toFixed(0)} due</Text>
+                      </View>
+                    ))}
+
+                    <View style={[styles.reminderPreview, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                      <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>PREVIEW MESSAGE</Text>
+                      <Text style={[styles.annBody, { color: colors.foreground, lineHeight: 20 }]}>
+                        {"Hello {Name},\n\nYour payment for " + monthLabel(month) + " is still pending.\n\nOutstanding Amount: ₹{Due}\n\nPlease complete your payment as soon as possible."}
+                      </Text>
+                    </View>
+
+                    <Pressable
+                      style={({ pressed }) => [{ opacity: (pressed || isSendingReminders) ? 0.7 : 1, marginTop: 8, marginBottom: 20 }]}
+                      onPress={async () => {
+                        setIsSendingReminders(true);
+                        try {
+                          const count = await sendPaymentReminders(month);
+                          setReminderModal(false);
+                          Alert.alert(
+                            "Reminders Sent ✓",
+                            `${count} personalised payment reminder${count !== 1 ? "s" : ""} sent for ${monthLabel(month)}.`,
+                          );
+                        } catch (err) {
+                          Alert.alert("Send Failed", (err as Error).message || "Could not send reminders.");
+                        } finally {
+                          setIsSendingReminders(false);
+                        }
+                      }}
+                      disabled={isSendingReminders}
+                    >
+                      <LinearGradient colors={[ORANGE, "#EA580C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+                        {isSendingReminders
+                          ? <ActivityIndicator size="small" color="#fff" />
+                          : <Feather name="send" size={16} color="#fff" />}
+                        <Text style={styles.saveBtnText}>
+                          {isSendingReminders ? "Sending…" : `Send ${debtors.length} Reminder${debtors.length !== 1 ? "s" : ""}`}
+                        </Text>
+                      </LinearGradient>
+                    </Pressable>
+                  </>
+                );
+              })()}
+            </View>
+          </ScrollView>
         </View>
       </Modal>
 
@@ -1127,6 +1255,32 @@ const styles = StyleSheet.create({
     borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8,
   },
   qrChangeBtnText: { fontSize: 13, fontWeight: "600" },
+
+  // ── Announcement section ──
+  annActionRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
+  annActionCard: {
+    flex: 1, borderRadius: 20, padding: 16, alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: "#4F46E5", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10, shadowRadius: 16, elevation: 6, gap: 6,
+  },
+  annActionIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  annActionTitle: { fontSize: 15, fontWeight: "700" },
+  annActionDesc: { fontSize: 11, textAlign: "center" },
+  annTypeBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  annTypeBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
+  reminderNotice: {
+    borderRadius: 14, padding: 14, borderWidth: 1,
+    alignItems: "center", gap: 4, marginBottom: 4,
+  },
+  reminderRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 10, borderBottomWidth: 1,
+  },
+  reminderPreview: {
+    borderRadius: 14, padding: 14, borderWidth: 1,
+    marginTop: 14, marginBottom: 4, gap: 8,
+  },
 
   // ── Announcement cards ──
   annCard: {

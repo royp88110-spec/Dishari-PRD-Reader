@@ -7,6 +7,9 @@ export interface Announcement {
   title: string;
   body: string;
   createdAt: string;
+  type: "general" | "payment_reminder";
+  targetMemberId: string | null;
+  targetMonth: string | null;
 }
 
 export interface Member {
@@ -143,8 +146,9 @@ interface DataContextType {
   deleteFine: (id: string) => Promise<void>;
   setEggEntry: (memberId: string, date: string, count: number) => Promise<void>;
   updateSettings: (s: Partial<Settings>) => Promise<void>;
-  addAnnouncement: (title: string, body: string) => Promise<void>;
+  addAnnouncement: (title: string, body: string, type?: "general" | "payment_reminder", targetMemberId?: string | null, targetMonth?: string | null) => Promise<void>;
   deleteAnnouncement: (id: string) => Promise<void>;
+  sendPaymentReminders: (month: string) => Promise<number>;
   markPaid: (memberId: string, month: string, amount: number) => Promise<void>;
   markUnpaid: (memberId: string, month: string) => Promise<void>;
   recordPayment: (memberId: string, month: string, paymentAmount: number, dueAmount: number) => Promise<void>;
@@ -382,6 +386,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           title: a.title as string,
           body: a.body as string,
           createdAt: a.created_at as string,
+          type: ((a.type as string) === "payment_reminder" ? "payment_reminder" : "general") as "general" | "payment_reminder",
+          targetMemberId: (a.target_member_id as string | null) ?? null,
+          targetMonth: (a.target_month as string | null) ?? null,
         }))
       );
     }
@@ -1044,16 +1051,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── Announcements ─────────────────────────────────────────────────────────
-  const addAnnouncement = async (title: string, body: string) => {
+  const addAnnouncement = async (
+    title: string,
+    body: string,
+    type: "general" | "payment_reminder" = "general",
+    targetMemberId: string | null = null,
+    targetMonth: string | null = null,
+  ) => {
     const client = await sb();
     const row = getData(
-      await client.from("announcements").insert({ title, body }).select().single()
+      await client.from("announcements").insert({
+        title, body, type,
+        target_member_id: targetMemberId,
+        target_month: targetMonth,
+      }).select().single()
     ) as Record<string, unknown>;
     setAnnouncements((prev) => [{
       id: row.id as string,
       title: row.title as string,
       body: row.body as string,
       createdAt: row.created_at as string,
+      type: ((row.type as string) === "payment_reminder" ? "payment_reminder" : "general") as "general" | "payment_reminder",
+      targetMemberId: (row.target_member_id as string | null) ?? null,
+      targetMonth: (row.target_month as string | null) ?? null,
     }, ...prev]);
   };
 
@@ -1257,6 +1277,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const calculateAllMonthlyBills = (month: string): MonthlyBill[] =>
     members.filter((m) => m.status === "active").map((m) => calculateMonthlyBill(m.id, month));
 
+  // ── Payment Reminders ─────────────────────────────────────────────────────
+  const sendPaymentReminders = async (month: string): Promise<number> => {
+    const bills = calculateAllMonthlyBills(month);
+    const debtors = bills.filter((b) => b.dueAmount > 0);
+    if (debtors.length === 0) return 0;
+
+    const [yearStr, moStr] = month.split("-");
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const monthLabel = `${monthNames[parseInt(moStr) - 1]} ${yearStr}`;
+
+    const client = await sb();
+    const rows = debtors.map((b) => ({
+      title: "🔔 Payment Reminder",
+      body: `Hello ${b.memberName},\n\nYour payment for ${monthLabel} is still pending.\n\nOutstanding Amount: ₹${b.dueAmount.toFixed(0)}\n\nPlease complete your payment as soon as possible.`,
+      type: "payment_reminder",
+      target_member_id: b.memberId,
+      target_month: month,
+    }));
+
+    checkError(await client.from("announcements").insert(rows));
+    await fetchAnnouncements();
+    return debtors.length;
+  };
+
   return (
     <DataContext.Provider value={{
       members, meals, expenses, advances, eggs, fines, settings, payments, paymentsError, announcements,
@@ -1268,7 +1312,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addAdvance, deleteAdvance,
       addFine, updateFine, deleteFine,
       setEggEntry, updateSettings,
-      addAnnouncement, deleteAnnouncement,
+      addAnnouncement, deleteAnnouncement, sendPaymentReminders,
       markPaid, markUnpaid, recordPayment,
       saveUpiSettings, submitUpiPayment, approvePaymentSubmission, rejectPaymentSubmission,
       calculateMonthlyBill, calculateAllMonthlyBills, getMonthTotals,

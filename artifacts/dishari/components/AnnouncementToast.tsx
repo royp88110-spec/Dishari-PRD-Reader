@@ -1,5 +1,9 @@
 /**
- * AnnouncementToast — Clean blue/off-white premium notification card
+ * AnnouncementToast — slide-in notification card
+ *
+ * Supports two visual themes based on announcement.type:
+ *  · general         → blue/indigo   (existing style)
+ *  · payment_reminder→ amber/orange  (warm, urgent)
  */
 
 import { Feather } from "@expo/vector-icons";
@@ -21,8 +25,39 @@ import type { Announcement } from "@/context/DataContext";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const H_MARGIN = 14;
-const AUTO_DISMISS_MS = 4000;
+const H_MARGIN        = 14;
+const AUTO_DISMISS_MS = 5000; // slightly longer for reminders so body is readable
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+
+function getTheme(type: Announcement["type"]) {
+  if (type === "payment_reminder") {
+    return {
+      cardGrad:    ["#FFFBEB", "#FEF3C7", "#FFF9F0"] as [string, string, string],
+      accentGrad:  ["#F59E0B", "#D97706"]             as [string, string],
+      iconBg:      "#FFF7ED",
+      iconBorder:  "#FCD34D",
+      iconColor:   "#F59E0B",
+      icon:        "bell"    as const,
+      cardBorder:  "#FDE68A",
+      progressBg:  "#FEF3C7",
+      progressFg:  "#F59E0B",
+      shadowColor: "#92400E",
+    };
+  }
+  return {
+    cardGrad:    ["#F8FAFC", "#EEF6FF", "#EAFBFF"] as [string, string, string],
+    accentGrad:  ["#4F46E5", "#2563EB"]            as [string, string],
+    iconBg:      "#EFF6FF",
+    iconBorder:  "#BFDBFE",
+    iconColor:   "#3B82F6",
+    icon:        "bell"   as const,
+    cardBorder:  "#DBEAFE",
+    progressBg:  "#DBEAFE",
+    progressFg:  "#3B82F6",
+    shadowColor: "#1E40AF",
+  };
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +82,7 @@ interface Props {
 
 export function AnnouncementToast({ announcement, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
+  const theme  = getTheme(announcement.type);
 
   // ── Animation values ──────────────────────────────────────────────────────
   const translateX = useRef(new Animated.Value(SCREEN_W + 60)).current;
@@ -83,6 +119,7 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
   }, [onDismiss, translateX, opacity]);
 
   useEffect(() => {
+    // Entrance
     Animated.parallel([
       Animated.spring(translateX, {
         toValue: 0,
@@ -115,6 +152,7 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
       }),
     ]).start();
 
+    // Progress drain
     progressAnim.current = Animated.timing(progress, {
       toValue: 0,
       duration: AUTO_DISMISS_MS,
@@ -132,7 +170,13 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fresh = isNew(announcement.createdAt);
+  const fresh      = isNew(announcement.createdAt);
+  const isReminder = announcement.type === "payment_reminder";
+
+  // Truncate the body for display (reminders are long — show first line only in toast)
+  const bodyPreview = isReminder
+    ? announcement.body.split("\n").filter(Boolean)[2] ?? announcement.body // the "Outstanding…" line
+    : announcement.body;
 
   return (
     <Animated.View
@@ -141,25 +185,26 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
         styles.wrapper,
         {
           top: insets.top + 10,
+          shadowColor: theme.shadowColor,
           transform: [{ translateX }, { translateY }, { scale }],
           opacity,
         },
       ]}
     >
-      {/* ── Card with blue/off-white gradient background ──────────────────── */}
-      <View style={styles.card}>
+      {/* ── Card ─────────────────────────────────────────────────────────── */}
+      <View style={[styles.card, { borderColor: theme.cardBorder }]}>
 
-        {/* Soft blue gradient fill */}
+        {/* Background gradient */}
         <LinearGradient
-          colors={["#F8FAFC", "#EEF6FF", "#EAFBFF"]}
+          colors={theme.cardGrad}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
 
-        {/* Blue left accent bar */}
+        {/* Left accent bar */}
         <LinearGradient
-          colors={["#4F46E5", "#2563EB"]}
+          colors={theme.accentGrad}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.accentBar}
@@ -168,35 +213,44 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
         {/* Body row */}
         <View style={styles.body}>
 
-          {/* Circular icon */}
-          <View style={styles.iconCircle}>
-            <Feather name="bell" size={20} color="#3B82F6" />
+          {/* Icon */}
+          <View style={[styles.iconCircle, { backgroundColor: theme.iconBg, borderColor: theme.iconBorder }]}>
+            <Feather name={theme.icon} size={20} color={theme.iconColor} />
           </View>
 
           {/* Text stack */}
           <View style={styles.textStack}>
 
-            {/* Title + NEW badge */}
+            {/* Title + badge */}
             <View style={styles.titleRow}>
               <Text style={styles.title} numberOfLines={2}>
                 {announcement.title}
               </Text>
-              {fresh && (
+              {isReminder ? (
+                <LinearGradient
+                  colors={["#F59E0B", "#D97706"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.badge}
+                >
+                  <Text style={styles.badgeText}>DUE</Text>
+                </LinearGradient>
+              ) : fresh ? (
                 <LinearGradient
                   colors={["#22C55E", "#16A34A"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.newBadge}
+                  style={styles.badge}
                 >
-                  <Text style={styles.newBadgeText}>✦ NEW</Text>
+                  <Text style={styles.badgeText}>✦ NEW</Text>
                 </LinearGradient>
-              )}
+              ) : null}
             </View>
 
-            {/* Message */}
-            {!!announcement.body && (
+            {/* Message preview */}
+            {!!bodyPreview && (
               <Text style={styles.message} numberOfLines={2}>
-                {announcement.body}
+                {bodyPreview}
               </Text>
             )}
 
@@ -218,14 +272,15 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
         </View>
       </View>
 
-      {/* ── Progress bar ──────────────────────────────────────────────────── */}
-      <View style={styles.progressTrack}>
+      {/* ── Progress bar ─────────────────────────────────────────────────── */}
+      <View style={[styles.progressTrack, { backgroundColor: theme.progressBg }]}>
         <Animated.View
           style={[
             styles.progressFill,
             {
+              backgroundColor: theme.progressFg,
               width: progress.interpolate({
-                inputRange: [0, 1],
+                inputRange:  [0, 1],
                 outputRange: ["0%", "100%"],
               }),
             },
@@ -239,14 +294,12 @@ export function AnnouncementToast({ announcement, onDismiss }: Props) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-
   wrapper: {
     position: "absolute",
     left: H_MARGIN,
     right: H_MARGIN,
     zIndex: 9999,
     borderRadius: 18,
-    shadowColor: "#1E40AF",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 24,
@@ -259,12 +312,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     minHeight: 92,
     borderWidth: 1,
-    borderColor: "#DBEAFE",
   },
 
-  accentBar: {
-    width: 6,
-  },
+  accentBar: { width: 6 },
 
   body: {
     flex: 1,
@@ -279,18 +329,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#EFF6FF",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
 
-  textStack: {
-    flex: 1,
-    gap: 4,
-  },
+  textStack: { flex: 1, gap: 4 },
 
   titleRow: {
     flexDirection: "row",
@@ -308,14 +353,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  newBadge: {
+  badge: {
     borderRadius: 7,
     paddingHorizontal: 8,
     paddingVertical: 3,
     alignSelf: "flex-start",
     flexShrink: 0,
   },
-  newBadgeText: {
+  badgeText: {
     fontSize: 10,
     fontWeight: "800",
     color: "#FFFFFF",
@@ -341,10 +386,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  closeBtn: {
-    flexShrink: 0,
-    alignSelf: "flex-start",
-  },
+  closeBtn: { flexShrink: 0, alignSelf: "flex-start" },
   closeCircle: {
     width: 28,
     height: 28,
@@ -358,14 +400,12 @@ const styles = StyleSheet.create({
 
   progressTrack: {
     height: 3.5,
-    backgroundColor: "#DBEAFE",
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#3B82F6",
     borderBottomLeftRadius: 18,
   },
 });
