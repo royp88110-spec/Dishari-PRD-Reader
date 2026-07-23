@@ -52,8 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSetupStatus = useCallback(async () => {
     if (!supabaseReady) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`${getApiBase()}/api/setup/status`);
+      const res = await fetch(`${getApiBase()}/api/setup/status`, { signal: controller.signal });
       const data = (await res.json()) as { needsSetup?: boolean; schemaNotReady?: boolean };
       if (data.schemaNotReady) {
         setSchemaNotReady(true);
@@ -63,7 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setNeedsSetup(data.needsSetup ?? false);
       }
     } catch {
+      // Timeout, network error, or server unreachable — treat as "not needed".
       setNeedsSetup(false);
+    } finally {
+      clearTimeout(timer);
     }
   }, [supabaseReady]);
 
@@ -116,13 +121,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     const init = async () => {
-      await refreshSetupStatus();
-      const { getSupabase } = await import("@/lib/supabase");
-      const sb = getSupabase();
-      const { data: { session } } = await sb.auth.getSession();
-      if (mounted) {
-        await loadMemberForSession(session?.user.id, session?.user.user_metadata);
-        setIsLoading(false);
+      try {
+        await refreshSetupStatus();
+        const { getSupabase } = await import("@/lib/supabase");
+        const sb = getSupabase();
+        const { data: { session } } = await sb.auth.getSession();
+        if (mounted) {
+          await loadMemberForSession(session?.user.id, session?.user.user_metadata);
+        }
+      } catch {
+        // Unexpected error during startup — clear auth state and continue.
+        if (mounted) setUser(null);
+      } finally {
+        // Always release the splash screen, even if something above hung or threw.
+        if (mounted) setIsLoading(false);
       }
     };
 
