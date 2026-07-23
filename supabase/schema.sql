@@ -272,14 +272,20 @@ CREATE POLICY "payment_submissions_select" ON payment_submissions
     OR get_my_role() = 'admin'
   );
 
+-- Members insert their own; admins insert on behalf of any member.
 CREATE POLICY "payment_submissions_insert" ON payment_submissions
   FOR INSERT TO authenticated
   WITH CHECK (
     member_id = (SELECT id FROM members WHERE user_id = auth.uid() LIMIT 1)
+    OR get_my_role() = 'admin'
   );
 
 CREATE POLICY "payment_submissions_admin_update" ON payment_submissions
   FOR UPDATE TO authenticated
+  USING (get_my_role() = 'admin');
+
+CREATE POLICY "payment_submissions_admin_delete" ON payment_submissions
+  FOR DELETE TO authenticated
   USING (get_my_role() = 'admin');
 
 CREATE TABLE IF NOT EXISTS announcement_reads (
@@ -362,3 +368,25 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE bill_payments;
   END IF;
 END $bp$;
+
+-- ── Migration: fix payment_submissions RLS + add payment_method column ────────
+-- Safe to re-run on any existing database.
+
+-- 1. Add payment_method column if missing
+ALTER TABLE payment_submissions ADD COLUMN IF NOT EXISTS payment_method TEXT
+  CHECK (payment_method IN ('upi', 'cash'));
+
+-- 2. Fix INSERT policy — original only allowed member's own row, blocking admin inserts.
+DROP POLICY IF EXISTS "payment_submissions_insert" ON payment_submissions;
+CREATE POLICY "payment_submissions_insert" ON payment_submissions
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    member_id = (SELECT id FROM members WHERE user_id = auth.uid() LIMIT 1)
+    OR get_my_role() = 'admin'
+  );
+
+-- 3. Add missing admin DELETE policy
+DROP POLICY IF EXISTS "payment_submissions_admin_delete" ON payment_submissions;
+CREATE POLICY "payment_submissions_admin_delete" ON payment_submissions
+  FOR DELETE TO authenticated
+  USING (get_my_role() = 'admin');

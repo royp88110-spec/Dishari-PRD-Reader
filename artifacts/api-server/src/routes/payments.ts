@@ -84,6 +84,89 @@ router.post("/admin/payments/:id/approve", verifyAdmin, async (req, res) => {
   res.json({ success: true, submission: sub, totalPaid: newTotal, isFullyPaid });
 });
 
+// ── POST /api/admin/payments/cash ────────────────────────────────────────────
+// Record a cash payment on behalf of any member (admin only).
+// Inserts an already-approved submission and updates bill_payments.
+// Uses the service-role key so RLS is bypassed.
+// Body: { memberId, month, amount, note? }
+router.post("/admin/payments/cash", verifyAdmin, async (req, res) => {
+  const { memberId, month, amount, note } = req.body as {
+    memberId?: string;
+    month?: string;
+    amount?: number;
+    note?: string;
+  };
+
+  if (!memberId) { res.status(400).json({ error: "memberId is required." }); return; }
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) { res.status(400).json({ error: "month must be YYYY-MM." }); return; }
+  const paid = Number(amount);
+  if (isNaN(paid) || paid <= 0) { res.status(400).json({ error: "amount must be a positive number." }); return; }
+
+  const now = new Date().toISOString();
+  const year = Number(month.split("-")[0]);
+
+  // 1. Insert the approved submission (service-role key bypasses RLS)
+  const baseRow: Record<string, unknown> = {
+    member_id: memberId,
+    month,
+    claimed_amount: paid,
+    screenshot_base64: null,
+    utr: null,
+    status: "approved",
+    approved_amount: paid,
+    reviewed_at: now,
+    ...(note?.trim() ? { admin_notes: note.trim() } : {}),
+  };
+
+  // Try with payment_method column; fall back if column not yet migrated
+  let subResult = await supabaseAdmin
+    .from("payment_submissions")
+    .insert({ ...baseRow, payment_method: "cash" })
+    .select()
+    .single();
+
+  if (subResult.error?.message?.includes("payment_method")) {
+    subResult = await supabaseAdmin
+      .from("payment_submissions")
+      .insert(baseRow)
+      .select()
+      .single();
+  }
+
+  if (subResult.error || !subResult.data) {
+    res.status(500).json({ error: subResult.error?.message ?? "Insert failed." });
+    return;
+  }
+
+  const submission = subResult.data as Record<string, unknown>;
+
+  // 2. Fetch existing bill_payments row
+  const { data: existingPay } = await supabaseAdmin
+    .from("bill_payments")
+    .select("id, amount")
+    .eq("member_id", memberId)
+    .eq("month", month)
+    .maybeSingle();
+
+  const existingRow = existingPay as Record<string, unknown> | null;
+  const existingAmount = existingRow ? Number(existingRow.amount ?? 0) : 0;
+  const newTotal = existingAmount + paid;
+
+  // 3. Upsert bill_payments
+  if (existingRow?.id) {
+    await supabaseAdmin
+      .from("bill_payments")
+      .update({ amount: newTotal, updated_at: now })
+      .eq("id", existingRow.id as string);
+  } else {
+    await supabaseAdmin
+      .from("bill_payments")
+      .insert({ member_id: memberId, month, year, amount: newTotal, paid: false });
+  }
+
+  res.json({ success: true, submission, totalPaid: newTotal });
+});
+
 // ── POST /api/admin/payments/:id/reject ──────────────────────────────────────
 // Reject a payment submission.
 // Body: { adminNotes?: string }

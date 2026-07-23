@@ -1246,36 +1246,56 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const recordCashPayment = async (memberId: string, month: string, amount: number, note?: string) => {
     const now = new Date().toISOString();
     const bill = calculateMonthlyBill(memberId, month);
-    const client = await sb();
 
-    const baseRow: Record<string, unknown> = {
-      member_id: memberId,
-      month,
-      claimed_amount: amount,
-      screenshot_base64: null,
-      utr: null,
-      status: "approved",
-      approved_amount: amount,
-      reviewed_at: now,
-      ...(note?.trim() ? { admin_notes: note.trim() } : {}),
-    };
+    let submissionRow: Record<string, unknown> | null = null;
 
-    // Try with payment_method column; fall back gracefully if column doesn't exist yet
-    let result = await client
-      .from("payment_submissions")
-      .insert({ ...baseRow, payment_method: "cash" })
-      .select()
-      .single();
-
-    if (result.error?.message?.includes("payment_method")) {
-      result = await client
-        .from("payment_submissions")
-        .insert(baseRow)
-        .select()
-        .single();
+    // ── Primary path: API server (service-role key, bypasses RLS) ────────────
+    let viaApi = false;
+    try {
+      const resp = await apiCall("POST", "/admin/payments/cash", {
+        memberId, month, amount, note: note?.trim() || undefined,
+      }) as { submission: Record<string, unknown> };
+      submissionRow = resp.submission;
+      viaApi = true;
+    } catch {
+      // API server unreachable — fall through to direct Supabase
     }
 
-    const r = getData(result) as Record<string, unknown>;
+    // ── Fallback path: direct Supabase (requires RLS fix in schema.sql) ──────
+    if (!viaApi) {
+      const client = await sb();
+      const baseRow: Record<string, unknown> = {
+        member_id: memberId,
+        month,
+        claimed_amount: amount,
+        screenshot_base64: null,
+        utr: null,
+        status: "approved",
+        approved_amount: amount,
+        reviewed_at: now,
+        ...(note?.trim() ? { admin_notes: note.trim() } : {}),
+      };
+
+      let result = await client
+        .from("payment_submissions")
+        .insert({ ...baseRow, payment_method: "cash" })
+        .select()
+        .single();
+
+      if (result.error?.message?.includes("payment_method")) {
+        result = await client
+          .from("payment_submissions")
+          .insert(baseRow)
+          .select()
+          .single();
+      }
+
+      submissionRow = getData(result) as Record<string, unknown>;
+      // Update bill_payments via the existing helper
+      await recordPayment(memberId, month, amount, bill.dueAmount);
+    }
+
+    const r = submissionRow!;
     const submission: PaymentSubmission = {
       id: r.id as string,
       memberId: r.member_id as string,
@@ -1292,7 +1312,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
     setPaymentSubmissions((prev) => [submission, ...prev]);
 
-    await recordPayment(memberId, month, amount, bill.dueAmount);
+    // When the API server handled it, bill_payments was already updated server-side;
+    // still call recordPayment so local state stays consistent.
+    if (viaApi) {
+      await recordPayment(memberId, month, amount, bill.dueAmount);
+    }
   };
 
   // ── Calculations ──────────────────────────────────────────────────────────
