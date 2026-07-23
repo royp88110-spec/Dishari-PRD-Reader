@@ -80,10 +80,15 @@ CREATE TABLE IF NOT EXISTS fines (
 );
 
 CREATE TABLE IF NOT EXISTS announcements (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  title       TEXT        NOT NULL,
-  body        TEXT        NOT NULL,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  title            TEXT        NOT NULL,
+  body             TEXT        NOT NULL,
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  -- 'general' = broadcast to all members; 'payment_reminder' = targeted
+  type             TEXT        NOT NULL DEFAULT 'general'
+                   CHECK (type IN ('general', 'payment_reminder')),
+  target_member_id UUID        REFERENCES members(id) ON DELETE CASCADE,
+  target_month     TEXT
 );
 
 CREATE TABLE IF NOT EXISTS settings (
