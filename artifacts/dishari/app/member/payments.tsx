@@ -139,15 +139,16 @@ export default function MemberPayments() {
     const name = encodeURIComponent(upiSettings.accountHolderName || "Dishari Mess");
     const noteEnc = encodeURIComponent(note);
     const upiUrl = `upi://pay?pa=${upiSettings.upiId}&pn=${name}&am=${amount}&tn=${noteEnc}&cu=INR`;
-    const canOpen = await Linking.canOpenURL(upiUrl).catch(() => false);
-    if (canOpen) {
-      await Linking.openURL(upiUrl).catch(() => {
-        Alert.alert("No UPI App Found", "Please install Google Pay, PhonePe, or any UPI app and try again.");
-      });
-    } else {
+    // Try openURL directly — on Android release builds canOpenURL returns false
+    // even when UPI apps are installed (package visibility restriction, API 30+).
+    // The <queries> manifest entry allows the intent to resolve; we only show the
+    // "not found" alert if openURL itself throws/rejects.
+    try {
+      await Linking.openURL(upiUrl);
+      setShowPayUpiPrompt(true);
+    } catch {
       Alert.alert("No UPI App Found", "Please install Google Pay, PhonePe, or any UPI app and try again.");
     }
-    setShowPayUpiPrompt(true);
   };
 
   const openPayModal = () => {

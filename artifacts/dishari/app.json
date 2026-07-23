@@ -30,7 +30,8 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/withUpiQueries"
     ],
     "experiments": {
       "typedRoutes": true,
